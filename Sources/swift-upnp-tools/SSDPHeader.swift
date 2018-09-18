@@ -1,6 +1,13 @@
 import Foundation
 
-public class SSDPHeader {
+
+public enum NTS: String {
+    case Alive = "ssdp:alive"
+    case Update = "ssdp:update"
+    case Byebye = "ssdp:byebye"
+}
+
+public class SSDPHeader : OrderedCaseInsensitiveProperties {
     public var firstLineParts: [String] = []
     public var _firstLine: String = ""
     public var firstLine: String? {
@@ -12,29 +19,6 @@ public class SSDPHeader {
             let tokens = newValue!.split(separator: " ", maxSplits: 2)
             firstLineParts.removeAll()
             firstLineParts += tokens.map { "\($0)" }
-        }
-    }
-    
-    var nametable: [String:String] = [:]
-    var fields: [KeyValuePair] = []
-
-    subscript (key: String) -> String? {
-        get {
-            for field in fields {
-                if field.equalsKeyIgnorecase(key) {
-                    return field.value
-                }
-            }
-            return nil
-        }
-        set(newValue) {
-            for field in fields {
-                if field.equalsKeyIgnorecase(key) {
-                    field.value = newValue!
-                    return
-                }
-            }
-            fields.append(KeyValuePair(key: key, value: newValue!))
         }
     }
 
@@ -53,6 +37,30 @@ public class SSDPHeader {
     public var isHttpResponse: Bool {
         get {
             return firstLineParts[0].hasPrefix("HTTP/")
+        }
+    }
+
+    public var isNotifyAlive: Bool {
+        get {
+            return self["NTS"]!.compare("ssdp:alive") == .orderedSame
+        }
+    }
+
+    public var isNotifyUpdate: Bool {
+        get {
+            return self["NTS"]!.compare("ssdp:update") == .orderedSame
+        }
+    }
+
+    public var isNotifyByeBye: Bool {
+        get {
+            return self["NTS"]!.compare("ssdp:byebye") == .orderedSame
+        }
+    }
+
+    public var nts: NTS {
+        get {
+            return NTS(rawValue: self["NTS"]!)!
         }
     }
 

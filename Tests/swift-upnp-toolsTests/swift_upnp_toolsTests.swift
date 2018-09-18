@@ -66,6 +66,21 @@ final class swift_upnp_toolsTests: XCTestCase {
         XCTAssertEqual(usn.description, "uuid:fake")
     }
 
+    func testXml() {
+        let tag = XmlTag()
+        tag.name = "a"
+        XCTAssertEqual(tag.description, "<a />")
+
+        tag.namespace = "x"
+        XCTAssertEqual(tag.description, "<x:a />")
+
+        tag.content = "A"
+        XCTAssertEqual(tag.description, "<x:a>A</x:a>")
+
+        tag.content = XmlTag(name: "wow").description
+        XCTAssertEqual(tag.description, "<x:a><wow /></x:a>")
+    }
+
     static var allTests = [
       ("testExample", testExample),
       ("testSsdp", testSsdp),
@@ -74,5 +89,6 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testSsdpHeaderFromString", testSsdpHeaderFromString),
       ("testUPnPModel", testUPnPModel),
       ("testUsn", testUsn),
+      ("testXml", testXml),
     ]
 }

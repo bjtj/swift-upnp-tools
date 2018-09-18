@@ -17,3 +17,52 @@ public class KeyValuePair {
         return self.key.compare(key) == .orderedSame
     }
 }
+
+
+public class OrderedProperties {
+    public var fields: [KeyValuePair] = []
+
+    subscript (key: String) -> String? {
+        get {
+            for field in fields {
+                if field.equalsKey(key) {
+                    return field.value
+                }
+            }
+            return nil
+        }
+        set(newValue) {
+            for field in fields {
+                if field.equalsKey(key) {
+                    field.value = newValue!
+                    return
+                }
+            }
+            fields.append(KeyValuePair(key: key, value: newValue!))
+        }
+    }
+}
+
+public class OrderedCaseInsensitiveProperties {
+    public var fields: [KeyValuePair] = []
+
+    subscript (key: String) -> String? {
+        get {
+            for field in fields {
+                if field.equalsKeyIgnorecase(key) {
+                    return field.value
+                }
+            }
+            return nil
+        }
+        set(newValue) {
+            for field in fields {
+                if field.equalsKeyIgnorecase(key) {
+                    field.value = newValue!
+                    return
+                }
+            }
+            fields.append(KeyValuePair(key: key, value: newValue!))
+        }
+    }
+}
