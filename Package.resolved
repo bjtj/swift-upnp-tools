@@ -9,6 +9,15 @@
           "revision": "ce36f72f2c36b88f847de50c8c0ed8021ff80097",
           "version": "1.0.16"
         }
+      },
+      {
+        "package": "swift-http-server",
+        "repositoryURL": "https://github.com/bjtj/swift-http-server.git",
+        "state": {
+          "branch": null,
+          "revision": "036cc29b38941f82b78ac8897692fdb9690b23d8",
+          "version": "0.0.1"
+        }
       }
     ]
   },
