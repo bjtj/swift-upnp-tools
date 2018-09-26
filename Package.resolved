@@ -11,21 +11,21 @@
         }
       },
       {
-        "package": "swift-http-server",
+        "package": "SwiftHttpServer",
         "repositoryURL": "https://github.com/bjtj/swift-http-server.git",
         "state": {
           "branch": null,
-          "revision": "036cc29b38941f82b78ac8897692fdb9690b23d8",
-          "version": "0.0.1"
+          "revision": "a6c3910ec9e3457476bed09f12e168771f53b2e4",
+          "version": "0.1.0"
         }
       },
       {
-        "package": "swift-xml",
+        "package": "SwiftXml",
         "repositoryURL": "https://github.com/bjtj/swift-xml.git",
         "state": {
           "branch": null,
-          "revision": "b5ba21cc6640ca4ee3c95d74c5c55e708403dc56",
-          "version": "0.1.4"
+          "revision": "b2963c3934a534547d128d477f88add358390984",
+          "version": "0.1.5"
         }
       }
     ]

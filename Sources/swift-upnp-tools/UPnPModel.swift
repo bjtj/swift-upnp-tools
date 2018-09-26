@@ -1,5 +1,5 @@
 import Foundation
-import swift_xml
+import SwiftXml
 
 public class UPnPModel : OrderedProperties {
     public var propertyXml: String {

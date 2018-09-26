@@ -1,4 +1,4 @@
-import swift_xml
+import SwiftXml
 
 public class UPnPSoapRequest : OrderedProperties {
 

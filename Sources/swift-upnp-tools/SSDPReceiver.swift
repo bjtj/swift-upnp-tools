@@ -4,9 +4,9 @@ import Socket
 public class SSDPReceiver {
 
     var finishing: Bool = false
-    public var handler: SSDPHandlerClosure?
+    public var handler: SSDPHandlerProtocol?
 
-    public init(handler: SSDPHandlerClosure? = nil) {
+    public init(handler: SSDPHandlerProtocol? = nil) {
         self.handler = handler
     }
 
@@ -23,7 +23,7 @@ public class SSDPReceiver {
             let ret = try socket.listen(forMessage: &readData, on: SSDP.MCAST_PORT)
             let header = SSDPHeader.read(text: String(data: readData, encoding: .utf8)!)
             if let handler = handler {
-                if let responseHeaders = handler(header) {
+                if let responseHeaders = handler.onSSDPHeader(ssdpHeader: header) {
                     for responseHeader in responseHeaders {
                         let data = responseHeader.description.data(using: .utf8)
                         try socket.write(from: data!, to: ret.address!)

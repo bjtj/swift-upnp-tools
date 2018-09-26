@@ -1,5 +1,5 @@
 import XCTest
-@testable import swift_upnp_tools
+@testable import SwiftUpnpTools
 
 final class swift_upnp_toolsTests: XCTestCase {
     func testExample() {

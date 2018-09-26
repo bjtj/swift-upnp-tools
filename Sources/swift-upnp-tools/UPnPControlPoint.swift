@@ -1,53 +1,50 @@
 import Foundation
-import swift_http_server
+import SwiftHttpServer
 
 public protocol DeviceHandlerProtocol {
     func onDeviceAdded(device: UPnPDevice)
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-public class UPnPControlPoint : OnDeviceBuildProtocol {
+public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
 
     public var port: Int
     public var httpServer : HttpServer?
     public var ssdpReceiver : SSDPReceiver?
-    public var ssdpHandler : SSDPHandlerClosure?
     public var devices = [String:UPnPDevice]()
     public var deviceHandler: DeviceHandlerProtocol?
     
     public init(port: Int) {
         self.port = port
-        ssdpHandler = { (ssdpHeader) in
-            guard let ssdpHeader = ssdpHeader else {
+    }
+
+    public func onSSDPHeader(ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
+        if ssdpHeader.isNotify {
+            guard let nts = ssdpHeader.nts else {
                 return nil
             }
-            if ssdpHeader.isNotify {
-                guard let nts = ssdpHeader.nts else {
-                    return nil
+            switch nts {
+            case .alive:
+                if let usn = ssdpHeader.usn {
+                    if let device = self.devices[usn.uuid] {
+                        device.renewTimeout()
+                    }
                 }
-                switch nts {
-                case .alive:
-                    if let usn = ssdpHeader.usn {
-                        if let device = self.devices[usn.uuid] {
-                            device.renewTimeout()
-                        }
-                    }
-                    if let location = ssdpHeader["location"] {
-                        let url = URL(string: location)
-                        buildDevice(url: url, handler: self)
-                    }
-                    break
-                case .byebye:
-                    if let usn = ssdpHeader.usn {
-                        self.removeDevice(udn: usn.uuid)
-                    }
-                    break
-                case .update:
-                    break
+                if let location = ssdpHeader["location"] {
+                    let url = URL(string: location)
+                    buildDevice(url: url, handler: self)
                 }
+                break
+            case .byebye:
+                if let usn = ssdpHeader.usn {
+                    self.removeDevice(udn: usn.uuid)
+                }
+                break
+            case .update:
+                break
             }
-            return nil
         }
+        return nil
     }
 
     public func onDeviceBuild(url: URL?, device: UPnPDevice?) {
@@ -94,7 +91,7 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
             guard let receiver = self.ssdpReceiver else {
                 return
             }
-            receiver.handler = self.ssdpHandler
+            receiver.handler = self
             do {
                 try receiver.run()
             } catch let error {
