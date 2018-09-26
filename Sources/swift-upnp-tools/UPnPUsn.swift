@@ -2,14 +2,14 @@
 
 public class UPnPUsn {
 
-    public var uuid: String?
-    public var type: String?
+    public var uuid = ""
+    public var type = ""
 
     public var description: String {
-        if type == nil {
-            return uuid!
+        if type.isEmpty {
+            return uuid
         }
-        return "\(uuid!)::\(type!)"
+        return "\(uuid)::\(type)"
     }
 
     static func read(text: String) -> UPnPUsn {

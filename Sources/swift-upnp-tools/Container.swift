@@ -20,7 +20,7 @@ public class KeyValuePair {
 
 
 public class OrderedProperties {
-    public var fields: [KeyValuePair] = []
+    public var fields = [KeyValuePair]()
 
     subscript (key: String) -> String? {
         get {

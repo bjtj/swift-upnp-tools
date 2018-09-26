@@ -2,9 +2,9 @@ import Foundation
 
 
 public enum NTS: String {
-    case Alive = "ssdp:alive"
-    case Update = "ssdp:update"
-    case Byebye = "ssdp:byebye"
+    case alive = "ssdp:alive"
+    case update = "ssdp:update"
+    case byebye = "ssdp:byebye"
 }
 
 public class SSDPHeader : OrderedCaseInsensitiveProperties {
@@ -42,25 +42,37 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
 
     public var isNotifyAlive: Bool {
         get {
-            return self["NTS"]!.compare("ssdp:alive") == .orderedSame
+            guard let nts = self["NTS"] else {
+                return false
+            }
+            return NTS(rawValue: nts) == .alive
         }
     }
 
     public var isNotifyUpdate: Bool {
         get {
-            return self["NTS"]!.compare("ssdp:update") == .orderedSame
+            guard let nts = self["NTS"] else {
+                return false
+            }
+            return NTS(rawValue: nts) == .update
         }
     }
 
     public var isNotifyByeBye: Bool {
         get {
-            return self["NTS"]!.compare("ssdp:byebye") == .orderedSame
+            guard let nts = self["NTS"] else {
+                return false
+            }
+            return NTS(rawValue: nts) == .byebye
         }
     }
 
-    public var nts: NTS {
+    public var nts: NTS? {
         get {
-            return NTS(rawValue: self["NTS"]!)!
+            guard let nts = self["NTS"] else {
+                return nil
+            }
+            return NTS(rawValue: nts)
         }
     }
 

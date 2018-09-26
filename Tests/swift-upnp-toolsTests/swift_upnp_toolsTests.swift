@@ -62,23 +62,51 @@ final class swift_upnp_toolsTests: XCTestCase {
 
         usn = UPnPUsn.read(text: "uuid:fake")
         XCTAssertEqual(usn.uuid, "uuid:fake")
-        XCTAssertEqual(usn.type, nil)
+        XCTAssert(usn.type.isEmpty)
         XCTAssertEqual(usn.description, "uuid:fake")
     }
 
     func testXml() {
         let tag = XmlTag()
         tag.name = "a"
-        XCTAssertEqual(tag.description, "<a />")
+        XCTAssertEqual("<a />", tag.description)
 
         tag.namespace = "x"
-        XCTAssertEqual(tag.description, "<x:a />")
+        XCTAssertEqual("<x:a />", tag.description)
 
         tag.content = "A"
-        XCTAssertEqual(tag.description, "<x:a>A</x:a>")
+        XCTAssertEqual("<x:a>A</x:a>", tag.description)
 
         tag.content = XmlTag(name: "wow").description
-        XCTAssertEqual(tag.description, "<x:a><wow /></x:a>")
+        XCTAssertEqual("<x:a><wow /></x:a>", tag.description)
+    }
+
+    func testDeviceDescription() {
+        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            XCTAssert(false)
+            return
+        }
+        
+        XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
+    }
+
+    func testScpd() {
+        guard let scpd = UPnPScpd.read(xmlString: scpd) else {
+            XCTAssert(false)
+            return
+        }
+
+        for action in scpd.actions {
+            if let name = action.name {
+                print(name)
+            }            
+        }
+
+        for stateVariable in scpd.stateVariables {
+            if let name = stateVariable.name {
+                print(name)
+            }
+        }
     }
 
     static var allTests = [
@@ -90,5 +118,93 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testUPnPModel", testUPnPModel),
       ("testUsn", testUsn),
       ("testXml", testXml),
+      ("testDeviceDescription", testDeviceDescription),
+      ("testScpd", testScpd),
     ]
+
+    var deviceDescription = "<?xml version=\"1.0\"?>" +
+      "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
+      "  <specVersion>" +
+      "  <major>1</major>" +
+      "  <minor>0</minor>" +
+      "  </specVersion>" +
+      "  <device>" +
+      "  <deviceType>urn:schemas-upnp-org:device:DimmableLight:1</deviceType>" +
+      "  <friendlyName>UPnP Sample Dimmable Light ver.1</friendlyName>" +
+      "  <manufacturer>Testers</manufacturer>" +
+      "  <manufacturerURL>www.example.com</manufacturerURL>" +
+      "  <modelDescription>UPnP Test Device</modelDescription>" +
+      "  <modelName>UPnP Test Device</modelName>" +
+      "  <modelNumber>1</modelNumber>" +
+      "  <modelURL>www.example.com</modelURL>" +
+      "  <serialNumber>12345678</serialNumber>" +
+      "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+      "  <serviceList>" +
+      "    <service>" +
+      "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +
+      "    <serviceId>urn:upnp-org:serviceId:SwitchPower.1</serviceId>" +
+      "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/scpd.xml</SCPDURL>" +
+      "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/control.xml</controlURL>" +
+      "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/event.xml</eventSubURL>" +
+      "    </service>" +
+      "    <service>" +
+      "    <serviceType>urn:schemas-upnp-org:service:Dimming:1</serviceType>" +
+      "    <serviceId>urn:upnp-org:serviceId:Dimming.1</serviceId>" +
+      "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/scpd.xml</SCPDURL>" +
+      "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/control.xml</controlURL>" +
+      "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/event.xml</eventSubURL>" +
+      "    </service>" +
+      "  </serviceList>" +
+      "  </device>" +
+      "</root>"
+
+    var scpd = "<?xml version=\"1.0\"?>" +
+      "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
+      "  <specVersion>" +
+      " <major>1</major>" +
+      " <minor>0</minor>" +
+      "  </specVersion>" +
+      "  <actionList>" +
+      " <action>" +
+      "   <name>SetLoadLevelTarget</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>newLoadlevelTarget</name>" +
+      "    <direction>in</direction>" +
+      "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      " <action>" +
+      "   <name>GetLoadLevelTarget</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>GetLoadlevelTarget</name>" +
+      "    <direction>out</direction>" +
+      "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      " <action>" +
+      "   <name>GetLoadLevelStatus</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>retLoadlevelStatus</name>" +
+      "    <direction>out</direction>" +
+      "    <relatedStateVariable>LoadLevelStatus</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      "  </actionList>" +
+      "  <serviceStateTable>" +
+      " <stateVariable sendEvents=\"no\">" +
+      "   <name>LoadLevelTarget</name>" +
+      "   <dataType>ui1</dataType>" +
+      " </stateVariable>" +
+      " <stateVariable sendEvents=\"yes\">" +
+      "   <name>LoadLevelStatus</name>" +
+      "   <dataType>ui1</dataType>" +
+      " </stateVariable>" +
+      "  </serviceStateTable>" +
+      "</scpd>"
 }

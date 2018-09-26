@@ -3,11 +3,13 @@ public class XmlTag {
 
     public var namespace: String?
     public var name: String?
-    public var content: String?
+    public var ext: String?
+    public var content: String
 
-    public init(namespace: String? = nil, name: String? = nil, content: String? = nil) {
+    public init(namespace: String? = nil, name: String? = nil, ext: String? = nil, content: String = "") {
         self.namespace = namespace
         self.name = name
+        self.ext = ext
         self.content = content
     }
 
@@ -15,8 +17,11 @@ public class XmlTag {
         var str = "<"
         let tag = (namespace == nil ? "\(name!)" : "\(namespace!):\(name!)")
         str += tag
-        if content != nil {
-            str += ">\(content!)</\(tag)>"
+        if ext != nil {
+            str += " \(ext!)"
+        }
+        if content.isEmpty == false {
+            str += ">\(content)</\(tag)>"
         } else {
             str += " />"
         }
