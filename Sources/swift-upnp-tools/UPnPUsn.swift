@@ -2,8 +2,13 @@
 
 public class UPnPUsn {
 
-    public var uuid = ""
-    public var type = ""
+    public var uuid: String
+    public var type: String
+
+    public init(uuid: String = "", type: String = "") {
+        self.uuid = uuid
+        self.type = type
+    }
 
     public var description: String {
         if type.isEmpty {
@@ -12,7 +17,7 @@ public class UPnPUsn {
         return "\(uuid)::\(type)"
     }
 
-    static func read(text: String) -> UPnPUsn {
+    public static func read(text: String) -> UPnPUsn {
         let usn = UPnPUsn()
         let tokens = text.components(separatedBy: "::")
         usn.uuid = tokens[0]

@@ -76,6 +76,22 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    public var usn: UPnPUsn? {
+        get {
+            guard let usn = self["USN"] else {
+                return nil
+            }
+            return UPnPUsn.read(text: usn)
+        }
+        set(newValue) {
+            guard let usn = newValue else {
+                self["UDN"] = nil
+                return
+            }
+            self["USN"] = usn.description
+        }
+    }
+
     public var description: String {
         let headerFields = fields.map {"\($0.key): \($0.value)"}.joined(separator: "\r\n")
         return "\(firstLine!)\r\n\(headerFields)\r\n\r\n"

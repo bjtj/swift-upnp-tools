@@ -1,3 +1,4 @@
+import Foundation
 import swift_xml
 
 public class UPnPModel : OrderedProperties {
@@ -61,6 +62,8 @@ public class UPnPSpecVersion : UPnPModel {
 
 public class UPnPDevice : UPnPModel {
     public var parent: UPnPDevice?
+    var timeBase: TimeBase
+    public var baseUrl: URL?
     public var services = [UPnPService]()
     public var embeddedDevices = [UPnPDevice]()
     public var udn: String? {
@@ -75,6 +78,18 @@ public class UPnPDevice : UPnPModel {
     
     public var isRootDevice: Bool {
         return parent == nil
+    }
+
+    public init(timeout: UInt64 = 1800) {
+        self.timeBase = TimeBase(timeout: timeout)
+    }
+
+    public func renewTimeout() {
+        timeBase.renewTimeout()
+    }
+
+    public var isExpired: Bool {
+        return timeBase.isExpired
     }
     
     public func addEmbeddedDevice(device: UPnPDevice) {
@@ -174,26 +189,35 @@ public class UPnPDevice : UPnPModel {
 }
 
 public class UPnPService : UPnPModel {
+
+    public var scpd: UPnPScpd?
+
+    
     public var serviceId: String? {
         get { return self["serviceId"] }
         set(value) { self["serviceId"] = value }
     }
+    
     public var serviceType: String? {
         get { return self["serviceType"] }
         set(value) { self["serviceType"] = value }
     }
+    
     public var spcdurl: String? {
         get { return self["SCPDURL"] }
         set(value) { self["SCPDURL"] = value }
     }
+    
     public var controlUrl: String? {
         get { return self["controlURL"] }
         set(value) { self["controlURL"] = value }
     }
+    
     public var evnetSubUrl: String? {
         get { return self["eventSubURL"] }
         set(value) { self["eventSubURL"] = value }
     }
+    
     public static func read(xmlElement: XmlElement) -> UPnPService {
         let service = UPnPService()
         guard let elements = xmlElement.elements else {
@@ -206,6 +230,7 @@ public class UPnPService : UPnPModel {
         }
         return service
     }
+    
     public var description: String {
         return XmlTag(name: "service", content: propertyXml).description
     }

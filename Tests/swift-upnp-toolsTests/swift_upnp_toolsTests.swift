@@ -122,6 +122,17 @@ final class swift_upnp_toolsTests: XCTestCase {
         print(response.xmlDocument)
     }
 
+    func testProperty() {
+        guard let props = UPnPEventProperties.read(xmlString: propertyXml) else {
+            XCTAssert(false)
+            return
+        }
+        XCTAssertEqual("", props["ContainerUpdateIDs"])
+        XCTAssertEqual("76185766", props["SystemUpdateID"])
+
+        print(props.xmlDocument)
+    }
+
     static var allTests = [
       ("testExample", testExample),
       ("testSsdp", testSsdp),
@@ -134,6 +145,7 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testDeviceDescription", testDeviceDescription),
       ("testScpd", testScpd),
       ("testSoap", testSoap),
+      ("testProperty", testProperty),
     ]
 
     var deviceDescription = "<?xml version=\"1.0\"?>" +
@@ -240,4 +252,14 @@ final class swift_upnp_toolsTests: XCTestCase {
       "  <NumberReturned>3</NumberReturned><TotalMatches>3</TotalMatches><UpdateID>76229067</UpdateID></u:BrowseResponse>" +
       "  </s:Body>" +
       "</s:Envelope>"
+
+    var propertyXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+      "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">" +
+      "  <e:property>" +
+      "  <ContainerUpdateIDs></ContainerUpdateIDs>" +
+      "  </e:property>" +
+      "  <e:property>" +
+      "  <SystemUpdateID>76185766</SystemUpdateID>" +
+      "  </e:property>" +
+      "</e:propertyset>"
 }
