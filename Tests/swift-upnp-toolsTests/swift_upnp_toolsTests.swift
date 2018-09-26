@@ -67,7 +67,7 @@ final class swift_upnp_toolsTests: XCTestCase {
     }
 
     func testXml() {
-        let tag = XmlTag()
+        let tag = XmlTag(content: "")
         tag.name = "a"
         XCTAssertEqual("<a />", tag.description)
 
@@ -77,7 +77,7 @@ final class swift_upnp_toolsTests: XCTestCase {
         tag.content = "A"
         XCTAssertEqual("<x:a>A</x:a>", tag.description)
 
-        tag.content = XmlTag(name: "wow").description
+        tag.content = XmlTag(name: "wow", content: "").description
         XCTAssertEqual("<x:a><wow /></x:a>", tag.description)
     }
 
@@ -96,17 +96,30 @@ final class swift_upnp_toolsTests: XCTestCase {
             return
         }
 
-        for action in scpd.actions {
-            if let name = action.name {
-                print(name)
-            }            
-        }
+        XCTAssertEqual("SetLoadLevelTarget", scpd.actions[0].name!)
+        XCTAssertEqual("GetLoadLevelTarget", scpd.actions[1].name!)
+        XCTAssertEqual("GetLoadLevelStatus", scpd.actions[2].name!)
+        XCTAssertEqual("LoadLevelTarget", scpd.stateVariables[0].name!)
+        XCTAssertEqual("LoadLevelStatus", scpd.stateVariables[1].name!)
+    }
 
-        for stateVariable in scpd.stateVariables {
-            if let name = stateVariable.name {
-                print(name)
-            }
+    func testSoap() {
+        guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
+            XCTAssert(false)
+            return
         }
+        XCTAssertEqual("urn:schemas-upnp-org:service:SwitchPower:1#SetTarget", request.soapaction)
+
+        print(request.xmlDocument)
+        
+        guard let response = UPnPSoapResponse.read(xmlString: soapResponse) else {
+            XCTAssert(false)
+            return
+        }
+        XCTAssertEqual("urn:schemas-upnp-org:service:ContentDirectory:1", response.serviceType)
+        XCTAssertEqual("Browse", response.actionName)
+
+        print(response.xmlDocument)
     }
 
     static var allTests = [
@@ -120,6 +133,7 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testXml", testXml),
       ("testDeviceDescription", testDeviceDescription),
       ("testScpd", testScpd),
+      ("testSoap", testSoap),
     ]
 
     var deviceDescription = "<?xml version=\"1.0\"?>" +
@@ -207,4 +221,23 @@ final class swift_upnp_toolsTests: XCTestCase {
       " </stateVariable>" +
       "  </serviceStateTable>" +
       "</scpd>"
+
+    var soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+      "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"" +
+      "      xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+      "  <s:Body>" +
+      "  <u:SetTarget xmlns:u=\"urn:schemas-upnp-org:service:SwitchPower:1\">" +
+      "    <newTargetValue>10</newTargetValue>" +
+      "  </u:SetTarget>" +
+      "  </s:Body>" +
+      "</s:Envelope>"
+
+    var soapResponse = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+      "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+      "  <s:Body>" +
+      "  <u:BrowseResponse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">" +
+      "    <Result>&lt;DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"&gt;&lt;container id=\"94467912-bd40-4d2f-ad25-7b8423f7b05a\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Video&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Video&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"abe6121c-1731-4683-815c-89e1dcd2bf11\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Music&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Music&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"b0184133-f840-4a4f-a583-45f99645edcd\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Photos&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Photos&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;</Result>" +
+      "  <NumberReturned>3</NumberReturned><TotalMatches>3</TotalMatches><UpdateID>76229067</UpdateID></u:BrowseResponse>" +
+      "  </s:Body>" +
+      "</s:Envelope>"
 }

@@ -4,7 +4,7 @@ public class UPnPModel : OrderedProperties {
     public var propertyXml: String {
         var str = ""
         for field in fields {
-            str += XmlTag(name: field.key, content: field.value).description
+            str += XmlTag(name: field.key, text: field.value).description
         }
         return str
     }
@@ -49,10 +49,10 @@ public class UPnPSpecVersion : UPnPModel {
     public var description: String {
         var str = ""
         if let major = major {
-            str += XmlTag(name: "major", content: major).description
+            str += XmlTag(name: "major", text: major).description
         }
         if let minor = minor {
-            str += XmlTag(name: "minor", content: minor).description
+            str += XmlTag(name: "minor", text: minor).description
         }
         return XmlTag(name: "specVersion", content: str).description
     }
@@ -151,18 +151,18 @@ public class UPnPDevice : UPnPModel {
     }
     
     public var description: String {
-        let tag = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"")
+        let tag = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"", content: "")
         var content = propertyXml
         
         if services.isEmpty == false {
-            let serviceList = XmlTag(name: "serviceList")
+            let serviceList = XmlTag(name: "serviceList", content: "")
             for service in services {
                 serviceList.content += service.description
             }
             content += serviceList.description
         }
         if embeddedDevices.isEmpty == false {
-            let deviceList = XmlTag(name: "deviceList")
+            let deviceList = XmlTag(name: "deviceList", content: "")
             for device in embeddedDevices {
                 deviceList.content += device.description
             }
@@ -272,7 +272,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     public var description: String {
-        let tag = XmlTag(name: "scpd")
+        let tag = XmlTag(name: "scpd", content: "")
         if let specVersion = specVersion {
             tag.content += specVersion.description
         }
@@ -282,7 +282,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     public var actionListXml: String {
-        let tag = XmlTag(name: "actionList")
+        let tag = XmlTag(name: "actionList", content: "")
         for action in actions {
             tag.content += action.description
         }
@@ -290,7 +290,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     public var serviceStateTableXml: String {
-        let tag = XmlTag(name: "serviceStateTable")
+        let tag = XmlTag(name: "serviceStateTable", content: "")
         for stateVariable in stateVariables {
             tag.content += stateVariable.description
         }
@@ -330,7 +330,7 @@ public class UPnPAction : UPnPModel {
     }
 
     public var argumentListXml: String {
-        let tag = XmlTag(name: "argumentList")
+        let tag = XmlTag(name: "argumentList", content: "")
         for argument in arguments {
             tag.content += argument.description
         }

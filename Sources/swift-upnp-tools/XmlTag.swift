@@ -1,3 +1,5 @@
+import swift_xml
+
 
 public class XmlTag {
 
@@ -11,6 +13,13 @@ public class XmlTag {
         self.name = name
         self.ext = ext
         self.content = content
+    }
+
+    public init(namespace: String? = nil, name: String? = nil, ext: String? = nil, text: String = "") {
+        self.namespace = namespace
+        self.name = name
+        self.ext = ext
+        self.content = escapeXml(text: text)
     }
 
     public var description: String {
