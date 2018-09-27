@@ -13,6 +13,7 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
     public var ssdpReceiver : SSDPReceiver?
     public var devices = [String:UPnPDevice]()
     public var deviceHandler: DeviceHandlerProtocol?
+    public var subscriptions = [String:UPnPEventSubscription]()
     
     public init(port: Int) {
         self.port = port
@@ -31,8 +32,9 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
                     }
                 }
                 if let location = ssdpHeader["location"] {
-                    let url = URL(string: location)
-                    buildDevice(url: url, handler: self)
+                    if let url = URL(string: location) {
+                        buildDevice(url: url, handler: self)
+                    }
                 }
                 break
             case .byebye:
@@ -70,6 +72,45 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
             deviceHandler.onDeviceRemoved(device: device)
         }
         devices[udn] = nil
+    }
+
+    public func invokeAction(url: URL, soapRequest: UPnPSoapRequest, handler: SoapResponseDelegate?) {
+        UPnPActionInvoke(url: url, soapRequest: soapRequest, handler: handler).invoke()
+    }
+
+    public func getSubscription(sid: String) -> UPnPEventSubscription? {
+        return subscriptions[sid]
+    }
+
+    public func subscribe(url: URL) {
+        subscribeEvent(url: url, callbackUrls: []) {
+            (subscription) in
+            guard let subscription = subscription else {
+                return
+            }
+            self.subscriptions[subscription.sid] = subscription
+        }
+    }
+
+    public func renewSubscribe(url: URL, subscription: UPnPEventSubscription) {
+        renewEventSubscription(url: url, subscription: subscription) {
+            (subscription) in
+            guard let subscription = subscription else {
+                return
+            }
+            subscription.renewTimeout()
+        }
+    }
+
+    public func unsubscribe(url: URL, subscription: UPnPEventSubscription) {
+        unsubscribeEvent(url: url, subscription: subscription) {
+            (subscription) in
+            guard let subscription = subscription else {
+                return
+            }
+            self.subscriptions[subscription.sid] = nil
+        }
+        
     }
 
     public func run() {

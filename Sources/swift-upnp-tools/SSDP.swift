@@ -2,11 +2,11 @@ import Foundation
 import Socket
 
 public class SSDP {
-    static var MCAST_HOST = "239.255.255.250"
-    static var MCAST_PORT = 1900
+    public static var MCAST_HOST = "239.255.255.250"
+    public static var MCAST_PORT = 1900
 }
 
-func sendMsearch(st: String?, mx: Int, handler: ((SSDPHeader?) -> Void)?) {
+public func sendMsearch(st: String?, mx: Int, handler: ((SSDPHeader?) -> Void)?) {
 
     let text = "M-SEARCH * HTTP/1.1\r\n" +
       "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +

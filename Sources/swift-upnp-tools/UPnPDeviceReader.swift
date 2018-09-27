@@ -4,10 +4,7 @@ public protocol OnDeviceBuildProtocol {
     func onDeviceBuild(url: URL?, device: UPnPDevice?)
 }
 
-public func buildDevice(url: URL?, handler: OnDeviceBuildProtocol?) {
-    guard let url = url else {
-        return
-    }
+public func buildDevice(url: URL, handler: OnDeviceBuildProtocol?) {
     let config = URLSessionConfiguration.default
     let session = URLSession(configuration: config)
     let request = URLRequest(url: url)
