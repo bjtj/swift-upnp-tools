@@ -2,6 +2,41 @@ import XCTest
 @testable import SwiftUpnpTools
 
 final class swift_upnp_toolsTests: XCTestCase {
+
+    override class func setUp() {
+        super.setUp()
+
+        startReceiver()
+        sleep(2)
+    }
+
+    override class func tearDown() {
+        super.tearDown()
+    }
+
+    class func startReceiver() {
+        DispatchQueue.global(qos: .background).async {
+            do {
+                print("receiver start")
+                let receiver = SSDPReceiver() {
+                    (address, ssdpHeader) in
+                    if let ssdpHeader = ssdpHeader {
+                        if let address = address {
+                            print("from -- \(address.hostname):\(address.port)")
+                        }
+                        print(ssdpHeader.description)
+                    }
+                    return nil
+                }
+                try receiver.run()
+            } catch let error {
+                print(error)
+            }
+            print("receiver done")
+        }
+    }
+
+    
     func testExample() {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
@@ -140,7 +175,7 @@ final class swift_upnp_toolsTests: XCTestCase {
 
         let cp = UPnPControlPoint(port: 0)
         cp.run()
-        cp.sendMsearch(st: "ssdp:all", mx: 3)
+        // cp.sendMsearch(st: "ssdp:all", mx: 3)
         
         cp.finish()
     }
@@ -157,40 +192,23 @@ final class swift_upnp_toolsTests: XCTestCase {
     }
 
     func testSsdpReceiver() {
-        DispatchQueue.global(qos: .background).async {
-            do {
-                print("receiver start")
-                let receiver = SSDPReceiver() {
-                    (address, ssdpHeader) in
-                    if let ssdpHeader = ssdpHeader {
-                        if let address = address {
-                            print("from -- \(address.hostname):\(address.port)")
-                        }
-                        print(ssdpHeader.description)
-                    }
-                    return nil
-                }
-                try receiver.run()
-            } catch let error {
-                print(error)
-            }
-            print("receiver done")
-        }
-
-        sleep(3)
-
         print("send notify")
         let properties = OrderedProperties()
         properties["x"] = "x"
         SSDP.notify(properties: properties)
-
         print("send msearch")
-        SSDP.sendMsearch(st: "ssdp:all", mx: 3)
-
-        sleep(1)
+        SSDP.sendMsearch(st: "ssdp:all", mx: 1)
     }
 
+    func testNotify() {
+        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            return
+        }
+        UPnPServer.activate(device: device)
+        UPnPServer.deactivate(device: device)
+    }
 
+    
     static var allTests = [
       ("testExample", testExample),
       ("testSsdp", testSsdp),
@@ -206,6 +224,7 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testProperty", testProperty),
       ("testServer", testServer),
       ("testSsdpReceiver", testSsdpReceiver),
+      ("testNotify", testNotify),
     ]
 
     var deviceDescription = "<?xml version=\"1.0\"?>" +

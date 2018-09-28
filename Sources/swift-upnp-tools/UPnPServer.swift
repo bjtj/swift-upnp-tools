@@ -15,35 +15,73 @@ public class UPnPServer {
     }
 
     public func registerDevice(device: UPnPDevice) {
+        guard let udn = device.udn else {
+            return
+        }
+        devices[udn] = device
     }
 
     public func unregisterDevice(device: UPnPDevice) {
-    }
-
-    public func activate(device: UPnPDevice) {
-        guard let serviceTypes = device.allServiceTypes else {
+        guard let udn = device.udn else {
             return
         }
-        for usn in serviceTypes {
-            let properties = OrderedProperties()
-            properties["NTS"] = "ssdp:alive"
-            properties["NT"] = usn.type
-            properties["USN"] = usn.uuid
-            SSDP.notify(properties: properties)
-        }
+        devices[udn] = nil
     }
 
-    public func deactivate(device: UPnPDevice) {
-        guard let serviceTypes = device.allServiceTypes else {
+    public func activate(udn: String) {
+        guard let device = devices[udn] else {
             return
         }
-        for usn in serviceTypes {
-            let properties = OrderedProperties()
-            properties["NTS"] = "ssdp:byebye"
-            properties["NT"] = usn.type
-            properties["USN"] = usn.uuid
-            SSDP.notify(properties: properties)
+        UPnPServer.activate(device: device)
+    }
+
+    public class func activate(device: UPnPDevice) {
+        guard let usn_list = device.allServiceTypes else {
+            return
         }
+        let location = "http://fake"
+        notifyAlive(usn: UPnPUsn(uuid: device.udn!, type: "upnp:rootDevice"), location: location)
+        for usn in usn_list {
+            notifyAlive(usn: usn, location: location)
+        }
+        notifyAlive(usn: UPnPUsn(uuid: device.udn!), location: location)
+    }
+
+    class func notifyAlive(usn: UPnPUsn, location: String) {
+        let properties = OrderedProperties()
+        properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
+        properties["NTS"] = "ssdp:alive"
+        properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
+        properties["USN"] = usn.description
+        properties["Location"] = location
+        SSDP.notify(properties: properties)
+    }
+
+    public func deactivate(udn: String) {
+        guard let device = devices[udn] else {
+            return
+        }
+        UPnPServer.deactivate(device: device)
+    }
+
+    public class func deactivate(device: UPnPDevice) {
+        guard let usn_list = device.allServiceTypes else {
+            return
+        }
+        notifyByebye(usn: UPnPUsn(uuid: device.udn!, type: "upnp:rootDevice"))
+        for usn in usn_list {
+            notifyByebye(usn: usn)
+        }
+        notifyByebye(usn: UPnPUsn(uuid: device.udn!))
+    }
+
+    public class func notifyByebye(usn: UPnPUsn) {
+        let properties = OrderedProperties()
+        properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
+        properties["NTS"] = "ssdp:byebye"
+        properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
+        properties["USN"] = usn.description
+        SSDP.notify(properties: properties)
     }
 
     public func registerEventSubscription(subscription: UPnPEventSubscription) {
