@@ -6,7 +6,7 @@ public protocol DeviceHandlerProtocol {
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
+public class UPnPControlPoint : OnDeviceBuildProtocol {
 
     public var port: Int
     public var httpServer : HttpServer?
@@ -19,7 +19,70 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
         self.port = port
     }
 
-    public func onSSDPHeader(ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
+    public func run() {
+        startHttpServer()
+        startSsdpReceiver()
+    }
+
+    public func startHttpServer() {
+        DispatchQueue.global(qos: .background).async {
+            guard self.httpServer == nil else {
+                // already started
+                return
+            }
+            self.httpServer = HttpServer(port: self.port)
+            do {
+                try self.httpServer!.run()
+            } catch let error{
+                print("error - \(error)")
+            }
+            self.httpServer = nil
+        }
+    }
+
+    public func startSsdpReceiver() {
+        DispatchQueue.global(qos: .background).async {
+            guard self.ssdpReceiver == nil else {
+                return
+            }
+            self.ssdpReceiver = SSDPReceiver() {
+                (address, ssdpHeader) in
+                return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+            }
+            do {
+                try self.ssdpReceiver!.run()
+            } catch let error {
+                print("error - \(error)")
+            }
+            self.ssdpReceiver = nil
+        }
+    }
+
+    public func finish() {
+        if let httpServer = httpServer {
+            httpServer.finish()
+        }
+        if let ssdpReceiver = ssdpReceiver {
+            ssdpReceiver.finish()
+        }
+    }
+
+    public func sendMsearch(st: String, mx: Int) {
+        DispatchQueue.global(qos: .background).async {
+            SSDP.sendMsearch(st: st, mx: mx) {
+                (address, ssdpHeader) in
+                guard let ssdpHeader = ssdpHeader else {
+                    return
+                }
+                let _ = self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+            }
+        }
+    }
+
+    public func onSSDPHeader(address: InetAddress?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
+        guard let ssdpHeader = ssdpHeader else {
+            return nil
+        }
         if ssdpHeader.isNotify {
             guard let nts = ssdpHeader.nts else {
                 return nil
@@ -43,7 +106,24 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
                 }
                 break
             case .update:
+                if let usn = ssdpHeader.usn {
+                    if let device = self.devices[usn.uuid] {
+                        device.renewTimeout()
+                    }
+                }
                 break
+            }
+        }
+        if ssdpHeader.isHttpResponse {
+            if let usn = ssdpHeader.usn {
+                if let device = self.devices[usn.uuid] {
+                    device.renewTimeout()
+                }
+            }
+            if let location = ssdpHeader["location"] {
+                if let url = URL(string: location) {
+                    buildDevice(url: url, handler: self)
+                }
             }
         }
         return nil
@@ -113,41 +193,4 @@ public class UPnPControlPoint : OnDeviceBuildProtocol, SSDPHandlerProtocol {
         
     }
 
-    public func run() {
-        DispatchQueue.global(qos: .background).async {
-            self.httpServer = HttpServer(port: self.port)
-            guard let server = self.httpServer else {
-                return
-            }
-            do {
-                try server.run()
-            } catch let error{
-                print("error - \(error)")
-            }
-            self.httpServer = nil
-        }
-        
-        DispatchQueue.global(qos: .background).async {
-            self.ssdpReceiver = SSDPReceiver()
-            guard let receiver = self.ssdpReceiver else {
-                return
-            }
-            receiver.handler = self
-            do {
-                try receiver.run()
-            } catch let error {
-                print("error - \(error)")
-            }
-            self.ssdpReceiver = nil
-        }
-    }
-
-    public func finish() {
-        if let server = httpServer {
-            server.finish()
-        }
-        if let receiver = ssdpReceiver {
-            receiver.finish()
-        }
-    }
 }

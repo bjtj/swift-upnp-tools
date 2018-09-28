@@ -133,6 +133,64 @@ final class swift_upnp_toolsTests: XCTestCase {
         print(props.xmlDocument)
     }
 
+    func testServer() {
+        DispatchQueue.global(qos: .background).async {
+            self.startServer()
+        }
+
+        let cp = UPnPControlPoint(port: 0)
+        cp.run()
+        cp.sendMsearch(st: "ssdp:all", mx: 3)
+        
+        cp.finish()
+    }
+
+    func startServer() {
+        let server = UPnPServer(port: 0)
+        server.run()
+        let _ = UPnPDevice.read(xmlString: deviceDescription)
+        // server.registerDevice(device: device)
+        // server.activate(device: device)
+        // server.deactivate(device: device)
+        // server.unregisterDevice(device: device)
+        // server.setProperty(service: service, properties: properties)
+    }
+
+    func testSsdpReceiver() {
+        DispatchQueue.global(qos: .background).async {
+            do {
+                print("receiver start")
+                let receiver = SSDPReceiver() {
+                    (address, ssdpHeader) in
+                    if let ssdpHeader = ssdpHeader {
+                        if let address = address {
+                            print("from -- \(address.hostname):\(address.port)")
+                        }
+                        print(ssdpHeader.description)
+                    }
+                    return nil
+                }
+                try receiver.run()
+            } catch let error {
+                print(error)
+            }
+            print("receiver done")
+        }
+
+        sleep(3)
+
+        print("send notify")
+        let properties = OrderedProperties()
+        properties["x"] = "x"
+        SSDP.notify(properties: properties)
+
+        print("send msearch")
+        SSDP.sendMsearch(st: "ssdp:all", mx: 3)
+
+        sleep(1)
+    }
+
+
     static var allTests = [
       ("testExample", testExample),
       ("testSsdp", testSsdp),
@@ -146,6 +204,8 @@ final class swift_upnp_toolsTests: XCTestCase {
       ("testScpd", testScpd),
       ("testSoap", testSoap),
       ("testProperty", testProperty),
+      ("testServer", testServer),
+      ("testSsdpReceiver", testSsdpReceiver),
     ]
 
     var deviceDescription = "<?xml version=\"1.0\"?>" +

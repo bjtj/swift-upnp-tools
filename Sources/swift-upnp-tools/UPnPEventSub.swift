@@ -1,25 +1,34 @@
 import Foundation
 import SwiftXml
 
+
 public protocol EventSubscribeDelegate {
     func onEventSubscribe(subscription: UPnPEventSubscription)
     func onRenewEventSubscription(subscription: UPnPEventSubscription)
     func onEventUnsubscribe(subscription: UPnPEventSubscription)
 }
 
+
 public typealias OnEventSubscription = (UPnPEventSubscription?) -> Void
 
+
 public class SubscribeHandler : HttpClientDelegate {
+
+    var usn: UPnPUsn
     var handler: OnEventSubscription?
-    public init(handler: OnEventSubscription?) {
+    
+    public init(usn: UPnPUsn, handler: OnEventSubscription?) {
+        self.usn = usn
         self.handler = handler
     }
+    
     public func onError(error: Error?) {
         guard let handler = self.handler else {
             return
         }
         handler(nil)
     }
+    
     public func onHttpResponse(data: Data?, response: URLResponse?) {
         guard let handler = self.handler else {
             return
@@ -39,10 +48,11 @@ public class SubscribeHandler : HttpClientDelegate {
             let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
             second = UInt64(String(timeout[start..<timeout.endIndex]))!
         }
-        let subscription = UPnPEventSubscription(sid: sid, timeout: second)
+        let subscription = UPnPEventSubscription(usn: usn, sid: sid, timeout: second)
         handler(subscription)
     }
 }
+
 
 public func subscribeEvent(url: URL, callbackUrls: [URL], handler: OnEventSubscription?) {
     var fields = [KeyValuePair]()
@@ -52,11 +62,13 @@ public func subscribeEvent(url: URL, callbackUrls: [URL], handler: OnEventSubscr
     HttpClient(url: url, method: "SUBSCRIBE", fields: fields, handler: nil).start()
 }
 
+
 public func unsubscribeEvent(url: URL, subscription: UPnPEventSubscription, handler: OnEventSubscription?) {
     var fields = [KeyValuePair]()
     fields.append(KeyValuePair(key: "SID", value: subscription.sid))
     HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields, handler: nil).start()
 }
+
 
 public func renewEventSubscription(url: URL, subscription: UPnPEventSubscription, handler: OnEventSubscription?) {
     var fields = [KeyValuePair]()
@@ -68,9 +80,11 @@ public func renewEventSubscription(url: URL, subscription: UPnPEventSubscription
 
 public class UPnPEventSubscription {
     public var timeBase: TimeBase
+    public var usn: UPnPUsn
     public var sid: String
     public var callbackUrls = [URL]()
-    public init(sid: String, timeout: UInt64 = 1800) {
+    public init(usn: UPnPUsn, sid: String, timeout: UInt64 = 1800) {
+        self.usn = usn
         self.sid = sid
         self.timeBase = TimeBase(timeout: timeout)
     }

@@ -75,6 +75,18 @@ public class UPnPDevice : UPnPModel {
         get { return self["friendlyName"] }
         set(value) { self["friendlyName"] = value }
     }
+
+    public var deviceType: String? {
+        get { return self["deviceType"] }
+        set(value) { self["deviceType"] = value }
+    }
+
+    public var rootDevice: UPnPDevice {
+        if parent == nil {
+            return self
+        }
+        return parent!.rootDevice
+    }
     
     public var isRootDevice: Bool {
         return parent == nil
@@ -90,6 +102,27 @@ public class UPnPDevice : UPnPModel {
 
     public var isExpired: Bool {
         return timeBase.isExpired
+    }
+
+    public var allServiceTypes: [UPnPUsn]? {
+        var types = [UPnPUsn]()
+        guard let udn = udn else {
+            return nil
+        }
+        if let deviceType = deviceType {
+            types.append(UPnPUsn(uuid: udn, type: deviceType))
+        }
+        for service in services {
+            if let serviceType = service.serviceType {
+                types.append(UPnPUsn(uuid: udn, type: serviceType))
+            }
+        }
+        for embeddedDevice in embeddedDevices {
+            if let serviceTypes = embeddedDevice.allServiceTypes {
+                types += serviceTypes
+            }
+        }
+        return types
     }
     
     public func addEmbeddedDevice(device: UPnPDevice) {
