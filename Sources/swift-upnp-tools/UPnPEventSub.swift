@@ -78,23 +78,14 @@ public func renewEventSubscription(url: URL, subscription: UPnPEventSubscription
 }
 
 
-public class UPnPEventSubscription {
-    public var timeBase: TimeBase
+public class UPnPEventSubscription : TimeBase{
     public var usn: UPnPUsn
     public var sid: String
     public var callbackUrls = [URL]()
     public init(usn: UPnPUsn, sid: String, timeout: UInt64 = 1800) {
         self.usn = usn
         self.sid = sid
-        self.timeBase = TimeBase(timeout: timeout)
-    }
-
-    public func renewTimeout() {
-        timeBase.renewTimeout()
-    }
-
-    public var isExpired: Bool {
-        return timeBase.isExpired
+        super.init(timeout: timeout)
     }
 
     public var callbackUrlsString: String {
@@ -102,7 +93,7 @@ public class UPnPEventSubscription {
     }
 
     public var timeoutString: String {
-        return "Second-\(timeBase.timeout)"
+        return "Second-\(timeout)"
     }
 }
 

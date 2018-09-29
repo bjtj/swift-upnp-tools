@@ -198,7 +198,7 @@ final class swift_upnp_toolsTests: XCTestCase {
         let mx = 3
         cp.sendMsearch(st: "ssdp:all", mx: mx)
 
-        sleep(UInt32(mx + 5))
+        sleep(UInt32(mx))
 
         XCTAssert(cp.devices.count > 0)
         

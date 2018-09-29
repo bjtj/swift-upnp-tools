@@ -11,6 +11,22 @@ public class UPnPModel : OrderedProperties {
     }
 }
 
+public class UPnPTimeBasedModel : UPnPModel {
+    var timeBase: TimeBase
+
+    public init(timeout: UInt64 = 1800) {
+        timeBase = TimeBase(timeout: timeout)
+    }
+    
+    public func renewTimeout() {
+        timeBase.renewTimeout()
+    }
+    
+    public var isExpired: Bool {
+        return timeBase.isExpired
+    }
+}
+
 
 public class UPnPSpecVersion : UPnPModel {
     public var major: String? {
@@ -60,9 +76,8 @@ public class UPnPSpecVersion : UPnPModel {
 }
 
 
-public class UPnPDevice : UPnPModel {
+public class UPnPDevice : UPnPTimeBasedModel {
     public var parent: UPnPDevice?
-    var timeBase: TimeBase
     public var baseUrl: URL?
     public var services = [UPnPService]()
     public var embeddedDevices = [UPnPDevice]()
@@ -92,17 +107,9 @@ public class UPnPDevice : UPnPModel {
         return parent == nil
     }
 
-    public init(timeout: UInt64 = 1800) {
-        self.timeBase = TimeBase(timeout: timeout)
-    }
-
-    public func renewTimeout() {
-        timeBase.renewTimeout()
-    }
-
-    public var isExpired: Bool {
-        return timeBase.isExpired
-    }
+    // public init(timeout: UInt64 = 1800) {
+    //     super.init(timeout: timeout)
+    // }
 
     public var allServiceTypes: [UPnPUsn]? {
         var types = [UPnPUsn]()

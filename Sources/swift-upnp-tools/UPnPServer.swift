@@ -119,19 +119,23 @@ public class UPnPServer {
                     guard let request = request else {
                         return nil
                     }
-                    let response = HttpResponse(code: 200, reason: "OK")
                     if request.path.hasSuffix("device.xml") {
+                        let response = HttpResponse(code: 200, reason: "OK")
                         let tokens = request.path.split(separator: "/")
-                        if tokens.count >= 1 {
-                            let udn = String(tokens[0])
-                            if let device = self.devices[udn] {
-                                response.data = device.xmlDocument.data(using: .utf8)
-                            }
+                        guard tokens.isEmpty == false else {
+                            return nil
                         }
+                        let udn = String(tokens[0])
+                        guard let device = self.devices[udn] else {
+                            return nil
+                        }
+                        response.data = device.xmlDocument.data(using: .utf8)
+                        return response
                     } else if request.path.hasSuffix("scpd.xml") {
-                        
+                    } else if request.path.hasSuffix("control.xml") {
+                    } else if request.path.hasSuffix("eventSub.xml") {
                     }
-                    return response
+                    return nil
                 }
                 try self.httpServer!.run()
             } catch let error{
