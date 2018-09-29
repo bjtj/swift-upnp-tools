@@ -3,10 +3,16 @@ import XCTest
 
 final class swift_upnp_toolsTests: XCTestCase {
 
+    static var upnpServer: UPnPServer?
+
     override class func setUp() {
         super.setUp()
 
         startReceiver()
+        DispatchQueue.global(qos: .background).async {
+            upnpServer = startServer()
+        }
+        
         sleep(2)
     }
 
@@ -123,6 +129,8 @@ final class swift_upnp_toolsTests: XCTestCase {
         }
         
         XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
+
+        
     }
 
     func testScpd() {
@@ -169,26 +177,38 @@ final class swift_upnp_toolsTests: XCTestCase {
     }
 
     func testServer() {
-        DispatchQueue.global(qos: .background).async {
-            self.startServer()
+
+        guard let server = swift_upnp_toolsTests.upnpServer else {
+            return
         }
+
+        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            return
+        }
+        
+        server.registerDevice(device: device)
+        // server.activate(udn: device.udn!)
+        // server.deactivate(device: device)
+        // server.unregisterDevice(device: device)
+        // server.setProperty(service: service, properties: properties)
+
 
         let cp = UPnPControlPoint(port: 0)
         cp.run()
-        // cp.sendMsearch(st: "ssdp:all", mx: 3)
+        let mx = 3
+        cp.sendMsearch(st: "ssdp:all", mx: mx)
+
+        sleep(UInt32(mx + 5))
+
+        XCTAssert(cp.devices.count > 0)
         
         cp.finish()
     }
 
-    func startServer() {
+    class func startServer() -> UPnPServer {
         let server = UPnPServer(port: 0)
         server.run()
-        let _ = UPnPDevice.read(xmlString: deviceDescription)
-        // server.registerDevice(device: device)
-        // server.activate(device: device)
-        // server.deactivate(device: device)
-        // server.unregisterDevice(device: device)
-        // server.setProperty(service: service, properties: properties)
+        return server
     }
 
     func testSsdpReceiver() {
@@ -204,7 +224,7 @@ final class swift_upnp_toolsTests: XCTestCase {
         guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
             return
         }
-        UPnPServer.activate(device: device)
+        UPnPServer.activate(device: device, location: "http://location/dummy")
         UPnPServer.deactivate(device: device)
     }
 

@@ -5,6 +5,12 @@ enum SocketError: Error {
     case select(String)
 }
 
+extension DispatchTime {
+    public var uptime: UInt64 {
+        return uptimeNanoseconds / 1_000_000
+    }
+}
+
 public class SSDP {
 
     public static var MCAST_HOST = "239.255.255.250"
@@ -21,6 +27,7 @@ public class SSDP {
 
         do {
             let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
+            try socket.setReadTimeout(value: UInt(100))
             try socket.setWriteTimeout(value: UInt(100))
             let ssdp_addr = Socket.createAddress(for: SSDP.MCAST_HOST, on: Int32(SSDP.MCAST_PORT))
             try socket.write(from: text.data(using: .utf8)!, to: ssdp_addr!)
@@ -29,20 +36,19 @@ public class SSDP {
 
             while true {
 
-                let dur = (DispatchTime.now().uptimeNanoseconds - tick.uptimeNanoseconds) / 1_000_000_000
-                if dur >= mx {
+                let dur = Double(DispatchTime.now().uptime - tick.uptime) / 1_000.0
+                if dur >= Double(mx) {
                     break
-                }
-
-                guard try isReadableOrWritable(socketfd: socket.socketfd, timeout: 1_000).0 == true else {
-                    continue
                 }
                 
                 var readData = Data(capacity: 4096)
                 let ret = try socket.readDatagram(into: &readData)
+                guard let remote_address = ret.address else {
+                    continue
+                }
                 let header = SSDPHeader.read(text: String(data: readData, encoding: .utf8)!)
                 if let handler = handler {
-                    let address = Socket.hostnameAndPort(from: ret.address!)
+                    let address = Socket.hostnameAndPort(from: remote_address)
                     handler(address, header)
                 }
             }
@@ -50,7 +56,7 @@ public class SSDP {
             socket.close()
 
         } catch let error {
-            print(error)
+            print("send msearch error -- \(error)")
         }
     }
 

@@ -3,6 +3,7 @@ import Foundation
 public typealias InetAddress = (hostname: String, port: Int32)
 
 func isReadableOrWritable(socketfd: Int32, timeout: UInt) throws -> (readable: Bool, writable: Bool) {
+
     var readfds = fd_set()
     readfds.zero()
     readfds.set(socketfd)
@@ -33,7 +34,9 @@ func isReadableOrWritable(socketfd: Int32, timeout: UInt) throws -> (readable: B
         throw SocketError.select("select() failed")
     }
 
-    return (readfds.isSet(socketfd), writefds.isSet(socketfd))
+    let readable = readfds.isSet(socketfd)
+    let writable = writefds.isSet(socketfd)
+    return (readable, writable)
 }
 
 struct swift_upnp_tools {

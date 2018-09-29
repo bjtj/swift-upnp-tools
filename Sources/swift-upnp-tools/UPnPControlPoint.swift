@@ -24,8 +24,12 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
         startSsdpReceiver()
     }
 
+    public func getDevice(udn: String) -> UPnPDevice? {
+        return devices[udn]
+    }
+
     public func startHttpServer() {
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .default).async {
             guard self.httpServer == nil else {
                 // already started
                 return
@@ -41,12 +45,15 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
     }
 
     public func startSsdpReceiver() {
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .default).async {
             guard self.ssdpReceiver == nil else {
                 return
             }
             self.ssdpReceiver = SSDPReceiver() {
                 (address, ssdpHeader) in
+                guard let ssdpHeader = ssdpHeader else {
+                    return nil
+                }
                 return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
             }
             do {
@@ -68,21 +75,18 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
     }
 
     public func sendMsearch(st: String, mx: Int) {
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .default).async {
             SSDP.sendMsearch(st: st, mx: mx) {
                 (address, ssdpHeader) in
                 guard let ssdpHeader = ssdpHeader else {
                     return
                 }
-                let _ = self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+                self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
             }
         }
     }
 
-    public func onSSDPHeader(address: InetAddress?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
-        guard let ssdpHeader = ssdpHeader else {
-            return nil
-        }
+    @discardableResult public func onSSDPHeader(address: InetAddress?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
         if ssdpHeader.isNotify {
             guard let nts = ssdpHeader.nts else {
                 return nil
@@ -94,9 +98,9 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
                         device.renewTimeout()
                     }
                 }
-                if let location = ssdpHeader["location"] {
+                if let location = ssdpHeader["LOCATION"] {
                     if let url = URL(string: location) {
-                        buildDevice(url: url, handler: self)
+                        buildDevice(url: url, deviceHandler: self)
                     }
                 }
                 break
@@ -120,9 +124,9 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
                     device.renewTimeout()
                 }
             }
-            if let location = ssdpHeader["location"] {
+            if let location = ssdpHeader["LOCATION"] {
                 if let url = URL(string: location) {
-                    buildDevice(url: url, handler: self)
+                    buildDevice(url: url, deviceHandler: self)
                 }
             }
         }

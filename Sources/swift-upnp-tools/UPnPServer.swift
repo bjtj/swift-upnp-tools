@@ -32,28 +32,34 @@ public class UPnPServer {
         guard let device = devices[udn] else {
             return
         }
-        UPnPServer.activate(device: device)
+        guard let location = getLocation(of: device) else {
+            return
+        }
+        UPnPServer.activate(device: device, location: location)
     }
 
-    public class func activate(device: UPnPDevice) {
+    public class func activate(device: UPnPDevice, location: String) {
         guard let usn_list = device.allServiceTypes else {
             return
         }
-        let location = "http://fake"
-        notifyAlive(usn: UPnPUsn(uuid: device.udn!, type: "upnp:rootDevice"), location: location)
+        guard let udn = device.udn else {
+            return
+        }
+        notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
         for usn in usn_list {
             notifyAlive(usn: usn, location: location)
         }
-        notifyAlive(usn: UPnPUsn(uuid: device.udn!), location: location)
+        notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
     }
 
     class func notifyAlive(usn: UPnPUsn, location: String) {
         let properties = OrderedProperties()
         properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
+        properties["CACHE-CONTROL"] = "max-age=1800"
         properties["NTS"] = "ssdp:alive"
         properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
         properties["USN"] = usn.description
-        properties["Location"] = location
+        properties["LOCATION"] = location
         SSDP.notify(properties: properties)
     }
 
@@ -68,11 +74,14 @@ public class UPnPServer {
         guard let usn_list = device.allServiceTypes else {
             return
         }
-        notifyByebye(usn: UPnPUsn(uuid: device.udn!, type: "upnp:rootDevice"))
+        guard let udn = device.udn else {
+            return
+        }
+        notifyByebye(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"))
         for usn in usn_list {
             notifyByebye(usn: usn)
         }
-        notifyByebye(usn: UPnPUsn(uuid: device.udn!))
+        notifyByebye(usn: UPnPUsn(uuid: udn))
     }
 
     public class func notifyByebye(usn: UPnPUsn) {
@@ -103,8 +112,27 @@ public class UPnPServer {
                 // already started
                 return
             }
-            self.httpServer = HttpServer(port: self.port)
             do {
+                self.httpServer = HttpServer(port: self.port)
+                try self.httpServer!.route(pattern: "/.*") {
+                    (request) in
+                    guard let request = request else {
+                        return nil
+                    }
+                    let response = HttpResponse(code: 200, reason: "OK")
+                    if request.path.hasSuffix("device.xml") {
+                        let tokens = request.path.split(separator: "/")
+                        if tokens.count >= 1 {
+                            let udn = String(tokens[0])
+                            if let device = self.devices[udn] {
+                                response.data = device.xmlDocument.data(using: .utf8)
+                            }
+                        }
+                    } else if request.path.hasSuffix("scpd.xml") {
+                        
+                    }
+                    return response
+                }
                 try self.httpServer!.run()
             } catch let error{
                 print("error - \(error)")
@@ -146,10 +174,75 @@ public class UPnPServer {
         }
         if ssdpHeader.isMsearch {
             if let st = ssdpHeader["ST"] {
-                print("msearch received / st: \(st)")
+                var responses = [SSDPHeader]()
+                switch st {
+                case "ssdp:all":
+                    for (udn, device) in devices {
+                        guard let location = getLocation(of: device) else {
+                            continue
+                        }
+                        let rootDevice = UPnPUsn(uuid: udn, type: "upnp:rootDevice")
+                        responses.append(makeMsearchResponse(from: rootDevice, location: location))
+                        guard let usn_list = device.allServiceTypes else {
+                            continue
+                        }
+                        for usn in usn_list {
+                            responses.append(makeMsearchResponse(from: usn, location: location))
+                        }
+                        responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
+                    }
+                case "upnp:rootDevice":
+                    for (udn, device) in devices {
+                        guard let location = getLocation(of: device) else {
+                            continue
+                        }
+                        let usn = UPnPUsn(uuid: udn, type: st)
+                        responses.append(makeMsearchResponse(from: usn, location: location))
+                    }
+                default:
+                    for (udn, device) in devices {
+                        guard let location = getLocation(of: device) else {
+                            continue
+                        }
+                        if let _ = device.getDevice(type: st) {
+                            let usn = UPnPUsn(uuid: udn, type: st)
+                            responses.append(makeMsearchResponse(from: usn, location: location))
+                        }
+                        if let _ = device.getService(type: st) {
+                            let usn = UPnPUsn(uuid: udn, type: st)
+                            responses.append(makeMsearchResponse(from: usn, location: location))
+                        }
+                    }
+                    break
+                }
+                return responses
             }
-            // send response
         }
         return nil
+    }
+
+    func makeMsearchResponse(from usn: UPnPUsn, location: String) -> SSDPHeader {
+        let header = SSDPHeader()
+        header.firstLine = "HTTP/1.1 200 OK"
+        header["CACHE-CONTROL"] = "max-age=1800"
+        header["ST"] = usn.type.isEmpty ? usn.uuid : usn.type
+        header["USN"] = usn.description
+        header["LOCATION"] = location
+        return header
+    }
+
+    func getLocation(of device: UPnPDevice) -> String? {
+        guard let httpServer = self.httpServer else {
+            return nil
+        }
+        guard let udn = device.udn else {
+            return nil
+        }
+        guard let addr = httpServer.serverAddress else {
+            return nil
+        }
+        let hostname = "127.0.0.1"
+        let location = "http://\(hostname):\(addr.port)/\(udn)/device.xml"
+        return location
     }
 }

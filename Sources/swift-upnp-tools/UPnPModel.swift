@@ -124,6 +124,49 @@ public class UPnPDevice : UPnPModel {
         }
         return types
     }
+
+    public var allServices: [UPnPService] {
+        var services = [UPnPService]()
+        services += self.services
+        for device in embeddedDevices {
+            services += device.allServices
+        }
+        return services
+    }
+
+    public func getDevice(type: String) -> UPnPDevice? {
+        if let deviceType = deviceType {
+            if deviceType == type {
+                return self
+            }
+        }
+        
+        for device in embeddedDevices {
+            if let device = device.getDevice(type: type) {
+                return device
+            }
+        }
+        return nil
+    }
+
+    public func getService(type: String) -> UPnPService? {
+        for service in services {
+            guard let serviceType = service.serviceType else {
+                continue
+            }
+            if serviceType == type {
+                return service
+            }
+        }
+
+        for device in embeddedDevices {
+            if let service = device.getService(type: type) {
+                return service
+            }
+        }
+        
+        return nil
+    }
     
     public func addEmbeddedDevice(device: UPnPDevice) {
         device.parent = self
@@ -149,9 +192,11 @@ public class UPnPDevice : UPnPModel {
     public static func read(xmlString: String) -> UPnPDevice? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
+            print("error -- no root element")
             return nil
         }
         guard let elements = root.elements else {
+            print("error -- no elements in root")
             return nil
         }
         
@@ -160,6 +205,8 @@ public class UPnPDevice : UPnPModel {
                 return read(xmlElement: element)
             }
         }
+
+        print("error -- no device")
         return nil
     }
     
@@ -195,11 +242,13 @@ public class UPnPDevice : UPnPModel {
     }
     
     public var xmlDocument: String {
-        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
+        let root = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"", content: description)
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(root.description)"
     }
     
     public var description: String {
-        let tag = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"", content: "")
+        // let tag = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"", content: "")
+        let tag = XmlTag(name: "device", content: "")
         var content = propertyXml
         
         if services.isEmpty == false {
