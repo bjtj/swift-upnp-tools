@@ -1,7 +1,7 @@
 import Foundation
 
 public protocol HttpClientDelegate {
-    func onHttpResponse(data: Data?, response: URLResponse?)
+    func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?)
     func onError(error: Error?)
 }
 
@@ -68,7 +68,7 @@ public class HttpClient {
             }
             
             if let handler = self.handler {
-                handler.onHttpResponse(data: data, response: response)
+                handler.onHttpResponse(request: request, data: data, response: response)
             }
         }.resume()
     }

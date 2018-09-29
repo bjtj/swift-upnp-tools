@@ -22,7 +22,7 @@ public class UPnPActionInvoke : HttpClientDelegate {
         handler.onError(error: error)
     }
 
-    public func onHttpResponse(data: Data?, response: URLResponse?) {
+    public func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?) {
         guard let handler = self.handler else {
             return
         }

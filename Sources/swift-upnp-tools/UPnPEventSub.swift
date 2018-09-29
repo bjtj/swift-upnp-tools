@@ -29,7 +29,7 @@ public class SubscribeHandler : HttpClientDelegate {
         handler(nil)
     }
     
-    public func onHttpResponse(data: Data?, response: URLResponse?) {
+    public func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?) {
         guard let handler = self.handler else {
             return
         }

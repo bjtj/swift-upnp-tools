@@ -1,19 +1,24 @@
 import Foundation
 import SwiftHttpServer
 
-public protocol DeviceHandlerProtocol {
+public protocol UPnPControlPointDelegate {
     func onDeviceAdded(device: UPnPDevice)
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-public class UPnPControlPoint : OnDeviceBuildProtocol {
+public protocol UPnPEventPropertyDelegate {
+    func onEventProperty(properties: UPnPEventProperties)
+}
+
+public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
     public var port: Int
     public var httpServer : HttpServer?
     public var ssdpReceiver : SSDPReceiver?
     public var devices = [String:UPnPDevice]()
-    public var deviceHandler: DeviceHandlerProtocol?
+    public var delegate: UPnPControlPointDelegate?
     public var subscriptions = [String:UPnPEventSubscription]()
+    public var eventPropertyDelegate: UPnPEventPropertyDelegate?
     
     public init(port: Int) {
         self.port = port
@@ -100,7 +105,7 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
                 }
                 if let location = ssdpHeader["LOCATION"] {
                     if let url = URL(string: location) {
-                        buildDevice(url: url, deviceHandler: self)
+                        UPnPDeviceBuilder(delegate: self).build(url: url)
                     }
                 }
                 break
@@ -126,7 +131,7 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
             }
             if let location = ssdpHeader["LOCATION"] {
                 if let url = URL(string: location) {
-                    buildDevice(url: url, deviceHandler: self)
+                    UPnPDeviceBuilder(delegate: self).build(url: url)
                 }
             }
         }
@@ -146,14 +151,14 @@ public class UPnPControlPoint : OnDeviceBuildProtocol {
             return
         }
         devices[udn] = device
-        if let deviceHandler = deviceHandler {
-            deviceHandler.onDeviceAdded(device: device)
+        if let delegate = delegate {
+            delegate.onDeviceAdded(device: device)
         }
     }
 
     func removeDevice(udn: String) {
-        if let device = devices[udn], let deviceHandler = deviceHandler {
-            deviceHandler.onDeviceRemoved(device: device)
+        if let device = devices[udn], let delegate = delegate {
+            delegate.onDeviceRemoved(device: device)
         }
         devices[udn] = nil
     }

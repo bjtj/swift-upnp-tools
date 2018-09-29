@@ -1,6 +1,12 @@
 import Foundation
 import SwiftHttpServer
 
+
+public protocol UPnPActionDelegate {
+    func onActionRequest(service: UPnPService, soapRequest: UPnPSoapRequest) -> UPnPSoapResponse?
+}
+
+
 public class UPnPServer {
 
     public var port: Int
@@ -8,6 +14,7 @@ public class UPnPServer {
     public var ssdpReceiver: SSDPReceiver?
     public var devices = [String:UPnPDevice]()
     public var subscriptions = [String:UPnPEventSubscription]()
+    public var actionDelegate: UPnPActionDelegate?
 
 
     public init(port: Int) {
@@ -248,5 +255,8 @@ public class UPnPServer {
         let hostname = "127.0.0.1"
         let location = "http://\(hostname):\(addr.port)/\(udn)/device.xml"
         return location
+    }
+
+    public func setProperty(service: UPnPService, properties: [String:String]) {
     }
 }
