@@ -15,8 +15,8 @@ let package = Package(
     // Dependencies declare other packages that this package depends on.
     // .package(url: /* package url */, from: "1.0.0"),
     .package(url: "https://github.com/IBM-Swift/BlueSocket.git", from: "1.0.15"),
-    .package(url: "https://github.com/bjtj/swift-http-server.git", from: "0.1.3"),
-    .package(url: "https://github.com/bjtj/swift-xml.git", from: "0.1.5")
+    .package(url: "https://github.com/bjtj/swift-http-server.git", from: "0.1.5"),
+    .package(url: "https://github.com/bjtj/swift-xml.git", from: "0.1.6")
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.

@@ -19,14 +19,22 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     public var delegate: UPnPControlPointDelegate?
     public var subscriptions = [String:UPnPEventSubscription]()
     public var eventPropertyDelegate: UPnPEventPropertyDelegate?
+    var onDeviceAddedHandlers = [(UPnPDevice) -> Void]()
+    var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
+    var timer: DispatchSourceTimer?
     
     public init(port: Int) {
         self.port = port
     }
 
+    deinit {
+        finish()
+    }
+
     public func run() {
         startHttpServer()
         startSsdpReceiver()
+        startTimer()
     }
 
     public func getDevice(udn: String) -> UPnPDevice? {
@@ -34,7 +42,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     public func startHttpServer() {
-        DispatchQueue.global(qos: .default).async {
+        DispatchQueue.global(qos: .background).async {
             guard self.httpServer == nil else {
                 // already started
                 return
@@ -50,7 +58,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     public func startSsdpReceiver() {
-        DispatchQueue.global(qos: .default).async {
+        DispatchQueue.global(qos: .background).async {
             guard self.ssdpReceiver == nil else {
                 return
             }
@@ -70,17 +78,24 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
+    func startTimer() {
+        let queue = DispatchQueue(label: "com.upnp.timer")
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer?.schedule(deadline: .now(), repeating: 10.0, leeway: .seconds(0))
+        timer?.setEventHandler { () in
+            self.removeExpiredDevices()
+        }
+        timer?.resume()
+    }
+
     public func finish() {
-        if let httpServer = httpServer {
-            httpServer.finish()
-        }
-        if let ssdpReceiver = ssdpReceiver {
-            ssdpReceiver.finish()
-        }
+        timer?.cancel()
+        httpServer?.finish()
+        ssdpReceiver?.finish()
     }
 
     public func sendMsearch(st: String, mx: Int) {
-        DispatchQueue.global(qos: .default).async {
+        DispatchQueue.global(qos: .background).async {
             SSDP.sendMsearch(st: st, mx: mx) {
                 (address, ssdpHeader) in
                 guard let ssdpHeader = ssdpHeader else {
@@ -98,14 +113,15 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             }
             switch nts {
             case .alive:
-                if let usn = ssdpHeader.usn {
-                    if let device = self.devices[usn.uuid] {
-                        device.renewTimeout()
-                    }
+                guard let usn = ssdpHeader.usn else {
+                    break
                 }
-                if let location = ssdpHeader["LOCATION"] {
+                if let device = self.devices[usn.uuid] {
+                    device.renewTimeout()
+                } else if let location = ssdpHeader["LOCATION"] {
                     if let url = URL(string: location) {
-                        UPnPDeviceBuilder(delegate: self).build(url: url)
+                        devices[usn.uuid] = UPnPDevice(timeout: 15)
+                        buildDevice(url: url)
                     }
                 }
                 break
@@ -122,20 +138,24 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
                 }
                 break
             }
-        }
-        if ssdpHeader.isHttpResponse {
-            if let usn = ssdpHeader.usn {
-                if let device = self.devices[usn.uuid] {
-                    device.renewTimeout()
-                }
+        } else if ssdpHeader.isHttpResponse {
+            guard let usn = ssdpHeader.usn else {
+                return nil
             }
-            if let location = ssdpHeader["LOCATION"] {
+            if let device = self.devices[usn.uuid] {
+                device.renewTimeout()
+            } else if let location = ssdpHeader["LOCATION"] {
                 if let url = URL(string: location) {
-                    UPnPDeviceBuilder(delegate: self).build(url: url)
+                    devices[usn.uuid] = UPnPDevice(timeout: 15)
+                    buildDevice(url: url)
                 }
             }
         }
         return nil
+    }
+
+    func buildDevice(url: URL) {
+        UPnPDeviceBuilder(delegate: self).build(url: url)
     }
 
     public func onDeviceBuild(url: URL?, device: UPnPDevice?) {
@@ -146,6 +166,20 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         addDevice(device: device)
     }
 
+    func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
+        guard let handler = handler else {
+            return
+        }
+        onDeviceAddedHandlers.append(handler)
+    }
+
+    func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
+        guard let handler = handler else {
+            return
+        }
+        onDeviceRemovedHandlers.append(handler)
+    }
+
     func addDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
@@ -154,17 +188,42 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         if let delegate = delegate {
             delegate.onDeviceAdded(device: device)
         }
+        for handler in onDeviceAddedHandlers {
+            handler(device)
+        }
     }
 
     func removeDevice(udn: String) {
-        if let device = devices[udn], let delegate = delegate {
+        guard let device = devices[udn] else {
+            return
+        }
+        if let delegate = delegate {
             delegate.onDeviceRemoved(device: device)
+        }
+        for handler in onDeviceRemovedHandlers {
+            handler(device)
         }
         devices[udn] = nil
     }
 
-    public func invokeAction(url: URL, soapRequest: UPnPSoapRequest, handler: SoapResponseDelegate?) {
-        UPnPActionInvoke(url: url, soapRequest: soapRequest, handler: handler).invoke()
+    public func invoke(service: UPnPService, action: String, properties: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
+        guard let serviceType = service.serviceType else {
+            print("error -- no service type")
+            return
+        }
+        let soapRequest = UPnPSoapRequest(serviceType: serviceType, actionName: action)
+        for field in properties.fields {
+            soapRequest[field.key] = field.value
+        }
+        guard let controlUrl = service.controlUrl, let device = service.device else {
+            print("error -- no control url or no device")
+            return
+        }
+        guard let url = URL(string: controlUrl, relativeTo: device.rootDevice.baseUrl) else {
+            print("error -- url failed")
+            return
+        }
+        UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()
     }
 
     public func getSubscription(sid: String) -> UPnPEventSubscription? {
@@ -199,7 +258,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             }
             self.subscriptions[subscription.sid] = nil
         }
-        
     }
 
+    func removeExpiredDevices() {
+        devices = devices.filter { $1.isExpired == false }
+    }
 }

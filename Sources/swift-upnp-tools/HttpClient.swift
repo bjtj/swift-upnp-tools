@@ -38,7 +38,10 @@ public class HttpClient {
     }
 
     public func start() {
-        let session = URLSession(configuration: URLSessionConfiguration.default)
+        // let configuration = URLSessionConfiguration.background(withIdentifier: "http-client")
+        // let configuration = URLSessionConfiguration.ephemeral
+        let configuration = URLSessionConfiguration.default
+        let session = URLSession(configuration: configuration)
         var request = URLRequest(url: self.url)
         if let method = self.method {
             request.httpMethod = method
@@ -54,15 +57,16 @@ public class HttpClient {
                 request.addValue(field.value, forHTTPHeaderField: field.key)
             }
         }
-        session.dataTask(with: request) {
+        let task = session.dataTask(with: request) {
             (data, response, error) in
 
             guard let handler = self.handler else {
-                // no handler
+                print("http client -- no handler")
                 return
             }
 
             guard error == nil else {
+                print("http client -- error \(error!)")
                 handler.onError(error: error!)
                 return
             }
@@ -70,6 +74,7 @@ public class HttpClient {
             if let handler = self.handler {
                 handler.onHttpResponse(request: request, data: data, response: response)
             }
-        }.resume()
+        }
+        task.resume()
     }
 }

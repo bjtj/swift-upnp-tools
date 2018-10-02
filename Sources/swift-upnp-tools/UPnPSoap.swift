@@ -17,35 +17,46 @@ public class UPnPSoapRequest : OrderedProperties {
     public static func read(xmlString: String) -> UPnPSoapRequest? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
+            print("soap -- no root element")
             return nil
         }
         guard let elements = root.elements else {
+            print("soap -- no elements")
             return nil
         }
         for element in elements {
-            if element.name == "Body" {
-                if let actionElements = element.elements {
-                    if actionElements.isEmpty == false {
-                        let request = UPnPSoapRequest()
-                        let actionElement = actionElements[0]
-                        if let attributes = actionElement.attributes {
-                            if attributes.isEmpty == false {
-                                request.serviceType = "\(attributes[0].value ?? "")"
-                            }
-                        }
-                        request.actionName = actionElement.name!
-                        if let propElements = actionElement.elements {
-                            for propElement in propElements {
-                                if let firstText = propElement.firstText {
-                                    request[propElement.name!] = firstText.text
-                                }
-                            }
-                        }
-                        return request
+            guard element.name == "Body" else {
+                print("no Body tag")
+                continue
+            }
+            guard let actionElements = element.elements else {
+                print("no action elements")
+                continue
+            }
+            guard actionElements.isEmpty == false else {
+                print("elements has no elements -- \(actionElements.count)")
+                continue
+            }
+
+            let request = UPnPSoapRequest()
+            let actionElement = actionElements[0]
+            if let attributes = actionElement.attributes {
+                if attributes.isEmpty == false {
+                    request.serviceType = "\(attributes[0].value ?? "")"
+                }
+            }
+            request.actionName = actionElement.name!
+            if let propElements = actionElement.elements {
+                for propElement in propElements {
+                    if let firstText = propElement.firstText {
+                        request[propElement.name!] = firstText.text
                     }
                 }
             }
+            return request
+
         }
+        print("soap -- read failed")
         return nil
     }
 
@@ -88,7 +99,7 @@ public class UPnPSoapResponse : OrderedProperties {
             return nil
         }
         for element in elements {
-            if element.name == "Body" {
+            if element.name! == "Body" {
                 if let actionElements = element.elements {
                     if actionElements.isEmpty == false {
                         let response = UPnPSoapResponse()

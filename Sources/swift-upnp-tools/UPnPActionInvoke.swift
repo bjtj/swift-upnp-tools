@@ -1,51 +1,47 @@
 import Foundation
 
-public protocol SoapResponseDelegate {
-    func onError(error: Error?)
-    func onSoapResponse(soapResponse: UPnPSoapResponse)
-}
 
 public class UPnPActionInvoke : HttpClientDelegate {
     public var url: URL
     public var soapRequest: UPnPSoapRequest
-    public var handler: SoapResponseDelegate?
-    public init(url: URL, soapRequest: UPnPSoapRequest, handler: SoapResponseDelegate?) {
+    public var completeHandler: ((UPnPSoapResponse?) -> Void)?
+    public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         self.url = url
         self.soapRequest = soapRequest
-        self.handler = handler
+        self.completeHandler = completeHandler
     }
 
     public func onError(error: Error?) {
-        guard let handler = self.handler else {
+        guard let completeHandler = self.completeHandler else {
             return
         }
-        handler.onError(error: error)
+        completeHandler(nil)
     }
 
     public func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?) {
-        guard let handler = self.handler else {
+        guard let completeHandler = self.completeHandler else {
             return
         }
         guard let data = data else {
-            // no data
-            handler.onError(error: nil)
+            print("no data")
+            completeHandler(nil)
             return
         }
         guard let text = String(data: data, encoding: .utf8) else {
-            // not string
-            handler.onError(error: nil)
+            print("not string")
+            completeHandler(nil)
             return
         }
         guard let soapResponse = UPnPSoapResponse.read(xmlString: text) else {
-            // soap response
-            handler.onError(error: nil)
+            print("not soap response -- \(text)")
+            completeHandler(nil)
             return
         }
-        handler.onSoapResponse(soapResponse: soapResponse)
+        completeHandler(soapResponse)
     }
     
     public func invoke() {
-        let data = soapRequest.description.data(using: .utf8)
+        let data = soapRequest.xmlDocument.data(using: .utf8)
         HttpClient(url: url, method: "POST", data: data, contentType: "text/xml", handler: self).start()
     }
 }

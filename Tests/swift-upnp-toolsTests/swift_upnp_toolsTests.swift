@@ -13,7 +13,7 @@ final class swift_upnp_toolsTests: XCTestCase {
             upnpServer = startServer()
         }
         
-        sleep(2)
+        sleep(1)
     }
 
     override class func tearDown() {
@@ -129,8 +129,6 @@ final class swift_upnp_toolsTests: XCTestCase {
         }
         
         XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
-
-        
     }
 
     func testScpd() {
@@ -187,6 +185,12 @@ final class swift_upnp_toolsTests: XCTestCase {
         }
         
         server.registerDevice(device: device)
+        server.onActionRequest {
+            (service, soapRequest) in
+            let properties = OrderedProperties()
+            properties["GetLoadlevelTarget"] = "10"
+            return properties
+        }
         // server.activate(udn: device.udn!)
         // server.deactivate(device: device)
         // server.unregisterDevice(device: device)
@@ -194,13 +198,36 @@ final class swift_upnp_toolsTests: XCTestCase {
 
 
         let cp = UPnPControlPoint(port: 0)
+
+        cp.onDeviceAdded {
+            (device) in
+            DispatchQueue.global(qos: .background).async {
+                print("device added -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+
+                guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
+                    print("no service")
+                    return
+                }
+
+                let action = "GetLoadLevelTarget"
+                let properties = OrderedProperties()
+                print("invoke action")
+                cp.invoke(service: service, action: action, properties: properties) {
+                    (soapResponse) in
+                    print("action response")
+                    XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
+                }
+            }
+        }
+
         cp.run()
-        let mx = 3
-        cp.sendMsearch(st: "ssdp:all", mx: mx)
+        cp.sendMsearch(st: "ssdp:all", mx: 3)
 
-        sleep(UInt32(mx))
+        for _ in 0..<60 {
+            usleep(100 * 1000)
+        }
 
-        XCTAssert(cp.devices.count > 0)
+        XCTAssert(cp.devices.isEmpty == false)
         
         cp.finish()
     }

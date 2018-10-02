@@ -7,6 +7,11 @@ public class UPnPDevice : UPnPTimeBasedModel {
     public var baseUrl: URL?
     public var services = [UPnPService]()
     public var embeddedDevices = [UPnPDevice]()
+
+    override public init(timeout: UInt64 = 1800) {
+        super.init(timeout: timeout)
+    }
+    
     public var udn: String? {
         get { return self["UDN"] }
         set(value) { self["UDN"] = value }
@@ -90,6 +95,63 @@ public class UPnPDevice : UPnPTimeBasedModel {
 
         for device in embeddedDevices {
             if let service = device.getService(type: type) {
+                return service
+            }
+        }
+        
+        return nil
+    }
+
+    public func getService(withScpdUrl scpdUrl: String) -> UPnPService? {
+        for service in services {
+            guard let url = service.scpdUrl else {
+                continue
+            }
+            if url == scpdUrl {
+                return service
+            }
+        }
+
+        for device in embeddedDevices {
+            if let service = device.getService(withScpdUrl: scpdUrl) {
+                return service
+            }
+        }
+        
+        return nil
+    }
+
+    public func getService(withControlUrl controlUrl: String) -> UPnPService? {
+        for service in services {
+            guard let url = service.controlUrl else {
+                continue
+            }
+            if url == controlUrl {
+                return service
+            }
+        }
+
+        for device in embeddedDevices {
+            if let service = device.getService(withScpdUrl: controlUrl) {
+                return service
+            }
+        }
+        
+        return nil
+    }
+
+    public func getService(withEventSubUrl eventSubUrl: String) -> UPnPService? {
+        for service in services {
+            guard let url = service.eventSubUrl else {
+                continue
+            }
+            if url == eventSubUrl {
+                return service
+            }
+        }
+
+        for device in embeddedDevices {
+            if let service = device.getService(withScpdUrl: eventSubUrl) {
                 return service
             }
         }

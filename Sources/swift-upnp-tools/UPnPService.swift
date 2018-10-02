@@ -28,7 +28,7 @@ public class UPnPService : UPnPModel {
         set(value) { self["controlURL"] = value }
     }
     
-    public var evnetSubUrl: String? {
+    public var eventSubUrl: String? {
         get { return self["eventSubURL"] }
         set(value) { self["eventSubURL"] = value }
     }
