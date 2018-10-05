@@ -15,6 +15,15 @@ public class UPnPServer {
         self.port = port
     }
 
+    public func getEventSubscription(service: UPnPService) -> UPnPEventSubscription? {
+        for (_, subscription) in subscriptions {
+            if subscription.service === service {
+                return subscription
+            }
+        }
+        return nil
+    }
+
     public func registerDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
@@ -201,6 +210,7 @@ public class UPnPServer {
                         }
                         return nil
                     } else if request.path.hasSuffix("event.xml") {
+                        
                     } else {
                         print("unknown request -- \(request.path)")
                     }
@@ -311,11 +321,16 @@ public class UPnPServer {
         guard let udn = device.udn else {
             return nil
         }
-        guard let addr = httpServer.serverAddress else {
+
+        guard let httpServerAddress = httpServer.serverAddress else {
             return nil
         }
-        let hostname = "127.0.0.1"
-        let location = "http://\(hostname):\(addr.port)/\(udn)/device.xml"
+
+        guard let addr = getInetAddress() else {
+            return nil
+        }
+        let hostname = addr.hostname
+        let location = "http://\(hostname):\(httpServerAddress.port)/\(udn)/device.xml"
         return location
     }
 

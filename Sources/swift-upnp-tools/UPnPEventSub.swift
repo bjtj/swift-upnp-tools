@@ -2,89 +2,17 @@ import Foundation
 import SwiftXml
 
 
-public protocol EventSubscribeDelegate {
-    func onEventSubscribe(subscription: UPnPEventSubscription)
-    func onRenewEventSubscription(subscription: UPnPEventSubscription)
-    func onEventUnsubscribe(subscription: UPnPEventSubscription)
-}
-
-
 public typealias OnEventSubscription = (UPnPEventSubscription?) -> Void
 
 
-public class SubscribeHandler : HttpClientDelegate {
-
-    var usn: UPnPUsn
-    var handler: OnEventSubscription?
-    
-    public init(usn: UPnPUsn, handler: OnEventSubscription?) {
-        self.usn = usn
-        self.handler = handler
-    }
-    
-    public func onError(error: Error?) {
-        guard let handler = self.handler else {
-            return
-        }
-        handler(nil)
-    }
-    
-    public func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?) {
-        guard let handler = self.handler else {
-            return
-        }
-        guard let response = response as? HTTPURLResponse else {
-            handler(nil)
-            return
-        }
-        
-        guard let sid = response.allHeaderFields["SID"] as? String else {
-            handler(nil)
-            return
-        }
-
-        var second: UInt64 = 1800
-        if let timeout = response.allHeaderFields["TIMEOUT"] as? String {
-            let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
-            second = UInt64(String(timeout[start..<timeout.endIndex]))!
-        }
-        let subscription = UPnPEventSubscription(usn: usn, sid: sid, timeout: second)
-        handler(subscription)
-    }
-}
-
-
-public func subscribeEvent(url: URL, callbackUrls: [URL], handler: OnEventSubscription?) {
-    var fields = [KeyValuePair]()
-    fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
-    fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
-    fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-1800"))
-    HttpClient(url: url, method: "SUBSCRIBE", fields: fields, handler: nil).start()
-}
-
-
-public func unsubscribeEvent(url: URL, subscription: UPnPEventSubscription, handler: OnEventSubscription?) {
-    var fields = [KeyValuePair]()
-    fields.append(KeyValuePair(key: "SID", value: subscription.sid))
-    HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields, handler: nil).start()
-}
-
-
-public func renewEventSubscription(url: URL, subscription: UPnPEventSubscription, handler: OnEventSubscription?) {
-    var fields = [KeyValuePair]()
-    fields.append(KeyValuePair(key: "SID", value: subscription.sid))
-    fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-1800"))
-    HttpClient(url: url, method: "SUBSCRIBE", fields: fields, handler: nil).start()
-}
-
-
 public class UPnPEventSubscription : TimeBase{
-    public var usn: UPnPUsn
     public var sid: String
     public var callbackUrls = [URL]()
-    public init(usn: UPnPUsn, sid: String, timeout: UInt64 = 1800) {
-        self.usn = usn
+    public var service: UPnPService?
+    public init(service: UPnPService?, sid: String, callbackUrls: [URL] = [], timeout: UInt64 = 1800) {
+        self.service = service
         self.sid = sid
+        self.callbackUrls = callbackUrls
         super.init(timeout: timeout)
     }
 
@@ -94,6 +22,11 @@ public class UPnPEventSubscription : TimeBase{
 
     public var timeoutString: String {
         return "Second-\(timeout)"
+    }
+
+    public static func generate(service: UPnPService, callbackUrls: [URL]) -> UPnPEventSubscription {
+        let sid = NSUUID().uuidString.lowercased()
+        return UPnPEventSubscription(service: service, sid: sid, callbackUrls: callbackUrls)
     }
 }
 
@@ -130,5 +63,81 @@ public class UPnPEventProperties: OrderedProperties {
             root.content += property.description
         }
         return root.description
+    }
+}
+
+
+public class UPnPEventSubscriber : TimeBase {
+
+    public var service: UPnPService
+    public var url: URL
+    public var callbackUrls = [URL]()
+    public var sid: String?
+
+    public init(service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800) {
+        self.service = service
+        self.callbackUrls = callbackUrls
+        url = service.eventSubUrlFull!
+        super.init(timeout: timeout)
+    }
+
+    public func subscribe(completeListener: ((UPnPEventSubscription) -> Void)? = nil) {
+        var fields = [KeyValuePair]()
+        fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
+        fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
+        fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-\(timeout)"))
+        HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
+            (data, response, error) in
+
+            guard error == nil else {
+                print("error - \(error!)")
+                return
+            }
+            
+            guard let response = response as? HTTPURLResponse else {
+                print("not http url response")
+                return
+            }
+            
+            guard let sid = response.allHeaderFields["SID"] as? String else {
+                print("no sid")
+                return
+            }
+
+            var second: UInt64 = 1800
+            if let timeout = response.allHeaderFields["TIMEOUT"] as? String {
+                let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
+                second = UInt64(String(timeout[start..<timeout.endIndex]))!
+            }
+            self.sid = sid
+            let subscription = UPnPEventSubscription(service: self.service, sid: sid, timeout: second)
+            completeListener?(subscription)
+        }.start()
+    }
+
+    public func renewSubscribe() {
+
+        guard let sid = sid else {
+            return
+        }
+        
+        var fields = [KeyValuePair]()
+        fields.append(KeyValuePair(key: "SID", value: sid))
+        fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-\(timeout)"))
+        HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
+            (data, response, error) in
+        }.start()
+    }
+
+    public func unsubscribe() {
+        guard let sid = sid else {
+            return
+        }
+        var fields = [KeyValuePair]()
+        fields.append(KeyValuePair(key: "SID", value: sid))
+        HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
+            (data, response, error) in
+            
+        }.start()
     }
 }

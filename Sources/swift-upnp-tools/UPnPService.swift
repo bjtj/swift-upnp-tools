@@ -6,7 +6,6 @@ public class UPnPService : UPnPModel {
 
     public var device: UPnPDevice?
     public var scpd: UPnPScpd?
-
     
     public var serviceId: String? {
         get { return self["serviceId"] }
@@ -22,15 +21,43 @@ public class UPnPService : UPnPModel {
         get { return self["SCPDURL"] }
         set(value) { self["SCPDURL"] = value }
     }
+
+    public var scpdUrlFull: URL? {
+        guard let scpdUrl = scpdUrl else {
+            return nil
+        }
+        return fullUrl(relativeUrl: scpdUrl)
+    }
     
     public var controlUrl: String? {
         get { return self["controlURL"] }
         set(value) { self["controlURL"] = value }
     }
+
+    public var controlUrlFull: URL? {
+        guard let controlUrl = controlUrl else {
+            return nil
+        }
+        return fullUrl(relativeUrl: controlUrl)
+    }
     
     public var eventSubUrl: String? {
         get { return self["eventSubURL"] }
         set(value) { self["eventSubURL"] = value }
+    }
+    
+    public var eventSubUrlFull: URL? {
+        guard let eventSubUrl = eventSubUrl else {
+            return nil
+        }
+        return fullUrl(relativeUrl: eventSubUrl)
+    }
+
+    public func fullUrl(relativeUrl: String) -> URL? {
+        guard let device = device else {
+            return nil
+        }
+        return URL(string: relativeUrl, relativeTo: device.rootDevice.baseUrl)
     }
     
     public static func read(xmlElement: XmlElement) -> UPnPService {

@@ -1,7 +1,7 @@
 import Foundation
 
 
-public class UPnPScpdBuilder : HttpClientDelegate {
+public class UPnPScpdBuilder {
     public var service: UPnPService
     public init(service: UPnPService) {
         self.service = service
@@ -20,25 +20,26 @@ public class UPnPScpdBuilder : HttpClientDelegate {
         guard let url = URL(string: scpdUrl, relativeTo: baseUrl) else {
             return
         }
-        HttpClient(url: url, handler: self).start()
-    }
+        HttpClient(url: url) {
+            (data, response, error) in
 
-    public func onHttpResponse(request: URLRequest, data: Data?, response: URLResponse?) {
-        guard let data = data else {
-            return
-        }
+            guard error == nil else {
+                return
+            }
+            
+            guard let data = data else {
+                return
+            }
 
-        guard let xmlString = String(data: data, encoding: .utf8) else {
-            return
-        }
+            guard let xmlString = String(data: data, encoding: .utf8) else {
+                return
+            }
 
-        guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
-            return
-        }
+            guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
+                return
+            }
 
-        service.scpd = scpd
-    }
-
-    public func onError(error: Error?) {
+            self.service.scpd = scpd
+        }.start()
     }
 }

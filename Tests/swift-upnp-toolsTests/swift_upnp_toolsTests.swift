@@ -251,7 +251,11 @@ final class swift_upnp_toolsTests: XCTestCase {
         guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
             return
         }
-        UPnPServer.activate(device: device, location: "http://location/dummy")
+        guard let addr = getInetAddress() else {
+            XCTAssert(false)
+            return
+        }
+        UPnPServer.activate(device: device, location: "http://\(addr.hostname)/dummy")
         UPnPServer.deactivate(device: device)
     }
 

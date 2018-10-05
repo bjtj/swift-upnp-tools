@@ -17,7 +17,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     public var ssdpReceiver : SSDPReceiver?
     public var devices = [String:UPnPDevice]()
     public var delegate: UPnPControlPointDelegate?
-    public var subscriptions = [String:UPnPEventSubscription]()
+    public var eventSubscribers = [UPnPEventSubscriber]()
     public var eventPropertyDelegate: UPnPEventPropertyDelegate?
     var onDeviceAddedHandlers = [(UPnPDevice) -> Void]()
     var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
@@ -79,11 +79,12 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     func startTimer() {
-        let queue = DispatchQueue(label: "com.upnp.timer")
+        let queue = DispatchQueue(label: "com.tjapp.upnp.timer")
         timer = DispatchSource.makeTimerSource(queue: queue)
         timer?.schedule(deadline: .now(), repeating: 10.0, leeway: .seconds(0))
         timer?.setEventHandler { () in
             self.removeExpiredDevices()
+            self.removeExpiredSubscriber()
         }
         timer?.resume()
     }
@@ -226,41 +227,41 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()
     }
 
-    public func getSubscription(sid: String) -> UPnPEventSubscription? {
-        return subscriptions[sid]
-    }
-
-    public func subscribe(url: URL) {
-        subscribeEvent(url: url, callbackUrls: []) {
-            (subscription) in
-            guard let subscription = subscription else {
-                return
-            }
-            self.subscriptions[subscription.sid] = subscription
+    public func subscribe(service: UPnPService) -> UPnPEventSubscriber? {
+        guard let callbackUrls = getCallbackUrl(of: service) else {
+            return nil
         }
-    }
-
-    public func renewSubscribe(url: URL, subscription: UPnPEventSubscription) {
-        renewEventSubscription(url: url, subscription: subscription) {
-            (subscription) in
-            guard let subscription = subscription else {
-                return
-            }
-            subscription.renewTimeout()
-        }
-    }
-
-    public func unsubscribe(url: URL, subscription: UPnPEventSubscription) {
-        unsubscribeEvent(url: url, subscription: subscription) {
-            (subscription) in
-            guard let subscription = subscription else {
-                return
-            }
-            self.subscriptions[subscription.sid] = nil
-        }
+        let subscriber = UPnPEventSubscriber(service: service, callbackUrls: [callbackUrls])
+        subscriber.subscribe()
+        return subscriber
     }
 
     func removeExpiredDevices() {
         devices = devices.filter { $1.isExpired == false }
+    }
+
+    func removeExpiredSubscriber() {
+        eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
+    }
+
+    func getCallbackUrl(of service: UPnPService) -> URL? {
+
+        guard let usn = service.usn else {
+            return nil
+        }
+        
+        guard let httpServer = self.httpServer else {
+            return nil
+        }
+
+        guard let httpServerAddress = httpServer.serverAddress else {
+            return nil
+        }
+
+        guard let addr = getInetAddress() else {
+            return nil
+        }
+        let hostname = addr.hostname
+        return URL(string: "http://\(hostname):\(httpServerAddress.port)/\(usn.description)/notify")
     }
 }
