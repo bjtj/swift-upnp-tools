@@ -6,9 +6,6 @@ public protocol UPnPControlPointDelegate {
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-public protocol UPnPEventPropertyDelegate {
-    func onEventProperty(properties: UPnPEventProperties)
-}
 
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
@@ -18,17 +15,30 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     public var devices = [String:UPnPDevice]()
     public var delegate: UPnPControlPointDelegate?
     public var eventSubscribers = [UPnPEventSubscriber]()
-    public var eventPropertyDelegate: UPnPEventPropertyDelegate?
+    public var eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?
     var onDeviceAddedHandlers = [(UPnPDevice) -> Void]()
     var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
     var timer: DispatchSourceTimer?
     
-    public init(port: Int) {
+    public init(port: Int, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
         self.port = port
+        self.eventPropertyLisetner = eventPropertyLisetner
     }
 
     deinit {
         finish()
+    }
+
+    public func getEventSubscriber(sid: String) -> UPnPEventSubscriber? {
+        for subscriber in eventSubscribers {
+            guard let subscriber_sid = subscriber.sid else {
+                continue
+            }
+            if subscriber_sid == sid {
+                return subscriber
+            }
+        }
+        return nil
     }
 
     public func run() {
@@ -47,8 +57,52 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
                 // already started
                 return
             }
-            self.httpServer = HttpServer(port: self.port)
             do {
+                self.httpServer = HttpServer(port: self.port)
+                try self.httpServer!.route(pattern: "/notify") {
+                    (request) in
+                    guard let request = request else {
+                        print("no request")
+                        return nil
+                    }
+                    print("path -- \(request.path)")
+                    guard let sid = request.header["sid"] else {
+                        print("no sid")
+                        return nil
+                    }
+
+                    guard let contentLength = request.header.contentLength else {
+                        print("no content length")
+                        return nil
+                    }
+
+                    guard contentLength > 0 else {
+                        print("content length -- \(contentLength)")
+                        return nil
+                    }
+
+                    var data = Data(capacity: contentLength)
+                    guard try request.remoteSocket?.read(into: &data) == contentLength else {
+                        print("socket read() -- failed")
+                        return nil
+                    }
+
+                    guard let xmlString = String(data: data, encoding: .utf8) else {
+                        print("xml string failed")
+                        return nil
+                    }
+
+                    guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
+                        print("not event properties")
+                        return nil
+                    }
+
+                    print("sid -- \(sid)")
+
+                    self.eventPropertyLisetner?(sid, properties)
+                    
+                    return HttpResponse(code: 200)
+                }
                 try self.httpServer!.run()
             } catch let error{
                 print("error - \(error)")
@@ -167,21 +221,21 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         addDevice(device: device)
     }
 
-    func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
+    public func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
         }
         onDeviceAddedHandlers.append(handler)
     }
 
-    func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
+    public func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
         }
         onDeviceRemovedHandlers.append(handler)
     }
 
-    func addDevice(device: UPnPDevice) {
+    public func addDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
         }
@@ -194,7 +248,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
-    func removeDevice(udn: String) {
+    public func removeDevice(udn: String) {
         guard let device = devices[udn] else {
             return
         }
@@ -227,12 +281,16 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()
     }
 
-    public func subscribe(service: UPnPService) -> UPnPEventSubscriber? {
+    public func onEventProperty(listener: ((String, UPnPEventProperties) -> Void)?) {
+        eventPropertyLisetner = listener
+    }
+
+    @discardableResult public func subscribe(service: UPnPService, completeListener: ((UPnPEventSubscription) -> Void)? = nil) -> UPnPEventSubscriber? {
         guard let callbackUrls = getCallbackUrl(of: service) else {
             return nil
         }
         let subscriber = UPnPEventSubscriber(service: service, callbackUrls: [callbackUrls])
-        subscriber.subscribe()
+        subscriber.subscribe(completeListener: completeListener)
         return subscriber
     }
 
@@ -245,10 +303,6 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     func getCallbackUrl(of service: UPnPService) -> URL? {
-
-        guard let usn = service.usn else {
-            return nil
-        }
         
         guard let httpServer = self.httpServer else {
             return nil
@@ -262,6 +316,6 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             return nil
         }
         let hostname = addr.hostname
-        return URL(string: "http://\(hostname):\(httpServerAddress.port)/\(usn.description)/notify")
+        return URL(string: "http://\(hostname):\(httpServerAddress.port)/notify")
     }
 }

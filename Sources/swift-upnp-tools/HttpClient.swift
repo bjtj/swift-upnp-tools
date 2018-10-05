@@ -34,6 +34,14 @@ public class HttpClient {
         self.delegate = delegate
     }
 
+    public init(url: URL, method: String?, data: Data?, fields: [KeyValuePair]?, delegate: HttpClientDelegate?) {
+        self.url = url
+        self.method = method
+        self.data = data
+        self.fields = fields
+        self.delegate = delegate
+    }
+
     public func start() {
         // let configuration = URLSessionConfiguration.background(withIdentifier: "http-client")
         // let configuration = URLSessionConfiguration.ephemeral

@@ -15,13 +15,18 @@ public class UPnPServer {
         self.port = port
     }
 
-    public func getEventSubscription(service: UPnPService) -> UPnPEventSubscription? {
+    deinit {
+        finish()
+    }
+
+    public func getEventSubscriptions(service: UPnPService) -> [UPnPEventSubscription] {
+        var result = [UPnPEventSubscription]()
         for (_, subscription) in subscriptions {
             if subscription.service === service {
-                return subscription
+                result.append(subscription)
             }
         }
-        return nil
+        return result
     }
 
     public func registerDevice(device: UPnPDevice) {
@@ -175,7 +180,7 @@ public class UPnPServer {
 
                         var data = Data(capacity: contentLength)
                         guard try request.remoteSocket?.read(into: &data) == contentLength else {
-                            print("sockte read() -- failed")
+                            print("socket read() -- failed")
                             return nil
                         }
 
@@ -210,7 +215,24 @@ public class UPnPServer {
                         }
                         return nil
                     } else if request.path.hasSuffix("event.xml") {
-                        
+                        guard let callbackUrls = request.header["CALLBACK"] else {
+                            print("no callback field")
+                            return nil
+                        }
+                        let urls = readCallbackUrls(text: callbackUrls)
+                        for (_, device) in self.devices {
+                            guard let service = device.getService(withEventSubUrl: request.path) else {
+                                continue
+                            }
+                            let subscription = UPnPEventSubscription.generate(service: service,
+                                                                              callbackUrls: urls)
+                            print("generated sid -- \(subscription.sid)")
+                            self.subscriptions[subscription.sid] = subscription
+                            let response = HttpResponse(code: 200, reason: "OK")
+                            response.header["SID"] = subscription.sid
+                            return response
+                        }
+                        return nil
                     } else {
                         print("unknown request -- \(request.path)")
                     }
@@ -335,5 +357,27 @@ public class UPnPServer {
     }
 
     public func setProperty(service: UPnPService, properties: [String:String]) {
+        let subscriptions = getEventSubscriptions(service: service)
+        for subscription in subscriptions {
+            let properties = UPnPEventProperties(fromDict: properties)
+            sendEventProperties(subscription: subscription, properties: properties)
+        }
     }
+
+    public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties) {
+        for url in subscription.callbackUrls {
+            let data = properties.xmlDocument.data(using: .utf8)
+            var fields = [KeyValuePair]()
+            fields.append(KeyValuePair(key: "Content-Type", value: "text/xml"))
+            fields.append(KeyValuePair(key: "SID", value: subscription.sid))
+            HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml") {
+                (data, response, error) in
+                guard error == nil else {
+                    print("error - \(error!)")
+                    return
+                }
+            }.start()
+        }
+    }
+
 }

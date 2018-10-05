@@ -32,6 +32,16 @@ public class UPnPEventSubscription : TimeBase{
 
 public class UPnPEventProperties: OrderedProperties {
 
+    override public init() {
+    }
+
+    public init(fromDict dict: [String:String]) {
+        super.init()
+        for (key, value) in dict {
+            self[key] = value
+        }
+    }
+
     public static func read(xmlString: String) -> UPnPEventProperties? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
@@ -140,4 +150,15 @@ public class UPnPEventSubscriber : TimeBase {
             
         }.start()
     }
+}
+
+
+public func readCallbackUrls(text: String) -> [URL] {
+    let tokens = text.split(separator: " ")
+    let urls = tokens.map { URL(string: unwrap(text: String($0), prefix: "<", suffix: ">"))! }
+    return urls
+}
+
+public func unwrap(text: String, prefix: String, suffix: String) -> String {
+    return String(text[text.index(text.startIndex, offsetBy: prefix.count)..<text.index(text.endIndex, offsetBy: -suffix.count)])
 }

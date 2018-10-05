@@ -4,7 +4,7 @@ public class KeyValuePair {
     public var key: String
     public var value: String
     
-    init (key: String, value: String) {
+    public init (key: String, value: String) {
         self.key = key
         self.value = value
     }
@@ -22,7 +22,7 @@ public class KeyValuePair {
 public class OrderedProperties {
     public var fields = [KeyValuePair]()
 
-    subscript (key: String) -> String? {
+    public subscript (key: String) -> String? {
         get {
             for field in fields {
                 if field.equalsKey(key) {
@@ -46,7 +46,7 @@ public class OrderedProperties {
 public class OrderedCaseInsensitiveProperties {
     public var fields: [KeyValuePair] = []
 
-    subscript (key: String) -> String? {
+    public subscript (key: String) -> String? {
         get {
             for field in fields {
                 if field.equalsKeyIgnorecase(key) {

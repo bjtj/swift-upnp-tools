@@ -217,6 +217,19 @@ final class swift_upnp_toolsTests: XCTestCase {
                     print("action response")
                     XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
                 }
+
+                let _ = cp.subscribe(service: service) {
+                    (subscription) in
+                    print("subscribe result -- sid: \(subscription.sid)")
+                }
+            }
+        }
+
+        cp.onEventProperty {
+            (sid, properties) in
+            print("sid -- \(sid)")
+            for field in properties.fields {
+                print("\(field.key) = \(field.value)")
             }
         }
 
