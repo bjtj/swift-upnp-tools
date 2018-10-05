@@ -1,4 +1,4 @@
+import SwiftHttpServer
 
-
-public typealias SSDPHeaderHandler = (InetAddress?, SSDPHeader?) -> [SSDPHeader]?
+public typealias SSDPHeaderHandler = ((hostname:String, port: Int32)?, SSDPHeader?) -> [SSDPHeader]?
 

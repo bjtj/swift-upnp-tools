@@ -273,7 +273,7 @@ public class UPnPServer {
         }
     }
 
-    public func onSSDPHeader(address: InetAddress?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
+    public func onSSDPHeader(address: (hostname: String, port: Int32)?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
         guard let ssdpHeader = ssdpHeader else {
             return nil
         }
@@ -348,7 +348,7 @@ public class UPnPServer {
             return nil
         }
 
-        guard let addr = getInetAddress() else {
+        guard let addr = Network.getInetAddress() else {
             return nil
         }
         let hostname = addr.hostname

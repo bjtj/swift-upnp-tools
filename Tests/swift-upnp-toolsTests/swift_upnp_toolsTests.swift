@@ -1,5 +1,6 @@
 import XCTest
 @testable import SwiftUpnpTools
+import SwiftHttpServer
 
 final class swift_upnp_toolsTests: XCTestCase {
 
@@ -264,7 +265,7 @@ final class swift_upnp_toolsTests: XCTestCase {
         guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
             return
         }
-        guard let addr = getInetAddress() else {
+        guard let addr = Network.getInetAddress() else {
             XCTAssert(false)
             return
         }
