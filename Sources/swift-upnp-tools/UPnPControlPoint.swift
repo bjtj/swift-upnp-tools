@@ -161,7 +161,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
-    @discardableResult public func onSSDPHeader(address: InetAddress?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
+    @discardableResult public func onSSDPHeader(address: (String, Int32)?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
         if ssdpHeader.isNotify {
             guard let nts = ssdpHeader.nts else {
                 return nil
@@ -312,7 +312,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             return nil
         }
 
-        guard let addr = getInetAddress() else {
+        guard let addr = Network.getInetAddress() else {
             return nil
         }
         let hostname = addr.hostname

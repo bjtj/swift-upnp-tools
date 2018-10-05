@@ -1,5 +1,6 @@
 import Foundation
 import Socket
+import SwiftHttpServer
 
 enum SocketError: Error {
     case select(String)
@@ -16,7 +17,7 @@ public class SSDP {
     public static var MCAST_HOST = "239.255.255.250"
     public static var MCAST_PORT = 1900
 
-    public static func sendMsearch(st: String, mx: Int, handler: ((InetAddress?, SSDPHeader?) -> Void)? = nil) {
+    public static func sendMsearch(st: String, mx: Int, handler: (((String, Int32)?, SSDPHeader?) -> Void)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
           "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
