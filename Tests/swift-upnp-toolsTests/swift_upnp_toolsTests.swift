@@ -139,6 +139,8 @@ final class swift_upnp_toolsTests: XCTestCase {
         }
 
         XCTAssertEqual("SetLoadLevelTarget", scpd.actions[0].name!)
+        XCTAssert(scpd.actions[0].arguments[0].name != nil)
+        XCTAssertEqual("newLoadlevelTarget", scpd.actions[0].arguments[0].name!)
         XCTAssertEqual("GetLoadLevelTarget", scpd.actions[1].name!)
         XCTAssertEqual("GetLoadLevelStatus", scpd.actions[2].name!)
         XCTAssertEqual("LoadLevelTarget", scpd.stateVariables[0].name!)

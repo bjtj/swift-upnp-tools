@@ -149,8 +149,13 @@ public class UPnPAction : UPnPModel {
         }
         for element in elements {
             if element.name == "argumentList" {
-                let argument = UPnPActionArgument.read(xmlElement: element)
-                action.arguments.append(argument)
+                guard let elements = element.elements else {
+                    continue
+                }
+                for argumentElement in elements {
+                    let argument = UPnPActionArgument.read(xmlElement: argumentElement)
+                    action.arguments.append(argument)
+                }
             } else if element.firstText != nil && element.elements!.isEmpty {
                 action[element.name!] = element.firstText!.text
             }
