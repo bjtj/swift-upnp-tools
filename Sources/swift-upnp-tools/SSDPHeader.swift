@@ -93,7 +93,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
     }
 
     public var description: String {
-        let headerFields = fields.map {"\($0.key): \($0.value)"}.joined(separator: "\r\n")
+        let headerFields = fields.map {"\($0.key): \($0.value ?? "")"}.joined(separator: "\r\n")
         return "\(firstLine!)\r\n\(headerFields)\r\n\r\n"
     }
 

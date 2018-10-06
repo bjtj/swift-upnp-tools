@@ -2,9 +2,9 @@
 public class KeyValuePair {
 
     public var key: String
-    public var value: String
+    public var value: String?
     
-    public init (key: String, value: String) {
+    public init (key: String, value: String?) {
         self.key = key
         self.value = value
     }
@@ -22,6 +22,10 @@ public class KeyValuePair {
 public class OrderedProperties {
     public var fields = [KeyValuePair]()
 
+    public func removeValueForKey(forKey key: String) {
+        fields = fields.filter { $0.key != key }
+    }
+
     public subscript (key: String) -> String? {
         get {
             for field in fields {
@@ -34,11 +38,11 @@ public class OrderedProperties {
         set(newValue) {
             for field in fields {
                 if field.equalsKey(key) {
-                    field.value = newValue!
+                    field.value = newValue
                     return
                 }
             }
-            fields.append(KeyValuePair(key: key, value: newValue!))
+            fields.append(KeyValuePair(key: key, value: newValue))
         }
     }
 }
@@ -46,6 +50,10 @@ public class OrderedProperties {
 public class OrderedCaseInsensitiveProperties {
     public var fields: [KeyValuePair] = []
 
+    public func removeValueForKey(forKey key: String) {
+        fields = fields.filter { $0.equalsKeyIgnorecase(key) == false }
+    }
+
     public subscript (key: String) -> String? {
         get {
             for field in fields {
@@ -58,11 +66,11 @@ public class OrderedCaseInsensitiveProperties {
         set(newValue) {
             for field in fields {
                 if field.equalsKeyIgnorecase(key) {
-                    field.value = newValue!
+                    field.value = newValue
                     return
                 }
             }
-            fields.append(KeyValuePair(key: key, value: newValue!))
+            fields.append(KeyValuePair(key: key, value: newValue))
         }
     }
 }

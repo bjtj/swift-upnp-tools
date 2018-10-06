@@ -8,8 +8,9 @@ public class UPnPDevice : UPnPTimeBasedModel {
     public var services = [UPnPService]()
     public var embeddedDevices = [UPnPDevice]()
 
-    override public init(timeout: UInt64 = 1800) {
+    public init(udn: String? = nil, timeout: UInt64 = 1800) {
         super.init(timeout: timeout)
+        self.udn = udn
     }
     
     public var udn: String? {

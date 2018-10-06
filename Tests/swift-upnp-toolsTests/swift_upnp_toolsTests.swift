@@ -230,7 +230,7 @@ final class swift_upnp_toolsTests: XCTestCase {
             (sid, properties) in
             print("sid -- \(sid)")
             for field in properties.fields {
-                print("\(field.key) = \(field.value)")
+                print("\(field.key) = \(field.value ?? "nil")")
             }
         }
 

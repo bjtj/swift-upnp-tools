@@ -69,7 +69,8 @@ public class UPnPEventProperties: OrderedProperties {
         let root = XmlTag(namespace: "e", name: "propertyset", ext: ext, content: "")
         for field in fields {
             let property = XmlTag(namespace: "e", name: "property", content: "")
-            property.content = XmlTag(name: field.key, text: field.value).description
+            let value = field.value ?? ""
+            property.content = XmlTag(name: field.key, text: value).description
             root.content += property.description
         }
         return root.description

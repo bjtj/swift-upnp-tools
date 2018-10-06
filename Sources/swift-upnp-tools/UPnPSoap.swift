@@ -71,7 +71,8 @@ public class UPnPSoapRequest : OrderedProperties {
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: actionName, ext: "xmlns:u=\"\(serviceType)\"", content: "")
         for field in fields {
-            action.content += XmlTag(name: field.key, text: field.value).description
+            let value = field.value ?? ""
+            action.content += XmlTag(name: field.key, text: value).description
         }
         body.content = action.description
         root.content = body.description
@@ -145,7 +146,7 @@ public class UPnPSoapResponse : OrderedProperties {
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: "\(actionName)Response", ext: "xmlns:u=\"\(serviceType)\"", content: "")
         for field in fields {
-            action.content += XmlTag(name: field.key, text: field.value).description
+            action.content += XmlTag(name: field.key, text: field.value ?? "").description
         }
         body.content = action.description
         root.content = body.description
