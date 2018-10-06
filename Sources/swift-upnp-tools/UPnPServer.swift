@@ -158,7 +158,7 @@ public class UPnPServer {
                                 guard let scpd = service.scpd else {
                                     continue
                                 }
-                                let response = HttpResponse(code: 200, reason: "OK")
+                                let response = HttpResponse(code: 200)
                                 response.data = scpd.xmlDocument.data(using: .utf8)
                                 return response
                             }
@@ -206,7 +206,7 @@ public class UPnPServer {
                                 }
                                 let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType, actionName: soapRequest.actionName)
                                 for field in properties.fields {
-                                    soapResponse[field.key] = field.value
+                                    soapResponse[field.key] = field.literalValue
                                 }
                                 let response = HttpResponse(code: 200, reason: "OK")
                                 response.data = soapResponse.xmlDocument.data(using: .utf8)

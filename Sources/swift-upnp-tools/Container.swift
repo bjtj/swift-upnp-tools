@@ -3,6 +3,13 @@ public class KeyValuePair {
 
     public var key: String
     public var value: String?
+
+    public var literalValue: String {
+        guard let value = self.value else {
+            return ""
+        }
+        return value
+    }
     
     public init (key: String, value: String?) {
         self.key = key

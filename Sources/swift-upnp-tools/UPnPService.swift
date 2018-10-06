@@ -55,8 +55,10 @@ public class UPnPService : UPnPModel {
 
     public func fullUrl(relativeUrl: String) -> URL? {
         guard let device = device else {
+            print("no device")
             return nil
         }
+        print("base url -- \(device.rootDevice.baseUrl)")
         return URL(string: relativeUrl, relativeTo: device.rootDevice.baseUrl)
     }
     

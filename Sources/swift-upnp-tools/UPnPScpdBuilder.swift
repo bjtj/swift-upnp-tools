@@ -8,37 +8,37 @@ public class UPnPScpdBuilder {
     }
 
     public func build() {
-        guard let device = service.device else {
+        guard let url = service.scpdUrlFull else {
+            print("scpd url full -- failed")
             return
         }
-        guard let baseUrl = device.rootDevice.baseUrl else {
-            return
-        }
-        guard let scpdUrl = service.scpdUrl else {
-            return
-        }
-        guard let url = URL(string: scpdUrl, relativeTo: baseUrl) else {
-            return
-        }
+
+        print("url -- \(url)")
+
         HttpClient(url: url) {
             (data, response, error) in
 
             guard error == nil else {
+                print("error - \(error!)")
                 return
             }
             
             guard let data = data else {
+                print("no data")
                 return
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else {
+                print("not xml string")
                 return
             }
 
             guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
+                print("read scpd -- failed")
                 return
             }
 
+            print("set scpd")
             self.service.scpd = scpd
         }.start()
     }

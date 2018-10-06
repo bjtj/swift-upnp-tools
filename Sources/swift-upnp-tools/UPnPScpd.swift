@@ -32,14 +32,18 @@ public class UPnPScpd : UPnPModel {
     }
 
     public static func read(xmlString: String) -> UPnPScpd? {
+        print("read")
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
+            print("no root element")
+            print(xmlString)
             return nil
         }
 
         let scpd = UPnPScpd()
 
         guard let elements = root.elements else {
+            print("no elements")
             return scpd
         }
         for element in elements {
@@ -51,6 +55,7 @@ public class UPnPScpd : UPnPModel {
                 scpd.stateVariables = readStateVariables(xmlElement: element)
             }
         }
+        print("read scpd -- done")
         return scpd
     }
 

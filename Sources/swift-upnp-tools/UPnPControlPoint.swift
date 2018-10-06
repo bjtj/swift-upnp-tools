@@ -7,7 +7,7 @@ public protocol UPnPControlPointDelegate {
 }
 
 
-public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
+public class UPnPControlPoint {
 
     public var port: Int
     public var httpServer : HttpServer?
@@ -227,15 +227,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     func buildDevice(url: URL) {
-        UPnPDeviceBuilder(delegate: self).build(url: url)
-    }
-
-    public func onDeviceBuild(url: URL?, device: UPnPDevice?) {
-        guard let device = device, let url = url else {
-            return
-        }
-        device.baseUrl = url
-        addDevice(device: device)
+        UPnPDeviceBuilder() {
+            (device) in
+            guard let device = device else {
+                print("no device build")
+                return
+            }
+            self.addDevice(device: device)
+        }.build(url: url)
     }
 
     public func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {

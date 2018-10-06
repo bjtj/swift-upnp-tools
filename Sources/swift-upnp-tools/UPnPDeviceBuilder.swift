@@ -1,14 +1,11 @@
 import Foundation
 
-public protocol UPnPDeviceBuilderDelegate {
-    func onDeviceBuild(url: URL?, device: UPnPDevice?)
-}
 
 public class UPnPDeviceBuilder {
 
-    public var delegate: UPnPDeviceBuilderDelegate?
+    public var delegate: ((UPnPDevice?) -> Void)?
 
-    public init(delegate: UPnPDeviceBuilderDelegate?) {
+    public init(delegate: ((UPnPDevice?) -> Void)?) {
         self.delegate = delegate
     }
     
@@ -32,12 +29,13 @@ public class UPnPDeviceBuilder {
                 print(xmlString)
                 return
             }
+            device.baseUrl = url
             let services = device.allServices
             for service in services {
                 UPnPScpdBuilder(service: service).build()
             }
             if let delegate = self.delegate {
-                delegate.onDeviceBuild(url: url, device: device)
+                delegate(device)
             }
         }.start()
     }

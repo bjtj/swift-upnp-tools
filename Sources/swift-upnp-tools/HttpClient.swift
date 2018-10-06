@@ -59,10 +59,7 @@ public class HttpClient {
         }
         if let fields = self.fields {
             for field in fields {
-                guard let value = field.value else {
-                    continue
-                }
-                request.addValue(value, forHTTPHeaderField: field.key)
+                request.addValue(field.literalValue, forHTTPHeaderField: field.key)
             }
         }
         let task = session.dataTask(with: request) {

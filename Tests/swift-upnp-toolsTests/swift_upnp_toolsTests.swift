@@ -178,10 +178,17 @@ final class swift_upnp_toolsTests: XCTestCase {
     func testServer() {
 
         guard let server = swift_upnp_toolsTests.upnpServer else {
+            print("no upnp server")
             return
         }
 
         guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            print("read device -- failed")
+            return
+        }
+
+        guard let registerd_udn = device.udn else {
+            print("device has no udn")
             return
         }
         
@@ -204,6 +211,10 @@ final class swift_upnp_toolsTests: XCTestCase {
             (device) in
             DispatchQueue.global(qos: .background).async {
                 print("device added -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+
+                guard registerd_udn == device.udn else {
+                    return
+                }
 
                 guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
                     print("no service")

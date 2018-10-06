@@ -42,7 +42,7 @@ public class UPnPSoapRequest : OrderedProperties {
             let actionElement = actionElements[0]
             if let attributes = actionElement.attributes {
                 if attributes.isEmpty == false {
-                    request.serviceType = "\(attributes[0].value ?? "")"
+                    request.serviceType = "\(attributes[0].literalValue)"
                 }
             }
             request.actionName = actionElement.name!
@@ -71,8 +71,7 @@ public class UPnPSoapRequest : OrderedProperties {
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: actionName, ext: "xmlns:u=\"\(serviceType)\"", content: "")
         for field in fields {
-            let value = field.value ?? ""
-            action.content += XmlTag(name: field.key, text: value).description
+            action.content += XmlTag(name: field.key, text: field.literalValue).description
         }
         body.content = action.description
         root.content = body.description
@@ -107,9 +106,7 @@ public class UPnPSoapResponse : OrderedProperties {
                         let actionElement = actionElements[0]
                         if let attributes = actionElement.attributes {
                             if attributes.isEmpty == false {
-                                if attributes[0].value != nil {
-                                    response.serviceType = attributes[0].value!
-                                }
+                                response.serviceType = attributes[0].literalValue
                             }
                         }
                         response.actionName = actionElement.name!
@@ -146,7 +143,7 @@ public class UPnPSoapResponse : OrderedProperties {
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: "\(actionName)Response", ext: "xmlns:u=\"\(serviceType)\"", content: "")
         for field in fields {
-            action.content += XmlTag(name: field.key, text: field.value ?? "").description
+            action.content += XmlTag(name: field.key, text: field.literalValue).description
         }
         body.content = action.description
         root.content = body.description

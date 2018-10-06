@@ -93,7 +93,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
     }
 
     public var description: String {
-        let headerFields = fields.map {"\($0.key): \($0.value ?? "")"}.joined(separator: "\r\n")
+        let headerFields = fields.map {"\($0.key): \($0.literalValue)"}.joined(separator: "\r\n")
         return "\(firstLine!)\r\n\(headerFields)\r\n\r\n"
     }
 
@@ -109,9 +109,11 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
                 first = false
                 header.firstLine = line
             } else {
-                let tokens = line.split(separator: ":", maxSplits: 1)
-                header[tokens[0].trimmingCharacters(in: .whitespaces)] =
-                  (tokens.count == 1 ? "" : tokens[1]).trimmingCharacters(in: .whitespaces)
+                let tokens = line.split(separator: ":", maxSplits: 1).map { String($0) }
+                let name = tokens[0].trimmingCharacters(in: .whitespaces)
+                let value = (tokens.count == 1 ? "" : tokens[1]).trimmingCharacters(in: .whitespaces)
+                header[name] = value
+                  
             }
         }
         return header

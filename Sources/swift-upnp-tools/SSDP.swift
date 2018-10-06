@@ -69,7 +69,7 @@ public class SSDP {
             text += "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n"
         }
         for field in properties.fields {
-            text += "\(field.key): \(field.value)\r\n"
+            text += "\(field.key): \(field.literalValue)\r\n"
         }
         text += "\r\n"
         
