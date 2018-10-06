@@ -29,6 +29,15 @@ public class KeyValuePair {
 public class OrderedProperties {
     public var fields = [KeyValuePair]()
 
+    public init() {
+    }
+
+    public init(fromDict dict: [String:String]) {
+        for (key, value) in dict {
+            self[key] = value
+        }
+    }
+
     public func removeValueForKey(forKey key: String) {
         fields = fields.filter { $0.key != key }
     }
@@ -56,6 +65,15 @@ public class OrderedProperties {
 
 public class OrderedCaseInsensitiveProperties {
     public var fields: [KeyValuePair] = []
+
+    public init() {
+    }
+
+    public init(fromDict dict: [String:String]) {
+        for (key, value) in dict {
+            self[key] = value
+        }
+    }
 
     public func removeValueForKey(forKey key: String) {
         fields = fields.filter { $0.equalsKeyIgnorecase(key) == false }

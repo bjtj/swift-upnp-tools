@@ -284,6 +284,14 @@ public class UPnPControlPoint {
         removeDevice(device: device)
     }
 
+    public func invoke(service: UPnPService, action: UPnPAction, properties: [String:String], completeHandler: ((UPnPSoapResponse?) -> Void)?) {
+        guard let actionName = action.name else {
+            print("no action name")
+            return
+        }
+        invoke(service: service, action: actionName, properties: OrderedProperties(fromDict: properties), completeHandler: completeHandler)
+    }
+
     public func invoke(service: UPnPService, action: String, properties: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         guard let serviceType = service.serviceType else {
             print("error -- no service type")

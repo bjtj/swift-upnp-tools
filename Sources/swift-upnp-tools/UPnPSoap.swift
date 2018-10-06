@@ -12,6 +12,7 @@ public class UPnPSoapRequest : OrderedProperties {
     public init(serviceType: String = "", actionName: String = "") {
         self.serviceType = serviceType
         self.actionName = actionName
+        super.init()
     }
 
     public static func read(xmlString: String) -> UPnPSoapRequest? {
@@ -88,6 +89,7 @@ public class UPnPSoapResponse : OrderedProperties {
     public init(serviceType: String = "", actionName: String = "") {
         self.serviceType = serviceType
         self.actionName = actionName
+        super.init()
     }
 
     public static func read(xmlString: String) -> UPnPSoapResponse? {

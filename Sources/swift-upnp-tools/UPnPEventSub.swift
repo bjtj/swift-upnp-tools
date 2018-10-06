@@ -32,16 +32,6 @@ public class UPnPEventSubscription : TimeBase{
 
 public class UPnPEventProperties: OrderedProperties {
 
-    override public init() {
-    }
-
-    public init(fromDict dict: [String:String]) {
-        super.init()
-        for (key, value) in dict {
-            self[key] = value
-        }
-    }
-
     public static func read(xmlString: String) -> UPnPEventProperties? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {

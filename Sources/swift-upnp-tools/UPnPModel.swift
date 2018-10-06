@@ -16,6 +16,7 @@ public class UPnPTimeBasedModel : UPnPModel {
 
     public init(timeout: UInt64 = 1800) {
         timeBase = TimeBase(timeout: timeout)
+        super.init()
     }
     
     public func renewTimeout() {
