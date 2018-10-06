@@ -13,8 +13,6 @@ public class UPnPScpdBuilder {
             return
         }
 
-        print("url -- \(url)")
-
         HttpClient(url: url) {
             (data, response, error) in
 
@@ -38,7 +36,6 @@ public class UPnPScpdBuilder {
                 return
             }
 
-            print("set scpd")
             self.service.scpd = scpd
         }.start()
     }

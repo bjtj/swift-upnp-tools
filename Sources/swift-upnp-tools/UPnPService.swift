@@ -58,7 +58,6 @@ public class UPnPService : UPnPModel {
             print("no device")
             return nil
         }
-        print("base url -- \(device.rootDevice.baseUrl)")
         return URL(string: relativeUrl, relativeTo: device.rootDevice.baseUrl)
     }
     
