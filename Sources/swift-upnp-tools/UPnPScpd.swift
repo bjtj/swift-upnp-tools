@@ -128,6 +128,14 @@ public class UPnPAction : UPnPModel {
         set(value) { self["name"] = value }
     }
 
+    public var inArguments : [UPnPActionArgument] {
+        return arguments.filter { $0.isInArgument }
+    }
+
+    public var outArguments : [UPnPActionArgument] {
+        return arguments.filter { $0.isOutArgument }
+    }
+
     public func getArgument(name: String) -> UPnPActionArgument? {
         for argument in arguments {
             guard let _name = argument.name else {
@@ -182,9 +190,28 @@ public class UPnPActionArgument : UPnPModel {
         set(value) { self["name"] = value }
     }
 
+    public var direction: String? {
+        get { return self["direction"] }
+        set(value) { self["direction"] = value }
+    }
+
     public var relatedStateVariable: String? {
         get { return self["relatedStateVariable"] }
         set(value) { self["relatedStateVariable"] = value }
+    }
+
+    public var isInArgument: Bool {
+        guard let direction = direction else {
+            return false
+        }
+        return direction == "in"
+    }
+
+    public var isOutArgument: Bool {
+        guard let direction = direction else {
+            return false
+        }
+        return direction == "out"
     }
 
     public static func read(xmlElement: XmlElement) -> UPnPActionArgument {
