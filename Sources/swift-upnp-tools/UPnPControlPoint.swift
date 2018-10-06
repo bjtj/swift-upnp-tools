@@ -256,10 +256,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         guard let device_udn = device.udn else {
             return
         }
-        guard getDevice(udn: device_udn) == nil else {
-            return
+        if let device = getDevice(udn: device_udn) {
+            guard device.status == .initialized else {
+                return
+            }
         }
+        
         setDevice(device: device)
+        device.status = .completed
         if let delegate = delegate {
             delegate.onDeviceAdded(device: device)
         }

@@ -2,13 +2,20 @@ import Foundation
 import SwiftXml
 
 
+public enum UPnPDeviceBuildStatus {
+    case initialized
+    case completed
+}
+
 public class UPnPDevice : UPnPTimeBasedModel {
+    public var status: UPnPDeviceBuildStatus
     public var parent: UPnPDevice?
     public var baseUrl: URL?
     public var services = [UPnPService]()
     public var embeddedDevices = [UPnPDevice]()
 
     public init(udn: String? = nil, timeout: UInt64 = 1800) {
+        self.status = .initialized
         super.init(timeout: timeout)
         self.udn = udn
     }
