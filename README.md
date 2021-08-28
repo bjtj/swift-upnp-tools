@@ -2,6 +2,14 @@
 
 This is a swift upnp tool (library) mainly depends on IBM BlueSocket (https://github.com/IBM-Swift/BlueSocket).
 
+## Swift version
+
+```shell
+$ swift --version
+Swift version 4.2.3 (swift-4.2.3-RELEASE)
+Target: x86_64-unknown-linux-gnu
+```
+
 ## Dependencies
 
 * https://github.com/IBM-Swift/BlueSocket
