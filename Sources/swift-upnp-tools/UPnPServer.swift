@@ -19,6 +19,9 @@ public class UPnPServer {
         finish()
     }
 
+    /**
+     Get Event Subcscriptions with service
+     */
     public func getEventSubscriptions(service: UPnPService) -> [UPnPEventSubscription] {
         var result = [UPnPEventSubscription]()
         for (_, subscription) in subscriptions {
@@ -29,6 +32,9 @@ public class UPnPServer {
         return result
     }
 
+    /**
+     Register Devcie
+     */
     public func registerDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
@@ -36,6 +42,9 @@ public class UPnPServer {
         devices[udn] = device
     }
 
+    /**
+     Unregister Device
+     */
     public func unregisterDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
@@ -43,6 +52,9 @@ public class UPnPServer {
         devices[udn] = nil
     }
 
+    /**
+     Activate device with UDN
+     */
     public func activate(udn: String) {
         guard let device = devices[udn] else {
             return
@@ -78,6 +90,9 @@ public class UPnPServer {
         SSDP.notify(properties: properties)
     }
 
+    /**
+     Deactivate device with UDN
+     */
     public func deactivate(udn: String) {
         guard let device = devices[udn] else {
             return
@@ -108,23 +123,38 @@ public class UPnPServer {
         SSDP.notify(properties: properties)
     }
 
+    /**
+     Register Event Subscription
+     */
     public func registerEventSubscription(subscription: UPnPEventSubscription) {
         subscriptions[subscription.sid] = subscription
     }
 
+    /**
+     Unregister Event Subscription
+     */
     public func unregisterEventSubscription(subscription: UPnPEventSubscription) {
         subscriptions[subscription.sid] = nil
     }
 
+    /**
+     On Action Request
+     */
     public func onActionRequest(handler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?) {
         onActionRequestHandler = handler
     }
 
+    /**
+     Start UPnP Server
+     */
     public func run() {
         startHttpServer()
         startSsdpReceiver()
     }
 
+    /**
+     Start HTTP Server
+     */
     public func startHttpServer() {
         DispatchQueue.global(qos: .background).async {
             guard self.httpServer == nil else {
@@ -246,6 +276,9 @@ public class UPnPServer {
         }
     }
 
+    /**
+     Start SSDP Receiver
+     */
     public func startSsdpReceiver() {
         DispatchQueue.global(qos: .background).async {
             guard self.ssdpReceiver == nil else {
@@ -264,6 +297,9 @@ public class UPnPServer {
         }
     }
 
+    /**
+     Stop UPnP Server
+     */
     public func finish() {
         if let httpServer = httpServer {
             httpServer.finish()
@@ -273,6 +309,9 @@ public class UPnPServer {
         }
     }
 
+    /**
+     On SSDP Header with address, SSDP Header
+     */
     public func onSSDPHeader(address: (hostname: String, port: Int32)?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
         guard let ssdpHeader = ssdpHeader else {
             return nil
@@ -356,6 +395,9 @@ public class UPnPServer {
         return location
     }
 
+    /**
+     Set Property with Service and properties
+     */
     public func setProperty(service: UPnPService, properties: [String:String]) {
         let subscriptions = getEventSubscriptions(service: service)
         for subscription in subscriptions {
@@ -364,6 +406,9 @@ public class UPnPServer {
         }
     }
 
+    /**
+     Send Event Properties with Subscription and properties
+     */
     public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties) {
         for url in subscription.callbackUrls {
             let data = properties.xmlDocument.data(using: .utf8)
