@@ -55,11 +55,9 @@ Sample application code (UPnPControlPoint)
 
 <https://github.com/bjtj/swift-upnp-app/blob/master/Sources/swift-upnp-app/main.swift>
 
-## API
+## Examples
 
 ### UPnPControlPoint
-
-Example
 
 ```swift
 let cp = UPnPControlPoint(port: 0)
@@ -76,8 +74,6 @@ cp.finish()
 ```
 
 ### UPnPServer
-
-Example
 
 ```swift
 let server = UPnPServer(port: 0)
