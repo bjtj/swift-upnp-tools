@@ -29,6 +29,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         finish()
     }
 
+    /**
+     Get Event Subscriber with sid (subscription id)
+     */
     public func getEventSubscriber(sid: String) -> UPnPEventSubscriber? {
         for subscriber in eventSubscribers {
             guard let subscriber_sid = subscriber.sid else {
@@ -41,16 +44,25 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         return nil
     }
 
+    /**
+     Start UPnP Control Point
+     */
     public func run() {
         startHttpServer()
         startSsdpReceiver()
         startTimer()
     }
 
+    /**
+     Get device with UDN
+     */
     public func getDevice(udn: String) -> UPnPDevice? {
         return devices[udn]
     }
 
+    /**
+     Start HTTP Server
+     */
     public func startHttpServer() {
         DispatchQueue.global(qos: .background).async {
             guard self.httpServer == nil else {
@@ -111,6 +123,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
+    /**
+     Start SSDP Receiver
+     */
     public func startSsdpReceiver() {
         DispatchQueue.global(qos: .background).async {
             guard self.ssdpReceiver == nil else {
@@ -143,12 +158,18 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         timer?.resume()
     }
 
+    /**
+     Stop UPnP Control Point
+     */
     public func finish() {
         timer?.cancel()
         httpServer?.finish()
         ssdpReceiver?.finish()
     }
 
+    /**
+     Send M-SEARCH with ST (Service Type) and MX (Max)
+     */
     public func sendMsearch(st: String, mx: Int) {
         DispatchQueue.global(qos: .background).async {
             SSDP.sendMsearch(st: st, mx: mx) {
@@ -161,6 +182,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
+    /**
+     On SSDP Header is received
+     */
     @discardableResult public func onSSDPHeader(address: (String, Int32)?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
         if ssdpHeader.isNotify {
             guard let nts = ssdpHeader.nts else {
@@ -213,6 +237,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         UPnPDeviceBuilder(delegate: self).build(url: url)
     }
 
+    /**
+     On Device Build with URL and Device
+     */
     public func onDeviceBuild(url: URL?, device: UPnPDevice?) {
         guard let device = device, let url = url else {
             return
@@ -221,6 +248,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         addDevice(device: device)
     }
 
+    /**
+     On Device Added
+     */
     public func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
@@ -228,6 +258,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         onDeviceAddedHandlers.append(handler)
     }
 
+    /**
+     On Device Removed
+     */
     public func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
@@ -235,6 +268,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         onDeviceRemovedHandlers.append(handler)
     }
 
+    /**
+     Add device with Device
+     */
     public func addDevice(device: UPnPDevice) {
         guard let udn = device.udn else {
             return
@@ -248,6 +284,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         }
     }
 
+    /**
+     Remove Device with UDN
+     */
     public func removeDevice(udn: String) {
         guard let device = devices[udn] else {
             return
@@ -261,6 +300,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         devices[udn] = nil
     }
 
+    /**
+     Invoke with Service and action, properties, completeHandler (Optional)
+     */
     public func invoke(service: UPnPService, action: String, properties: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         guard let serviceType = service.serviceType else {
             print("error -- no service type")
@@ -281,10 +323,16 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()
     }
 
+    /**
+     On Event Property with listener (Optional)
+     */
     public func onEventProperty(listener: ((String, UPnPEventProperties) -> Void)?) {
         eventPropertyLisetner = listener
     }
 
+    /**
+     Subscribe with service and completeListener (Optional)
+     */
     @discardableResult public func subscribe(service: UPnPService, completeListener: ((UPnPEventSubscription) -> Void)? = nil) -> UPnPEventSubscriber? {
         guard let callbackUrls = getCallbackUrl(of: service) else {
             return nil
