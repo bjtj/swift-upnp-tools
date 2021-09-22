@@ -19,6 +19,7 @@ final class swift_upnp_toolsTests: XCTestCase {
 
     override class func tearDown() {
         super.tearDown()
+        swift_upnp_toolsTests.upnpServer?.finish()
     }
 
     class func startReceiver() {

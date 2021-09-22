@@ -1,6 +1,9 @@
 import Foundation
 import SwiftXml
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public typealias OnEventSubscription = (UPnPEventSubscription?) -> Void
 

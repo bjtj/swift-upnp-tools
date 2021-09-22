@@ -6,8 +6,8 @@
         "repositoryURL": "https://github.com/IBM-Swift/BlueSocket.git",
         "state": {
           "branch": null,
-          "revision": "ce36f72f2c36b88f847de50c8c0ed8021ff80097",
-          "version": "1.0.16"
+          "revision": "c9894fd117457f1d006575fbfb2fdfd6f79eac03",
+          "version": "1.0.200"
         }
       },
       {
@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/bjtj/swift-http-server.git",
         "state": {
           "branch": null,
-          "revision": "d9a109e23e372290365f15a3099a30080d36affd",
-          "version": "0.1.8"
+          "revision": "5ff1574bcb086dd6b5fa8a09aac974f285a0fedb",
+          "version": "0.1.11"
         }
       },
       {
