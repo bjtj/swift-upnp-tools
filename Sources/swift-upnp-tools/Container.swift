@@ -49,6 +49,9 @@ public class OrderedProperties {
      */
     public var fields = [KeyValuePair]()
 
+    public init() {
+    }
+
     public subscript (key: String) -> String? {
         get {
             for field in fields {
@@ -79,6 +82,9 @@ public class OrderedCaseInsensitiveProperties {
      fields
      */
     public var fields: [KeyValuePair] = []
+
+    public init() {
+    }
 
     public subscript (key: String) -> String? {
         get {
