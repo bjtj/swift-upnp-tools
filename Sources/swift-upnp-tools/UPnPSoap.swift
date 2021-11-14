@@ -1,8 +1,15 @@
+//
+// UPnPSoap.swift
+// 
+
 import SwiftXml
 
+// UPnP Soap Request
 public class UPnPSoapRequest : OrderedProperties {
 
+    // service type
     public var serviceType: String
+    // action name
     public var actionName: String
 
     public var soapaction: String {
@@ -14,6 +21,7 @@ public class UPnPSoapRequest : OrderedProperties {
         self.actionName = actionName
     }
 
+    // read from xml string
     public static func read(xmlString: String) -> UPnPSoapRequest? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
@@ -60,6 +68,7 @@ public class UPnPSoapRequest : OrderedProperties {
         return nil
     }
 
+    // get xml document
     public var xmlDocument: String {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
     }
@@ -79,10 +88,12 @@ public class UPnPSoapRequest : OrderedProperties {
     }
 }
 
-
+// UPnP Soap Response
 public class UPnPSoapResponse : OrderedProperties {
 
+    // service type
     public var serviceType: String
+    // action name
     public var actionName: String
 
     public init(serviceType: String = "", actionName: String = "") {
@@ -90,6 +101,7 @@ public class UPnPSoapResponse : OrderedProperties {
         self.actionName = actionName
     }
 
+    // read from xml string
     public static func read(xmlString: String) -> UPnPSoapResponse? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
@@ -134,6 +146,7 @@ public class UPnPSoapResponse : OrderedProperties {
         return nil
     }
 
+    // get xml document
     public var xmlDocument: String {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
     }

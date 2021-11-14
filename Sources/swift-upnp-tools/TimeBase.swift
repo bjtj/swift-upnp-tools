@@ -1,5 +1,10 @@
+//
+// TimeBase.swift
+// 
+
 import Foundation
 
+// Time Base Helper
 public class TimeBase {
     public var tick: DispatchTime
     public var timeout: UInt64
@@ -9,14 +14,17 @@ public class TimeBase {
         self.timeout = timeout
     }
 
+    // Renew timeout
     public func renewTimeout() {
         tick = DispatchTime.now()
     }
 
+    // Duration
     public var duration: UInt64 {
         return (DispatchTime.now().uptimeNanoseconds - tick.uptimeNanoseconds) / 1_000_000_000
     }
 
+    // Test if it is expired
     public var isExpired: Bool {
         return duration >= timeout
     }

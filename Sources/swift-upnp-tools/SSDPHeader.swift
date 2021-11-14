@@ -1,14 +1,21 @@
+//
+// SSDPHeader.swift
+// 
+
 import Foundation
 
-
+// NTS (Notification Types)
 public enum NTS: String {
     case alive = "ssdp:alive"
     case update = "ssdp:update"
     case byebye = "ssdp:byebye"
 }
 
+// SSDP Header
 public class SSDPHeader : OrderedCaseInsensitiveProperties {
+    // first line parts
     public var firstLineParts: [String] = []
+    // firstline
     public var _firstLine: String = ""
     public var firstLine: String? {
         get {
@@ -22,24 +29,28 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    // test if it is mesarch
     public var isMsearch: Bool {
         get {
             return firstLineParts[0].compare("M-SEARCH") == .orderedSame
         }
     }
 
+    // test if it is notify
     public var isNotify: Bool {
         get {
             return firstLineParts[0].compare("NOTIFY") == .orderedSame
         }
     }
 
+    // test if it is http response
     public var isHttpResponse: Bool {
         get {
             return firstLineParts[0].hasPrefix("HTTP/")
         }
     }
 
+    // test if it is notify alive
     public var isNotifyAlive: Bool {
         get {
             guard let nts = self["NTS"] else {
@@ -49,6 +60,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    // test if it is notify update
     public var isNotifyUpdate: Bool {
         get {
             guard let nts = self["NTS"] else {
@@ -58,6 +70,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    // test if it is notify byebye
     public var isNotifyByeBye: Bool {
         get {
             guard let nts = self["NTS"] else {
@@ -67,6 +80,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    // NTS (Notify Types)
     public var nts: NTS? {
         get {
             guard let nts = self["NTS"] else {
@@ -76,6 +90,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    // USN
     public var usn: UPnPUsn? {
         get {
             guard let usn = self["USN"] else {
@@ -97,6 +112,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         return "\(firstLine!)\r\n\(headerFields)\r\n\r\n"
     }
 
+    // Read from string
     public static func read(text: String) -> SSDPHeader {
         let header = SSDPHeader()
         var first = true

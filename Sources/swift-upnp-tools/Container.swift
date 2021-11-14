@@ -1,7 +1,18 @@
+// 
+// Container.swift
+// 
 
+import Foundation
+
+
+/**
+ Key Value Pair
+ */
 public class KeyValuePair {
 
+    // key
     public var key: String
+    // value
     public var value: String
     
     public init (key: String, value: String) {
@@ -9,17 +20,23 @@ public class KeyValuePair {
         self.value = value
     }
 
+    // equals key ignore case
     func equalsKeyIgnorecase(_ key: String) -> Bool {
         return self.key.caseInsensitiveCompare(key) == .orderedSame
     }
 
+    // equals key
     func equalsKey(_ key: String) -> Bool {
         return self.key.compare(key) == .orderedSame
     }
 }
 
-
+/**
+ Ordered Properties
+ */
 public class OrderedProperties {
+
+    // fields
     public var fields = [KeyValuePair]()
 
     public subscript (key: String) -> String? {
@@ -43,7 +60,12 @@ public class OrderedProperties {
     }
 }
 
+/**
+ Ordered Case-Insensitive Properties
+ */
 public class OrderedCaseInsensitiveProperties {
+
+    // fields
     public var fields: [KeyValuePair] = []
 
     public subscript (key: String) -> String? {

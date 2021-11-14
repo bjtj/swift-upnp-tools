@@ -1,16 +1,25 @@
+//
+// UPnPActionInvoke.swift
+// 
+
 import Foundation
 
-
+// UPnP Action Invoke
 public class UPnPActionInvoke {
+    // url to request
     public var url: URL
+    // soap request
     public var soapRequest: UPnPSoapRequest
+    // complete handler
     public var completeHandler: ((UPnPSoapResponse?) -> Void)?
+    
     public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         self.url = url
         self.soapRequest = soapRequest
         self.completeHandler = completeHandler
     }
-    
+
+    // Invoke Action
     public func invoke() {
         let data = soapRequest.xmlDocument.data(using: .utf8)
         var fields = [KeyValuePair]()

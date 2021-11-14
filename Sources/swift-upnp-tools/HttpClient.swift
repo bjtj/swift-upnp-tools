@@ -1,3 +1,7 @@
+//
+// HttpClient.swift
+// 
+
 import Foundation
 
 #if canImport(FoundationNetworking)
@@ -6,12 +10,20 @@ import FoundationNetworking
 
 public typealias HttpClientDelegate = (Data?, URLResponse?, Error?) -> Void
 
+// Simple Http Client
 public class HttpClient {
+
+    // url to request
     var url: URL
+    // http method
     var method: String?
+    // data
     var data: Data?
+    // content type
     var contentType: String?
+    // header fields
     var fields: [KeyValuePair]?
+    // delegate
     var delegate: HttpClientDelegate?
 
     public init(url: URL) {
@@ -46,9 +58,8 @@ public class HttpClient {
         self.delegate = delegate
     }
 
+    // Start request
     public func start() {
-        // let configuration = URLSessionConfiguration.background(withIdentifier: "http-client")
-        // let configuration = URLSessionConfiguration.ephemeral
         let configuration = URLSessionConfiguration.default
         let session = URLSession(configuration: configuration)
         var request = URLRequest(url: self.url)

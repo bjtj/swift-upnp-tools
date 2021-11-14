@@ -1,3 +1,7 @@
+//
+// UPnPEventSub.swift
+// 
+
 import Foundation
 import SwiftXml
 
@@ -5,13 +9,19 @@ import SwiftXml
 import FoundationNetworking
 #endif
 
+// On Event Subscription Type
 public typealias OnEventSubscription = (UPnPEventSubscription?) -> Void
 
-
+// UPnP Event Subscription Model
 public class UPnPEventSubscription : TimeBase{
+
+    // SID (Subscription ID)
     public var sid: String
+    // Callback URLs
     public var callbackUrls = [URL]()
+    // UPnP Service
     public var service: UPnPService?
+    
     public init(service: UPnPService?, sid: String, callbackUrls: [URL] = [], timeout: UInt64 = 1800) {
         self.service = service
         self.sid = sid
@@ -33,6 +43,7 @@ public class UPnPEventSubscription : TimeBase{
     }
 }
 
+// UPnP Event Properties
 public class UPnPEventProperties: OrderedProperties {
 
     override public init() {
@@ -45,6 +56,7 @@ public class UPnPEventProperties: OrderedProperties {
         }
     }
 
+    // read from xml string
     public static func read(xmlString: String) -> UPnPEventProperties? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
@@ -63,6 +75,7 @@ public class UPnPEventProperties: OrderedProperties {
         return property
     }
 
+    // get xml document
     public var xmlDocument: String {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
     }
@@ -79,12 +92,16 @@ public class UPnPEventProperties: OrderedProperties {
     }
 }
 
-
+// UPnP Event Subscriber
 public class UPnPEventSubscriber : TimeBase {
 
+    // UPnP Service
     public var service: UPnPService
+    // Url
     public var url: URL
+    // Callback Urls
     public var callbackUrls = [URL]()
+    // SID (Subscription ID)
     public var sid: String?
 
     public init(service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800) {
@@ -94,6 +111,7 @@ public class UPnPEventSubscriber : TimeBase {
         super.init(timeout: timeout)
     }
 
+    // Subscribe
     public func subscribe(completeListener: ((UPnPEventSubscription) -> Void)? = nil) {
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
@@ -128,6 +146,7 @@ public class UPnPEventSubscriber : TimeBase {
         }.start()
     }
 
+    // Review Subscription
     public func renewSubscribe() {
 
         guard let sid = sid else {
@@ -142,6 +161,7 @@ public class UPnPEventSubscriber : TimeBase {
         }.start()
     }
 
+    // Unsubscribe
     public func unsubscribe() {
         guard let sid = sid else {
             return
@@ -155,13 +175,14 @@ public class UPnPEventSubscriber : TimeBase {
     }
 }
 
-
+// Read Callback URLs
 public func readCallbackUrls(text: String) -> [URL] {
     let tokens = text.split(separator: " ")
     let urls = tokens.map { URL(string: unwrap(text: String($0), prefix: "<", suffix: ">"))! }
     return urls
 }
 
+// Unwrap
 public func unwrap(text: String, prefix: String, suffix: String) -> String {
     return String(text[text.index(text.startIndex, offsetBy: prefix.count)..<text.index(text.endIndex, offsetBy: -suffix.count)])
 }

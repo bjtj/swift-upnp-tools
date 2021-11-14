@@ -1,17 +1,25 @@
+//
+// UPnPDeviceBuilder.swift
+// 
+
 import Foundation
 
+// UPnP Device Builder Delegate
 public protocol UPnPDeviceBuilderDelegate {
     func onDeviceBuild(url: URL?, device: UPnPDevice?)
 }
 
+// UPnP Device Builder
 public class UPnPDeviceBuilder {
 
+    // delegate
     public var delegate: UPnPDeviceBuilderDelegate?
 
     public init(delegate: UPnPDeviceBuilderDelegate?) {
         self.delegate = delegate
     }
-    
+
+    // build from url
     public func build(url: URL) {
         HttpClient(url: url) {
             (data, response, error) in

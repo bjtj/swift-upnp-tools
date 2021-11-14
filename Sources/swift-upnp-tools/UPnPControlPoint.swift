@@ -1,12 +1,19 @@
+//
+// UPnPControlPoint.swift
+// 
+
 import Foundation
 import SwiftHttpServer
 
+// UPnP ControlPoint Delegate
 public protocol UPnPControlPointDelegate {
+    // On Device Added
     func onDeviceAdded(device: UPnPDevice)
+    // On Device Removed
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-
+// UPnP Control Point Implementation
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
     public var port: Int
@@ -20,8 +27,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
     var timer: DispatchSourceTimer?
     
-    public init(port: Int, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
-        self.port = port
+    public init(httpServerBindPort: Int, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
+        self.port = httpServerBindPort
         self.eventPropertyLisetner = eventPropertyLisetner
     }
 
@@ -301,15 +308,22 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     /**
+     Invoek with Service and actionRequest
+     */
+    public func invoke(service: UPnPService, actionRequest: UPnPActionRequest, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
+        return self.invoke(service: service, actionName: actionRequest.actionName, fields: actionRequest.fields, completeHandler: completeHandler);
+    }
+
+    /**
      Invoke with Service and action, properties, completeHandler (Optional)
      */
-    public func invoke(service: UPnPService, action: String, properties: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
+    public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         guard let serviceType = service.serviceType else {
             print("error -- no service type")
             return
         }
-        let soapRequest = UPnPSoapRequest(serviceType: serviceType, actionName: action)
-        for field in properties.fields {
+        let soapRequest = UPnPSoapRequest(serviceType: serviceType, actionName: actionName)
+        for field in fields.fields {
             soapRequest[field.key] = field.value
         }
         guard let controlUrl = service.controlUrl, let device = service.device else {

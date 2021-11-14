@@ -1,8 +1,15 @@
+//
+// UPnPUsn.swift
+//
 
+import Foundation
 
+// UPnP Usn
 public class UPnPUsn {
 
+    // uuid
     public var uuid: String
+    // type
     public var type: String
 
     public init(uuid: String = "", type: String = "") {
@@ -17,6 +24,7 @@ public class UPnPUsn {
         return "\(uuid)::\(type)"
     }
 
+    // read from string
     public static func read(text: String) -> UPnPUsn {
         let usn = UPnPUsn()
         let tokens = text.components(separatedBy: "::")

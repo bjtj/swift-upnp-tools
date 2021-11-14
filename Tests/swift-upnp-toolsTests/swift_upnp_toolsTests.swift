@@ -1,13 +1,21 @@
+//
+// swift_upnp_toolsTests.swift
+// 
+
 import XCTest
 @testable import SwiftUpnpTools
 import SwiftHttpServer
 
+// swift_upnp_toolsTests
 final class swift_upnp_toolsTests: XCTestCase {
 
+    // UPnP Sever for test
     static var upnpServer: UPnPServer?
 
     override class func setUp() {
         super.setUp()
+
+        print("-- SET UP --")
 
         startReceiver()
         DispatchQueue.global(qos: .background).async {
@@ -15,11 +23,15 @@ final class swift_upnp_toolsTests: XCTestCase {
         }
         
         sleep(1)
+
+        print("-- SET UP :: DONE --")
     }
 
     override class func tearDown() {
+        print("-- TEAR DOWN --")
         super.tearDown()
         swift_upnp_toolsTests.upnpServer?.finish()
+        print("-- TEAR DOWN :: DONE --")
     }
 
     class func startReceiver() {
@@ -42,14 +54,6 @@ final class swift_upnp_toolsTests: XCTestCase {
             }
             print("receiver done")
         }
-    }
-
-    
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(swift_upnp_tools().text, "Hello, World!")
     }
 
     func testSsdp() {
@@ -193,28 +197,31 @@ final class swift_upnp_toolsTests: XCTestCase {
             properties["GetLoadlevelTarget"] = "10"
             return properties
         }
-        // server.activate(udn: device.udn!)
-        // server.deactivate(device: device)
-        // server.unregisterDevice(device: device)
-        // server.setProperty(service: service, properties: properties)
 
-
-        let cp = UPnPControlPoint(port: 0)
+        let cp = UPnPControlPoint(httpServerBindPort: 0)
 
         cp.onDeviceAdded {
             (device) in
             DispatchQueue.global(qos: .background).async {
-                print("device added -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+                print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
 
                 guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
                     print("no service")
                     return
                 }
 
-                let action = "GetLoadLevelTarget"
-                let properties = OrderedProperties()
-                print("invoke action")
-                cp.invoke(service: service, action: action, properties: properties) {
+                let actionName = "GetLoadLevelTarget"
+                let fields = OrderedProperties()
+                print("Invoke Action1")
+                cp.invoke(service: service, actionName: actionName, fields: fields) {
+                    (soapResponse) in
+                    print("action response")
+                    XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
+                }
+
+                print("Invoke Action2")
+                let actionRequest = UPnPActionRequest(actionName: actionName, fields: fields)
+                cp.invoke(service: service, actionRequest: actionRequest) {
                     (soapResponse) in
                     print("action response")
                     XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
@@ -248,7 +255,7 @@ final class swift_upnp_toolsTests: XCTestCase {
     }
 
     class func startServer() -> UPnPServer {
-        let server = UPnPServer(port: 0)
+        let server = UPnPServer(httpServerBindPort: 0)
         server.run()
         return server
     }
@@ -276,7 +283,6 @@ final class swift_upnp_toolsTests: XCTestCase {
 
     
     static var allTests = [
-      ("testExample", testExample),
       ("testSsdp", testSsdp),
       ("testSsdpHeader", testSsdpHeader),
       ("testSsdpHeaderToString", testSsdpHeaderToString),
