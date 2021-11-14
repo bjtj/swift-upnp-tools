@@ -5,26 +5,64 @@
 import Foundation
 import SwiftHttpServer
 
-// UPnP ControlPoint Delegate
+/**
+ UPnP ControlPoint Delegate
+ */
 public protocol UPnPControlPointDelegate {
-    // On Device Added
+    /**
+     On Device Added
+     */
     func onDeviceAdded(device: UPnPDevice)
-    // On Device Removed
+    /**
+     On Device Removed
+     */
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-// UPnP Control Point Implementation
+/**
+ UPnP Control Point Implementation
+ */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
+    /**
+     http server bind port
+     */
     public var port: Int
+    /**
+     http server
+     */
     public var httpServer : HttpServer?
+    /**
+     ssdp receiver
+     */
     public var ssdpReceiver : SSDPReceiver?
+    /**
+     devices
+     */
     public var devices = [String:UPnPDevice]()
+    /**
+     delegate
+     */
     public var delegate: UPnPControlPointDelegate?
+    /**
+     event subscribers
+     */
     public var eventSubscribers = [UPnPEventSubscriber]()
+    /**
+     event property listener
+     */
     public var eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?
+    /**
+     on device added handlers
+     */
     var onDeviceAddedHandlers = [(UPnPDevice) -> Void]()
+    /**
+     on device removed handlers
+     */
     var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
+    /**
+     timer
+     */
     var timer: DispatchSourceTimer?
     
     public init(httpServerBindPort: Int, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {

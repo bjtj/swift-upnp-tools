@@ -4,17 +4,23 @@
 
 import Foundation
 
-// UPnP Scpd Builder
+/**
+ UPnP Scpd Builder
+ */
 public class UPnPScpdBuilder {
     
-    // UPnP Service
+    /**
+     UPnP Service
+     */
     public var service: UPnPService
     
     public init(service: UPnPService) {
         self.service = service
     }
 
-    // build
+    /**
+     build
+     */
     public func build() {
         guard let device = service.device else {
             return

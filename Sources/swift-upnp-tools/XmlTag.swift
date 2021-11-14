@@ -4,16 +4,26 @@
 
 import SwiftXml
 
-// Xml Tag Helper
+/**
+ Xml Tag Helper
+ */
 public class XmlTag {
 
-    // namespace
+    /**
+     namespace
+     */
     public var namespace: String?
-    // name
+    /**
+     name
+     */
     public var name: String?
-    // ext
+    /**
+     ext
+     */
     public var ext: String?
-    // content
+    /**
+     content
+     */
     public var content: String
 
     public init(namespace: String? = nil, name: String? = nil, ext: String? = nil, content: String = "") {

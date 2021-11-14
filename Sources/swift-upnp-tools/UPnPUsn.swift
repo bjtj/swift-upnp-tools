@@ -4,12 +4,18 @@
 
 import Foundation
 
-// UPnP Usn
+/**
+ UPnP Usn
+ */
 public class UPnPUsn {
 
-    // uuid
+    /**
+     uuid
+     */
     public var uuid: String
-    // type
+    /**
+     type
+     */
     public var type: String
 
     public init(uuid: String = "", type: String = "") {
@@ -24,7 +30,9 @@ public class UPnPUsn {
         return "\(uuid)::\(type)"
     }
 
-    // read from string
+    /**
+     read from string
+     */
     public static func read(text: String) -> UPnPUsn {
         let usn = UPnPUsn()
         let tokens = text.components(separatedBy: "::")

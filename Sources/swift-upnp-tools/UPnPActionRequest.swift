@@ -1,14 +1,21 @@
 //
 // UPnPActionRequest.swift
+// 
 
 import Foundation
 
-// UPnP Actio Request
+/**
+ UPnP Actio Request
+ */
 public class UPnPActionRequest {
 
-    // actio name
+    /**
+     action name
+     */
     public var actionName: String
-    // fields
+    /**
+     fields
+     */
     public var fields: OrderedProperties
 
     public init(actionName: String, fields: OrderedProperties) {

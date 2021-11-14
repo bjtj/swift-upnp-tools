@@ -5,20 +5,34 @@
 import Foundation
 import SwiftHttpServer
 
-// UPnP Server Implementation
+/**
+ UPnP Server Implementation
+ */
 public class UPnPServer {
 
-    // http server bind port
+    /**
+     http server bind port
+     */
     public var port: Int
-    // http server
+    /**
+     http server
+     */
     public var httpServer: HttpServer?
-    // ssdp receiver
+    /**
+     ssdp receiver
+     */
     public var ssdpReceiver: SSDPReceiver?
-    // upnp devices
+    /**
+     upnp devices
+     */
     public var devices = [String:UPnPDevice]()
-    // subscriptions
+    /**
+     subscriptions
+     */
     public var subscriptions = [String:UPnPEventSubscription]()
-    // on action request handler
+    /**
+     on action request handler
+     */
     var onActionRequestHandler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?
 
     public init(httpServerBindPort: Int) {

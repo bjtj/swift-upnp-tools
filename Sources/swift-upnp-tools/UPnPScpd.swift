@@ -5,17 +5,27 @@
 import Foundation
 import SwiftXml
 
-// UPnP Scpd (Model)
+/**
+ UPnP Scpd (Model)
+ */
 public class UPnPScpd : UPnPModel {
 
-    // sepc version
+    /**
+     sepc version
+     */
     public var specVersion: UPnPSpecVersion?
-    // UPnP Actions
+    /**
+     UPnP Actions
+     */
     public var actions = [UPnPAction]()
-    // StateVariables
+    /**
+     StateVariables
+     */
     public var stateVariables = [UPnPStateVariable]()
 
-    // get action with name
+    /**
+     get action with name
+     */
     public func getAction(name: String) -> UPnPAction? {
         for action in actions {
             guard let _name = action.name else {
@@ -28,7 +38,9 @@ public class UPnPScpd : UPnPModel {
         return nil
     }
 
-    // get state variable with name
+    /**
+     get state variable with name
+     */
     public func getStateVariable(name: String) -> UPnPStateVariable? {
         for stateVariable in stateVariables {
             guard let _name = stateVariable.name else {
@@ -41,7 +53,9 @@ public class UPnPScpd : UPnPModel {
         return nil
     }
 
-    // read from xml string
+    /**
+     read from xml string
+     */
     public static func read(xmlString: String) -> UPnPScpd? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
@@ -65,7 +79,9 @@ public class UPnPScpd : UPnPModel {
         return scpd
     }
 
-    // read action list from xml element
+    /**
+     read action list from xml element
+     */
     public static func readActionList(xmlElement: XmlElement) -> [UPnPAction] {
         var actions = [UPnPAction]()
         guard let elements = xmlElement.elements else {
@@ -81,7 +97,9 @@ public class UPnPScpd : UPnPModel {
         return actions
     }
     
-    // read state variables from xml element
+    /**
+     read state variables from xml element
+     */
     public static func readStateVariables(xmlElement: XmlElement) -> [UPnPStateVariable] {
         var stateVariables = [UPnPStateVariable]()
         guard let elements = xmlElement.elements else {
@@ -97,7 +115,9 @@ public class UPnPScpd : UPnPModel {
         return stateVariables
     }
 
-    // get xml document
+    /**
+     get xml document
+     */
     public var xmlDocument: String {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
     }
@@ -112,7 +132,9 @@ public class UPnPScpd : UPnPModel {
         return tag.description
     }
 
-    // get action list in xml format
+    /**
+     get action list in xml format
+     */
     public var actionListXml: String {
         let tag = XmlTag(name: "actionList", content: "")
         for action in actions {
@@ -121,7 +143,9 @@ public class UPnPScpd : UPnPModel {
         return tag.description
     }
 
-    // get service state table in xml format
+    /**
+     get service state table in xml format
+     */
     public var serviceStateTableXml: String {
         let tag = XmlTag(name: "serviceStateTable", content: "")
         for stateVariable in stateVariables {
@@ -131,19 +155,27 @@ public class UPnPScpd : UPnPModel {
     }
 }
 
-// UPnP Action (Model)
+/**
+ UPnP Action (Model)
+ */
 public class UPnPAction : UPnPModel {
 
-    // arguments
+    /**
+     arguments
+     */
     public var arguments = [UPnPActionArgument]()
 
-    // name
+    /**
+     name
+     */
     public var name: String? {
         get { return self["name"] }
         set(value) { self["name"] = value }
     }
 
-    // get argument with name
+    /**
+     get argument with name
+     */
     public func getArgument(name: String) -> UPnPActionArgument? {
         for argument in arguments {
             guard let _name = argument.name else {
@@ -156,7 +188,9 @@ public class UPnPAction : UPnPModel {
         return nil
     }
 
-    // read from xml element
+    /**
+     read from xml element
+     */
     public static func read(xmlElement: XmlElement) -> UPnPAction {
         let action = UPnPAction()
         guard let elements = xmlElement.elements else {
@@ -179,7 +213,9 @@ public class UPnPAction : UPnPModel {
         return tag.description
     }
 
-    // get argument list in xml format
+    /**
+     get argument list in xml format
+     */
     public var argumentListXml: String {
         let tag = XmlTag(name: "argumentList", content: "")
         for argument in arguments {
@@ -189,22 +225,30 @@ public class UPnPAction : UPnPModel {
     }
 }
 
-// UPnP Action Argument (Model)
+/**
+ UPnP Action Argument (Model)
+ */
 public class UPnPActionArgument : UPnPModel {
 
-    // name
+    /**
+     name
+     */
     public var name: String? {
         get { return self["name"] }
         set(value) { self["name"] = value }
     }
 
-    // related state variable
+    /**
+     related state variable
+     */
     public var relatedStateVariable: String? {
         get { return self["relatedStateVariable"] }
         set(value) { self["relatedStateVariable"] = value }
     }
 
-    // read from xml element
+    /**
+     read from xml element
+     */
     public static func read(xmlElement: XmlElement) -> UPnPActionArgument {
         let argument = UPnPActionArgument()
         guard let elements = xmlElement.elements else {
@@ -224,21 +268,29 @@ public class UPnPActionArgument : UPnPModel {
     }
 }
 
-// UPnP State Variable (Model)
+/**
+ UPnP State Variable (Model)
+ */
 public class UPnPStateVariable : UPnPModel {
-    // name
+    /**
+     name
+     */
     public var name: String? {
         get { return self["name"] }
         set(value) { self["name"] = value }
     }
 
-    // data type
+    /**
+     data type
+     */
     public var dataType: String? {
         get { return self["dataType"] }
         set(value) { self["dataType"] = value }
     }
 
-    // read from xml element
+    /**
+     read from xml element
+     */
     public static func read(xmlElement: XmlElement) -> UPnPStateVariable {
         let stateVariable = UPnPStateVariable()
         guard let elements = xmlElement.elements else {

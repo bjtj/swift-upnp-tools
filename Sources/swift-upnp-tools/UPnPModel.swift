@@ -5,7 +5,9 @@
 import Foundation
 import SwiftXml
 
-// UPnP Model (Base class)
+/**
+ UPnP Model (Base class)
+ */
 public class UPnPModel : OrderedProperties {
     public var propertyXml: String {
         var str = ""
@@ -16,7 +18,9 @@ public class UPnPModel : OrderedProperties {
     }
 }
 
-// UPnP Time Base Model (Base class)
+/**
+ UPnP Time Base Model (Base class)
+ */
 public class UPnPTimeBasedModel : UPnPModel {
     var timeBase: TimeBase
 
@@ -34,15 +38,21 @@ public class UPnPTimeBasedModel : UPnPModel {
 }
 
 
-// UPnP Spec Version
+/**
+ UPnP Spec Version
+ */
 public class UPnPSpecVersion : UPnPModel {
 
-    // major
+    /**
+     major
+     */
     public var major: String? {
         get { return self["major"] }
         set(value) { self["major"] = value }
     }
-    // minor
+    /**
+     minor
+     */
     public var minor: String? {
         get { return self["minor"] }
         set(value) { self["minor"] = value }
@@ -54,7 +64,9 @@ public class UPnPSpecVersion : UPnPModel {
         self["minor"] = "\(minor)"
     }
 
-    // read from xml element
+    /**
+     read from xml element
+     */
     public static func read(xmlElement: XmlElement) -> UPnPSpecVersion? {
         guard let elements = xmlElement.elements else {
             return nil

@@ -6,7 +6,9 @@ import Foundation
 import Socket
 import SwiftHttpServer
 
-// Socket Error
+/**
+ Socket Error
+ */
 enum SocketError: Error {
     case select(String)
 }
@@ -17,13 +19,17 @@ extension DispatchTime {
     }
 }
 
-// SSDP implmentation
+/**
+ SSDP implmentation
+ */
 public class SSDP {
 
     public static var MCAST_HOST = "239.255.255.250"
     public static var MCAST_PORT = 1900
 
-    // Send m-search
+    /**
+     Send m-search
+     */
     public static func sendMsearch(st: String, mx: Int, handler: (((String, Int32)?, SSDPHeader?) -> Void)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
@@ -68,7 +74,9 @@ public class SSDP {
         }
     }
 
-    // Notify
+    /**
+     Notify
+     */
     public static func notify(properties: OrderedProperties) {
 
         var text = "NOTIFY * HTTP/1.1\r\n"

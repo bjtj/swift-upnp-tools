@@ -5,20 +5,28 @@
 import Foundation
 import Socket
 
-// SSDP Receiver
+/**
+ SSDP Receiver
+ */
 public class SSDPReceiver {
 
-    // finishing flag
+    /**
+     finishing flag
+     */
     var finishing: Bool = false
 
-    // SSDP header handler
+    /**
+     SSDP header handler
+     */
     public var handler: SSDPHeaderHandler?
 
     public init(handler: SSDPHeaderHandler? = nil) {
         self.handler = handler
     }
 
-    // Run server
+    /**
+     Run server
+     */
     public func run() throws {
         finishing = false
         let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
@@ -49,7 +57,9 @@ public class SSDPReceiver {
         socket.close()
     }
 
-    // Set finishing flag
+    /**
+     Set finishing flag
+     */
     public func finish() {
         finishing = true
     }

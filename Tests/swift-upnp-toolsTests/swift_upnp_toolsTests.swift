@@ -6,10 +6,14 @@ import XCTest
 @testable import SwiftUpnpTools
 import SwiftHttpServer
 
-// swift_upnp_toolsTests
+/**
+ swift_upnp_toolsTests
+ */
 final class swift_upnp_toolsTests: XCTestCase {
 
-    // UPnP Sever for test
+    /**
+     UPnP Sever for test
+     */
     static var upnpServer: UPnPServer?
 
     override class func setUp() {

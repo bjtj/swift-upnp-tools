@@ -4,13 +4,21 @@
 
 import Foundation
 
-// UPnP Action Invoke
+/**
+ UPnP Action Invoke
+ */
 public class UPnPActionInvoke {
-    // url to request
+    /**
+     url to request
+     */
     public var url: URL
-    // soap request
+    /**
+     soap request
+     */
     public var soapRequest: UPnPSoapRequest
-    // complete handler
+    /**
+     complete handler
+     */
     public var completeHandler: ((UPnPSoapResponse?) -> Void)?
     
     public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
@@ -19,7 +27,9 @@ public class UPnPActionInvoke {
         self.completeHandler = completeHandler
     }
 
-    // Invoke Action
+    /**
+     Invoke Action
+     */
     public func invoke() {
         let data = soapRequest.xmlDocument.data(using: .utf8)
         var fields = [KeyValuePair]()

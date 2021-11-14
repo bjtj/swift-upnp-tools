@@ -10,9 +10,13 @@ import Foundation
  */
 public class KeyValuePair {
 
-    // key
+    /**
+     key
+     */
     public var key: String
-    // value
+    /**
+     value
+     */
     public var value: String
     
     public init (key: String, value: String) {
@@ -20,12 +24,16 @@ public class KeyValuePair {
         self.value = value
     }
 
-    // equals key ignore case
+    /**
+     equals key ignore case
+     */
     func equalsKeyIgnorecase(_ key: String) -> Bool {
         return self.key.caseInsensitiveCompare(key) == .orderedSame
     }
 
-    // equals key
+    /**
+     equals key
+     */
     func equalsKey(_ key: String) -> Bool {
         return self.key.compare(key) == .orderedSame
     }
@@ -36,7 +44,9 @@ public class KeyValuePair {
  */
 public class OrderedProperties {
 
-    // fields
+    /**
+     fields
+     */
     public var fields = [KeyValuePair]()
 
     public subscript (key: String) -> String? {
@@ -65,7 +75,9 @@ public class OrderedProperties {
  */
 public class OrderedCaseInsensitiveProperties {
 
-    // fields
+    /**
+     fields
+     */
     public var fields: [KeyValuePair] = []
 
     public subscript (key: String) -> String? {
