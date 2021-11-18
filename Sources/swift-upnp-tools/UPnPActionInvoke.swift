@@ -34,7 +34,7 @@ public class UPnPActionInvoke {
         let data = soapRequest.xmlDocument.data(using: .utf8)
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "Content-Type", value: "text/xml"))
-        fields.append(KeyValuePair(key: "SOAPACTION", value: soapRequest.soapaction))
+        fields.append(KeyValuePair(key: "SOAPACTION", value: "\"\(soapRequest.soapaction)\""))
         HttpClient(url: url, method: "POST", data: data, fields: fields) {
             (data, response, error) in
             guard let completeHandler = self.completeHandler else {
