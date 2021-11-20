@@ -3,7 +3,9 @@ import XCTest
 #if !os(macOS)
 public func allTests() -> [XCTestCaseEntry] {
     return [
-        testCase(swift_upnp_toolsTests.allTests),
+      testCase(SsdpTests.allTests),
+      testCase(ModelTests.allTests),
+      testCase(ServerTests.allTests),
     ]
 }
 #endif

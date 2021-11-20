@@ -18,8 +18,16 @@ public class UPnPActionRequest {
      */
     public var fields: OrderedProperties
 
-    public init(actionName: String, fields: OrderedProperties) {
+    convenience init(actionName: String) {
+        self.init(actionName: actionName, fields: nil)
+    }
+
+    public init(actionName: String, fields: OrderedProperties?) {
         self.actionName = actionName
-        self.fields = fields
+        if fields == nil {
+            self.fields = OrderedProperties()
+        } else {
+            self.fields = fields!
+        }
     }
 }
