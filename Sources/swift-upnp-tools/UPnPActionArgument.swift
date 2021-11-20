@@ -19,6 +19,24 @@ public class UPnPActionArgument : UPnPModel {
     }
 
     /**
+     direction
+     */
+    public var direction: UPnPActionArgumentDirection? {
+        get {
+            guard let direction = self["direction"] else {
+                return nil
+            }
+            return UPnPActionArgumentDirection(rawValue: direction)
+        }
+        set(value) {
+            guard let direction = value else {
+                return
+            }
+            self["direction"] = direction.rawValue
+        }
+    }
+
+    /**
      related state variable
      */
     public var relatedStateVariable: String? {
