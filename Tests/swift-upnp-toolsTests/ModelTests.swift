@@ -320,6 +320,8 @@ final class ModelTests: XCTestCase {
         
         let argument = UPnPActionArgument.read(xmlElement: root)
         XCTAssertEqual(argument.name, "GetLoadlevelTarget")
+        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
+        argument.direction = UPnPActionArgumentDirection.input
         XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
         XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
     }
@@ -375,6 +377,7 @@ final class ModelTests: XCTestCase {
       ("testService", testService),
       ("testSoap", testSoap),
       ("testAction", testAction),
+      ("testAction", testActionArgument),
       ("testProperty", testProperty),
     ]
 
