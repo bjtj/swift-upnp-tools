@@ -109,7 +109,7 @@ final class ModelTests: XCTestCase {
      */
     func testScpd() {
 
-        let scpd = "<?xml version=\"1.0\"?>" +
+        let scpd_xml = "<?xml version=\"1.0\"?>" +
           "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
           "  <specVersion>" +
           " <major>1</major>" +
@@ -159,7 +159,7 @@ final class ModelTests: XCTestCase {
           "  </serviceStateTable>" +
           "</scpd>"
         
-        guard let scpd = UPnPScpd.read(xmlString: scpd) else {
+        guard let scpd = UPnPScpd.read(xmlString: scpd_xml) else {
             XCTAssert(false)
             return
         }
@@ -177,7 +177,7 @@ final class ModelTests: XCTestCase {
      */
     func testService() {
 
-        let scpd = "<?xml version=\"1.0\"?>" +
+        let scpd_xml = "<?xml version=\"1.0\"?>" +
           "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
           "  <specVersion>" +
           " <major>1</major>" +
@@ -227,7 +227,7 @@ final class ModelTests: XCTestCase {
           "  </serviceStateTable>" +
           "</scpd>"
         
-        guard let scpd = UPnPScpd.read(xmlString: scpd) else {
+        guard let scpd = UPnPScpd.read(xmlString: scpd_xml) else {
             XCTAssert(false)
             return
         }
