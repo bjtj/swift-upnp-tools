@@ -77,6 +77,13 @@ public class UPnPServer {
     }
 
     /**
+     Get Device with udn
+     */
+    public func getDevice(udn: String) -> UPnPDevice? {
+        return devices[udn]
+    }
+
+    /**
      Activate device with UDN
      */
     public func activate(udn: String) {
@@ -124,6 +131,9 @@ public class UPnPServer {
         UPnPServer.deactivate(device: device)
     }
 
+    /**
+     Deactivate device with device
+     */
     public class func deactivate(device: UPnPDevice) {
         guard let usn_list = device.allServiceTypes else {
             return
@@ -138,6 +148,9 @@ public class UPnPServer {
         notifyByebye(usn: UPnPUsn(uuid: udn))
     }
 
+    /**
+     Notify Byebye
+     */
     public class func notifyByebye(usn: UPnPUsn) {
         let properties = OrderedProperties()
         properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
@@ -190,114 +203,146 @@ public class UPnPServer {
                 try self.httpServer!.route(pattern: "/.*") {
                     (request) in
                     guard let request = request else {
-                        print("no request")
+                        print("HttpServer: error -- No Request")
                         return nil
                     }
-                    print("path -- \(request.path)")
-                    if request.path.hasSuffix("device.xml") {
-                        let response = HttpResponse(code: 200, reason: "OK")
-                        let tokens = request.path.split(separator: "/")
-                        guard tokens.isEmpty == false else {
-                            return nil
-                        }
-                        let udn = String(tokens[0])
-                        guard let device = self.devices[udn] else {
-                            return nil
-                        }
-                        response.data = device.xmlDocument.data(using: .utf8)
-                        return response
-                    } else if request.path.hasSuffix("scpd.xml") {
-                        for (_, device) in self.devices {
-                            if let service = device.getService(withScpdUrl: request.path) {
-                                guard let scpd = service.scpd else {
-                                    continue
-                                }
-                                let response = HttpResponse(code: 200, reason: "OK")
-                                response.data = scpd.xmlDocument.data(using: .utf8)
-                                return response
-                            }
-                        }
-                        return nil
-                    } else if request.path.hasSuffix("control.xml") {
-
-                        print("action request -- \(request.path)")
-                        
-                        guard let contentLength = request.header.contentLength else {
-                            print("no content length")
-                            return nil
-                        }
-
-                        guard contentLength > 0 else {
-                            print("content length -- \(contentLength)")
-                            return nil
-                        }
-
-                        var data = Data(capacity: contentLength)
-                        guard try request.remoteSocket?.read(into: &data) == contentLength else {
-                            print("socket read() -- failed")
-                            return nil
-                        }
-
-                        guard let xmlString = String(data: data, encoding: .utf8) else {
-                            print("xml string failed")
-                            return nil
-                        }
-
-                        guard let soapRequest = UPnPSoapRequest.read(xmlString: xmlString) else {
-                            print("not soap request -- \(xmlString)")
-                            return nil
-                        }
-
-                        guard let handler = self.onActionRequestHandler else {
-                            print("no handler")
-                            return nil
-                        }
-                        
-                        for (_, device) in self.devices {
-                            if let service = device.getService(withControlUrl: request.path) {
-                                guard let properties = handler(service, soapRequest) else {
-                                    continue
-                                }
-                                let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType, actionName: soapRequest.actionName)
-                                for field in properties.fields {
-                                    soapResponse[field.key] = field.value
-                                }
-                                let response = HttpResponse(code: 200, reason: "OK")
-                                response.data = soapResponse.xmlDocument.data(using: .utf8)
-                                return response
-                            }
-                        }
-                        return nil
-                    } else if request.path.hasSuffix("event.xml") {
-                        guard let callbackUrls = request.header["CALLBACK"] else {
-                            print("no callback field")
-                            return nil
-                        }
-                        let urls = readCallbackUrls(text: callbackUrls)
-                        for (_, device) in self.devices {
-                            guard let service = device.getService(withEventSubUrl: request.path) else {
-                                continue
-                            }
-                            let subscription = UPnPEventSubscription.generate(service: service,
-                                                                              callbackUrls: urls)
-                            print("generated sid -- \(subscription.sid)")
-                            self.subscriptions[subscription.sid] = subscription
-                            let response = HttpResponse(code: 200, reason: "OK")
-                            response.header["SID"] = subscription.sid
-                            return response
-                        }
-                        return nil
+                    print("HttpServer: PATH -- \(request.path)")
+                    if self.isDeviceQuery(request: request) {
+                        return try self.handleDeviceQuery(request: request)
+                    } else if self.isScpdQuery(request: request) {
+                        return try self.handleScpdQuery(request: request)
+                    } else if self.isControlQuery(request: request) {
+                        return try self.handleControlQuery(request: request)
+                    } else if self.isEventQuery(request: request) {
+                        return try self.handleEventQuery(request: request)
                     } else {
-                        print("unknown request -- \(request.path)")
+                        print("HttpServer: unknown request -- \(request.path)")
                     }
                     return nil
                 }
                 try self.httpServer!.run()
             } catch let error{
-                print("error - \(error)")
+                print("HttpServer: error -- \(error)")
             }
             self.httpServer = nil
         }
+    }
+
+    func isDeviceQuery(request: HttpRequest) -> Bool {
+        return request.path.hasSuffix("device.xml")
+    }
+
+    func isScpdQuery(request: HttpRequest) -> Bool {
+        return request.path.hasSuffix("scpd.xml")
+    }
+
+    func isControlQuery(request: HttpRequest) -> Bool {
+        return request.path.hasSuffix("control.xml")
+    }
+
+    func isEventQuery(request: HttpRequest) -> Bool {
+        return request.path.hasSuffix("event.xml")
+    }
+
+    func handleDeviceQuery(request: HttpRequest) throws -> HttpResponse? {
+        let response = HttpResponse(code: 200, reason: "OK")
+        let tokens = request.path.split(separator: "/")
+        guard tokens.isEmpty == false else {
+            return nil
+        }
+        let udn = String(tokens[0])
+        guard let device = self.devices[udn] else {
+            return nil
+        }
+        response.data = device.xmlDocument.data(using: .utf8)
+        return response
+    }
+
+    func handleScpdQuery(request: HttpRequest) throws -> HttpResponse? {
+        for (_, device) in self.devices {
+            if let service = device.getService(withScpdUrl: request.path) {
+                guard let scpd = service.scpd else {
+                    continue
+                }
+                let response = HttpResponse(code: 200, reason: "OK")
+                response.data = scpd.xmlDocument.data(using: .utf8)
+                return response
+            }
+        }
+        print("HttpServer: failed -- scpd not found")
+        return nil
+    }
+
+    func handleControlQuery(request: HttpRequest) throws -> HttpResponse?{
+        print("HttpServer: Action Request -- \(request.path)")
+        
+        guard let contentLength = request.header.contentLength else {
+            print("HttpServer: error -- no content length")
+            return nil
+        }
+
+        guard contentLength > 0 else {
+            print("HttpServer: content length -- \(contentLength)")
+            return nil
+        }
+
+        var data = Data(capacity: contentLength)
+        guard try request.remoteSocket?.read(into: &data) == contentLength else {
+            print("HttpServer: socket read() -- failed")
+            return nil
+        }
+
+        guard let xmlString = String(data: data, encoding: .utf8) else {
+            print("HttpServer: XML STRING FAILED")
+            return nil
+        }
+
+        guard let soapRequest = UPnPSoapRequest.read(xmlString: xmlString) else {
+            print("HttpServer: NOT SOAP REQUEST -- \(xmlString)")
+            return nil
+        }
+
+        guard let handler = self.onActionRequestHandler else {
+            print("HttpServer: No Handler")
+            return nil
+        }
+        
+        for (_, device) in self.devices {
+            if let service = device.getService(withControlUrl: request.path) {
+                guard let properties = handler(service, soapRequest) else {
+                    continue
+                }
+                let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType, actionName: soapRequest.actionName)
+                for field in properties.fields {
+                    soapResponse[field.key] = field.value
+                }
+                let response = HttpResponse(code: 200, reason: "OK")
+                response.data = soapResponse.xmlDocument.data(using: .utf8)
+                return response
+            }
+        }
+        return nil
+    }
+
+    func handleEventQuery(request: HttpRequest) throws -> HttpResponse? {
+        guard let callbackUrls = request.header["CALLBACK"] else {
+            print("HttpServer: no callback field")
+            return nil
+        }
+        let urls = readCallbackUrls(text: callbackUrls)
+        for (_, device) in self.devices {
+            guard let service = device.getService(withEventSubUrl: request.path) else {
+                continue
+            }
+            let subscription = UPnPEventSubscription.generate(service: service,
+                                                              callbackUrls: urls)
+            print("HttpServer: generated sid -- \(subscription.sid)")
+            self.subscriptions[subscription.sid] = subscription
+            let response = HttpResponse(code: 200, reason: "OK")
+            response.header["SID"] = subscription.sid
+            return response
+        }
+        return nil
     }
 
     /**

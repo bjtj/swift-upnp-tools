@@ -1,5 +1,5 @@
 //
-// swift_upnp_toolsTests.swift
+// ModelTests.swift
 // 
 
 import XCTest
@@ -67,6 +67,23 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual("LoadLevelStatus", scpd.stateVariables[1].name!)
     }
 
+    func testService() {
+        guard let scpd = UPnPScpd.read(xmlString: scpd) else {
+            XCTAssert(false)
+            return
+        }
+
+        let service = UPnPService()
+        service.scpd = scpd
+        service.scpdUrl = "/scpd.xml"
+
+        let device = UPnPDevice()
+
+        device.addService(service: service)
+
+        XCTAssertNotNil(device.getService(withScpdUrl: "/scpd.xml"))
+    }
+
     func testSoap() {
         guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
             XCTAssert(false)
@@ -103,6 +120,7 @@ final class ModelTests: XCTestCase {
       ("testXml", testXml),
       ("testDeviceDescription", testDeviceDescription),
       ("testScpd", testScpd),
+      ("testService", testService),
       ("testSoap", testSoap),
       ("testProperty", testProperty),
     ]

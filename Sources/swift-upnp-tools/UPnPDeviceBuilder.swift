@@ -21,8 +21,11 @@ public class UPnPDeviceBuilder {
      */
     public var delegate: UPnPDeviceBuilderDelegate?
 
-    public init(delegate: UPnPDeviceBuilderDelegate?) {
+    public var scpdHandler: ((UPnPService, UPnPScpd) -> Void)?
+
+    public init(delegate: UPnPDeviceBuilderDelegate?, scpdHandler: ((UPnPService, UPnPScpd) -> Void)?) {
         self.delegate = delegate
+        self.scpdHandler = scpdHandler
     }
 
     /**
@@ -48,10 +51,15 @@ public class UPnPDeviceBuilder {
                 print(xmlString)
                 return
             }
+
+            device.baseUrl = url
+            
             let services = device.allServices
             for service in services {
-                UPnPScpdBuilder(service: service).build()
+                UPnPScpdBuilder(service: service, scpdHandler: self.scpdHandler)
+                  .build()
             }
+            
             if let delegate = self.delegate {
                 delegate.onDeviceBuild(url: url, device: device)
             }

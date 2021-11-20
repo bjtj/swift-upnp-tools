@@ -16,6 +16,9 @@ final class ServerTests: XCTestCase {
      */
     static var upnpServer: UPnPServer?
 
+    /**
+     set up
+     */
     override class func setUp() {
         super.setUp()
 
@@ -31,12 +34,40 @@ final class ServerTests: XCTestCase {
         print("-- SET UP :: DONE --")
     }
 
+    /**
+     start server
+     */
     class func startServer() -> UPnPServer {
         let server = UPnPServer(httpServerBindPort: 0)
         server.run()
+
+        registerDevice(server: server)
+        
         return server
     }
 
+    /**
+     register device
+     */
+    class func registerDevice(server: UPnPServer) {
+        guard let device = UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
+            XCTFail("UPnPDevice read failed")
+            return
+        }
+
+        guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
+            XCTFail("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
+            return
+        }
+        service.scpd = UPnPScpd.read(xmlString: ServerTests.scpd_SwitchPower)
+        XCTAssertNotNil(service.scpd)
+        
+        server.registerDevice(device: device)
+    }
+
+    /**
+     teardown
+     */
     override class func tearDown() {
         print("-- TEAR DOWN --")
         super.tearDown()
@@ -44,6 +75,9 @@ final class ServerTests: XCTestCase {
         print("-- TEAR DOWN :: DONE --")
     }
 
+    /**
+     start receiver
+     */
     class func startReceiver() {
         DispatchQueue.global(qos: .background).async {
             do {
@@ -62,19 +96,35 @@ final class ServerTests: XCTestCase {
             }
             print("receiver done")
         }
-    }    
+    }
 
+    /**
+     test notify
+     */
+    func testNotify() {
+        guard let device = UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
+            return
+        }
+        guard let addr = Network.getInetAddress() else {
+            XCTAssert(false)
+            return
+        }
+        UPnPServer.activate(device: device, location: "http://\(addr.hostname)/dummy")
+        UPnPServer.deactivate(device: device)
+    }
+
+    /**
+     test server
+     */
     func testServer() {
 
         guard let server = ServerTests.upnpServer else {
+            XCTFail("UPnPServer is not ready")
             return
         }
 
-        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
-            return
-        }
-        
-        server.registerDevice(device: device)
+        XCTAssertNotNil(server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000"))
+
         server.onActionRequest {
             (service, soapRequest) in
             let properties = OrderedProperties()
@@ -92,6 +142,9 @@ final class ServerTests: XCTestCase {
         }
     }
 
+    /**
+     helper control point invoke action
+     */
     func helperControlPointInvokeAction(st: String,
                                         serviceType: String,
                                         actionRequest: UPnPActionRequest,
@@ -137,25 +190,84 @@ final class ServerTests: XCTestCase {
         
         cp.finish()
     }
-   
-    func testNotify() {
-        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+
+    /**
+     test control point
+     */
+    func testControlPoint() {
+
+        guard let server = ServerTests.upnpServer else {
+            XCTFail("UPnPServer is not ready")
             return
         }
-        guard let addr = Network.getInetAddress() else {
-            XCTAssert(false)
-            return
+
+        XCTAssertNotNil(server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000"))
+        
+        server.onActionRequest {
+            (service, soapRequest) in
+            let properties = OrderedProperties()
+            properties["GetLoadlevelTarget"] = "10"
+            return properties
         }
-        UPnPServer.activate(device: device, location: "http://\(addr.hostname)/dummy")
-        UPnPServer.deactivate(device: device)
+
+        helperControlPointDiscovery(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
     }
     
+    /**
+     helper control point discovery
+     */
+    func helperControlPointDiscovery(st: String, serviceType: String) {
+        let cp = UPnPControlPoint(httpServerBindPort: 0)
+
+        var handledDevices = [UPnPDevice]()
+        var handledScpds = [UPnPScpd]()
+
+        cp.onDeviceAdded {
+            (device) in
+            DispatchQueue.global(qos: .background).async {
+                print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+
+                guard let _ = device.getService(type: serviceType) else {
+                    // no expected service found
+                    return
+                }
+                handledDevices.append(device)
+            }
+        }
+
+        cp.onScpd {
+            (service, scpd) in
+            print("on scpd")
+            XCTAssertNotNil(service.scpd)
+            handledScpds.append(scpd)
+        }
+
+        cp.run()
+        cp.sendMsearch(st: st, mx: 3)
+
+        for _ in 0..<60 {
+            usleep(100 * 1000)
+        }
+
+        XCTAssertFalse(handledDevices.isEmpty)
+        XCTAssertFalse(handledScpds.isEmpty)
+        
+        cp.finish()
+    }
+
+    /**
+     all tests
+     */
     static var allTests = [
-      ("testServer", testServer),
       ("testNotify", testNotify),
+      ("testServer", testServer),
+      ("testControlPoint", testControlPoint),
     ]
 
-    var deviceDescription = "<?xml version=\"1.0\"?>" +
+    /**
+     device description urn:schemas-upnp-org:device:DimmableLight:1
+     */
+    static var deviceDescription_DimmableLight = "<?xml version=\"1.0\"?>" +
       "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
       "  <specVersion>" +
       "  <major>1</major>" +
@@ -190,4 +302,57 @@ final class ServerTests: XCTestCase {
       "  </serviceList>" +
       "  </device>" +
       "</root>"
+
+    /**
+     scpd urn:schemas-upnp-org:service:SwitchPower:1
+     */
+    static var scpd_SwitchPower = "<?xml version=\"1.0\"?>" +
+      "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
+      "  <specVersion>" +
+      " <major>1</major>" +
+      " <minor>0</minor>" +
+      "  </specVersion>" +
+      "  <actionList>" +
+      " <action>" +
+      "   <name>SetLoadLevelTarget</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>newLoadlevelTarget</name>" +
+      "    <direction>in</direction>" +
+      "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      " <action>" +
+      "   <name>GetLoadLevelTarget</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>GetLoadlevelTarget</name>" +
+      "    <direction>out</direction>" +
+      "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      " <action>" +
+      "   <name>GetLoadLevelStatus</name>" +
+      "   <argumentList>" +
+      "  <argument>" +
+      "    <name>retLoadlevelStatus</name>" +
+      "    <direction>out</direction>" +
+      "    <relatedStateVariable>LoadLevelStatus</relatedStateVariable>" +
+      "  </argument>" +
+      "   </argumentList>" +
+      " </action>" +
+      "  </actionList>" +
+      "  <serviceStateTable>" +
+      " <stateVariable sendEvents=\"no\">" +
+      "   <name>LoadLevelTarget</name>" +
+      "   <dataType>ui1</dataType>" +
+      " </stateVariable>" +
+      " <stateVariable sendEvents=\"yes\">" +
+      "   <name>LoadLevelStatus</name>" +
+      "   <dataType>ui1</dataType>" +
+      " </stateVariable>" +
+      "  </serviceStateTable>" +
+      "</scpd>"
 }

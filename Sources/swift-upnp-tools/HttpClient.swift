@@ -8,6 +8,9 @@ import Foundation
 import FoundationNetworking
 #endif
 
+/**
+ Http Client Delegate
+ */
 public typealias HttpClientDelegate = (Data?, URLResponse?, Error?) -> Void
 
 /**
@@ -96,12 +99,9 @@ public class HttpClient {
         let task = session.dataTask(with: request) {
             (data, response, error) in
 
-            guard let delegate = self.delegate else {
-                print("http client -- no delegate")
-                return
+            if let delegate = self.delegate {
+                delegate(data, response, error)
             }
-
-            delegate(data, response, error)
         }
         task.resume()
     }

@@ -61,6 +61,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
      */
     var onDeviceRemovedHandlers = [(UPnPDevice) -> Void]()
     /**
+     on scpd handlers
+     */
+    var onScpdHandlers = [(UPnPService, UPnPScpd) -> Void]()
+
+    /**
      timer
      */
     var timer: DispatchSourceTimer?
@@ -119,42 +124,42 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
                 try self.httpServer!.route(pattern: "/notify") {
                     (request) in
                     guard let request = request else {
-                        print("no request")
+                        print("UPnPControlPoint: no request")
                         return nil
                     }
-                    print("path -- \(request.path)")
+                    print("UPnPControlPoint: path -- \(request.path)")
                     guard let sid = request.header["sid"] else {
-                        print("no sid")
+                        print("UPnPControlPoint: no sid")
                         return nil
                     }
 
                     guard let contentLength = request.header.contentLength else {
-                        print("no content length")
+                        print("UPnPControlPoint: no content length")
                         return nil
                     }
 
                     guard contentLength > 0 else {
-                        print("content length -- \(contentLength)")
+                        print("UPnPControlPoint: content length -- \(contentLength)")
                         return nil
                     }
 
                     var data = Data(capacity: contentLength)
                     guard try request.remoteSocket?.read(into: &data) == contentLength else {
-                        print("socket read() -- failed")
+                        print("UPnPControlPoint: socket read() -- failed")
                         return nil
                     }
 
                     guard let xmlString = String(data: data, encoding: .utf8) else {
-                        print("xml string failed")
+                        print("UPnPControlPoint: xml string failed")
                         return nil
                     }
 
                     guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
-                        print("not event properties")
+                        print("UPnPControlPoint: not event properties")
                         return nil
                     }
 
-                    print("sid -- \(sid)")
+                    print("UPnPControlPoint: sid -- \(sid)")
 
                     self.eventPropertyLisetner?(sid, properties)
                     
@@ -162,7 +167,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
                 }
                 try self.httpServer!.run()
             } catch let error{
-                print("error - \(error)")
+                print("UPnPControlPoint: error - \(error)")
             }
             self.httpServer = nil
         }
@@ -186,7 +191,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             do {
                 try self.ssdpReceiver!.run()
             } catch let error {
-                print("error - \(error)")
+                print("UPnPControlPoint: error - \(error)")
             }
             self.ssdpReceiver = nil
         }
@@ -279,22 +284,26 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     func buildDevice(url: URL) {
-        UPnPDeviceBuilder(delegate: self).build(url: url)
+        UPnPDeviceBuilder(delegate: self) {
+            (service, scpd) in 
+            for handler in self.onScpdHandlers {
+                handler(service, scpd)
+            }
+        }.build(url: url)
     }
 
     /**
      On Device Build with URL and Device
      */
     public func onDeviceBuild(url: URL?, device: UPnPDevice?) {
-        guard let device = device, let url = url else {
+        guard let device = device else {
             return
         }
-        device.baseUrl = url
         addDevice(device: device)
     }
 
     /**
-     On Device Added
+     Add Handler: On Device Added
      */
     public func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
@@ -304,13 +313,23 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     /**
-     On Device Removed
+     Add Handler: On Device Removed
      */
     public func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
         }
         onDeviceRemovedHandlers.append(handler)
+    }
+
+    /**
+     Add Handler: On Scpd
+     */
+    func onScpd(handler: ((UPnPService, UPnPScpd) -> Void)?) {
+        guard let handler = handler else {
+            return
+        }
+        onScpdHandlers.append(handler)
     }
 
     /**
@@ -321,7 +340,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             return
         }
         devices[udn] = device
-        if let delegate = delegate {
+        if let delegate = self.delegate {
             delegate.onDeviceAdded(device: device)
         }
         for handler in onDeviceAddedHandlers {
@@ -336,7 +355,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         guard let device = devices[udn] else {
             return
         }
-        if let delegate = delegate {
+        if let delegate = self.delegate {
             delegate.onDeviceRemoved(device: device)
         }
         for handler in onDeviceRemovedHandlers {
@@ -357,7 +376,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
      */
     public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
         guard let serviceType = service.serviceType else {
-            print("error -- no service type")
+            print("UPnPControlPoint: error -- no service type")
             return
         }
         let soapRequest = UPnPSoapRequest(serviceType: serviceType, actionName: actionName)
@@ -365,11 +384,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             soapRequest[field.key] = field.value
         }
         guard let controlUrl = service.controlUrl, let device = service.device else {
-            print("error -- no control url or no device")
+            print("UPnPControlPoint: error -- no control url or no device")
             return
         }
         guard let url = URL(string: controlUrl, relativeTo: device.rootDevice.baseUrl) else {
-            print("error -- url failed")
+            print("UPnPControlPoint: error -- url failed")
             return
         }
         UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()

@@ -1,5 +1,5 @@
 //
-// swift_upnp_toolsTests.swift
+// SsdpTests.swift
 // 
 
 import XCTest
