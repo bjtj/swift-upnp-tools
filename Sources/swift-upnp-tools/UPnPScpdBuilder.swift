@@ -59,7 +59,7 @@ public class UPnPScpdBuilder {
             }
 
             guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
-                print("HttpClient - read scpd failed")
+                print("HttpClient - read scpd failed - \(url)")
                 print(xmlString)
                 return
             }
