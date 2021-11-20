@@ -44,7 +44,7 @@ public class UPnPScpdBuilder {
             (data, response, error) in
 
             guard error == nil else {
-                print("HttpClient - error: \(error)")
+                print("HttpClient - error: \(error!)")
                 return
             }
             
