@@ -149,17 +149,17 @@ public class UPnPEventSubscriber : TimeBase {
             (data, response, error) in
 
             guard error == nil else {
-                print("error - \(error!)")
+                print("[subscribe] error - '\(error!)'")
                 return
             }
             
             guard let response = response as? HTTPURLResponse else {
-                print("not http url response")
+                print("[subscribe] not http url response")
                 return
             }
             
             guard let sid = response.allHeaderFields["SID"] as? String else {
-                print("no sid")
+                print("[subscribe] NO SID")
                 return
             }
 

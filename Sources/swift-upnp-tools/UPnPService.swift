@@ -5,6 +5,13 @@
 import Foundation
 import SwiftXml
 
+public enum UPnPServiceBuildStatus {
+    case idle
+    case progress
+    case failed
+    case completed
+}
+
 /**
  UPnP Service (Model)
  */
@@ -18,6 +25,14 @@ public class UPnPService : UPnPModel {
      UPnP Scpd
      */
     public var scpd: UPnPScpd?
+    /**
+     build status
+     */
+    public var buildStatus: UPnPServiceBuildStatus
+    /**
+     error string
+     */
+    public var errorString: String?
 
     /**
      service id
@@ -87,6 +102,10 @@ public class UPnPService : UPnPModel {
             return nil
         }
         return fullUrl(relativeUrl: eventSubUrl)
+    }
+
+    public override init() {
+        self.buildStatus = .idle
     }
 
     /**

@@ -1,6 +1,10 @@
 import Foundation
 import SwiftUpnpTools
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 struct Session {
     var device: UPnPDevice?
     var service: UPnPService?
@@ -8,12 +12,19 @@ struct Session {
 
 func main() {
 
+    print(" --=== UPnP ControlPoint ===--")
+
     var session = Session()
 
     var done = false
 
     let cp = UPnPControlPoint(httpServerBindPort: 0)
-    cp.run()
+    do {
+        try cp.run()
+    } catch {
+        exit(1)
+    }
+
 
     cp.onDeviceAdded {
         (device) in
@@ -39,17 +50,7 @@ func main() {
         }
         let tokens = line.split(separator: " ", maxSplits: 1).map { String($0) }
         guard tokens.isEmpty == false else {
-            print(" -== SESSION ==-")
-            guard let device = session.device else {
-                print("[ERR] Device is not selected")
-                continue
-            }
-            print("[Device] -- \(device.udn ?? "nil") \(device.friendlyName ?? "nil")")
-            guard let service = session.service else {
-                print("[ERR] Service is not selected")
-                continue
-            }
-            print("[Service] -- \(service.serviceType ?? "nil")")
+            printSession(session: session)
             continue
         }
         switch tokens[0] {
@@ -59,7 +60,7 @@ func main() {
         case "search":
             handleSearch(cp: cp, st: tokens[1])
         case "ls":
-            print(" == Device List (count: \(cp.devices.count)) ==")
+            print(" -== Device List (count: \(cp.devices.count)) ==-")
             for device in cp.devices.values {
                 printDevice(device: device)
             }
@@ -117,6 +118,8 @@ func main() {
     }
 
     cp.finish()
+
+    print(" --=== DONE ===--")
 }
 
 
@@ -124,6 +127,7 @@ func printDevice(device: UPnPDevice) {
     print("[DEVICE] \(device.friendlyName ?? "nil") (UDN: \(device.udn ?? "nil"))")
     for service in device.services {
         print("  - [SERVICE] \(service.serviceType ?? "nil") (ID: \(service.serviceId ?? "nil"))")
+        print("    * STATUS: \(service.buildStatus) .. \(service.errorString ?? "")")
         guard let scpd = service.scpd else {
             print("    -- (NO SCPD)")
             continue
@@ -132,7 +136,7 @@ func printDevice(device: UPnPDevice) {
         if scpd.actions.isEmpty {
             print("    -- (NO ACTION)")
         } else {
-            print("    -- Action Count: (\(scpd.actions.count))")
+            print("    Action Count: (\(scpd.actions.count))")
         }
         
         for action in scpd.actions {
@@ -141,11 +145,31 @@ func printDevice(device: UPnPDevice) {
     }
 }
 
+func printSession(session: Session) {
+    print(" -== SESSION ==-")
+    guard let device = session.device else {
+        print("[DEVICE] not selected")
+        return
+    }
+    print("[Device]  \(device.friendlyName ?? "nil") (UDN: \(device.udn ?? "nil"))")
+    guard let service = session.service else {
+        print("[ERR] Service is not selected")
+        return
+    }
+    print("[Service] \(service.serviceType ?? "nil")")
+}
+
+/**
+ handle search
+ */
 func handleSearch(cp: UPnPControlPoint, st: String) {
     print("Searching... '\(st)'")
     cp.sendMsearch(st: st, mx: 3)
 }
 
+/**
+ handle invoke action
+ */
 func handleInvokeAction(cp: UPnPControlPoint, service: UPnPService, actionName: String) {
     guard let scpd = service.scpd else {
         print("[ERR] Service has no scpd")
@@ -163,23 +187,30 @@ func handleInvokeAction(cp: UPnPControlPoint, service: UPnPService, actionName: 
         guard argument.direction == .input else {
             continue
         }
-        print(" -- IN Argument: \(name)")
+        print(" -- [IN] read argument: '\(name)'")
         guard let argumentValue = readLine() else {
             print("[ERR] Failed to read argument value")
             return
         }
         properties[name] = argumentValue
     }
+    
     let actionRequest = UPnPActionRequest(actionName: action.name!, fields: properties)
+
     cp.invoke(service: service, actionRequest: actionRequest) {
-        (soapResponse) in
+        (soapResponse, error) in
+
+        guard error == nil else {
+            print("Invoke Error - '\(error!)'")
+            return
+        }
         guard let soapResponse = soapResponse else {
             print("[ERR] No soap response")
             return
         }
         print(" -== Action Response ==-")
         for field in soapResponse.fields {
-            print("- \(field.key): \(field.value)")
+            print("  - \(field.key): \(field.value)")
         }
     }
 }

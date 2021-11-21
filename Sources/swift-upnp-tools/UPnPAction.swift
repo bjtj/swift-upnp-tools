@@ -38,20 +38,53 @@ public class UPnPAction : UPnPModel {
         return nil
     }
 
+    public static func read(xmlString: String) -> UPnPAction? {
+        let document = parseXml(xmlString: xmlString)
+        guard let root = document.rootElement else {
+            print("UPnPAction::read() error - no root xml element")
+            return nil
+        }
+        return read(xmlElement: root)
+    }
+
     /**
      read from xml element
      */
-    public static func read(xmlElement: XmlElement) -> UPnPAction {
+    public static func read(xmlElement: XmlElement) -> UPnPAction? {
         let action = UPnPAction()
         guard let elements = xmlElement.elements else {
-            return action
+            print("UPnPAction::read() error - no xml element")
+            return nil
         }
         for element in elements {
-            if element.name == "argumentList" {
-                let argument = UPnPActionArgument.read(xmlElement: element)
-                action.arguments.append(argument)
-            } else if element.firstText != nil && element.elements!.isEmpty {
-                action[element.name!] = element.firstText!.text
+            guard let name = element.name else {
+                print("UPnPAction::read() error - no element name found")
+                continue
+            }
+            
+            if name == "argumentList" {
+                guard let argListElements = element.elements else {
+                    print("UPnPAction::read() error - wrong arg list")
+                    continue
+                }
+                for argElement in argListElements {
+                    guard let argument = UPnPActionArgument.read(xmlElement: argElement) else {
+                        print("UPnPAction::read() error - parse argument failed")
+                        continue
+                    }
+                    action.arguments.append(argument)
+                }
+            } else {
+                guard element.elements!.isEmpty else {
+                    continue
+                }
+                guard let name = element.name else {
+                    continue
+                }
+                guard let value = element.firstText!.text else {
+                    continue
+                }
+                action[name] = value
             }
         }
         return action

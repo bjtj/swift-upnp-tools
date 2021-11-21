@@ -50,11 +50,9 @@ final class SsdpTests: XCTestCase {
     }
 
     func testSsdpReceiver() {
-        print("send notify")
         let properties = OrderedProperties()
         properties["x"] = "x"
         SSDP.notify(properties: properties)
-        print("send msearch")
         SSDP.sendMsearch(st: "ssdp:all", mx: 1)
     }
     

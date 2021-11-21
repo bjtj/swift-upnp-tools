@@ -193,7 +193,9 @@ public class UPnPServer {
      Start HTTP Server
      */
     public func startHttpServer() {
-        DispatchQueue.global(qos: .background).async {
+
+        DispatchQueue.global(qos: .default).async {
+
             guard self.httpServer == nil else {
                 // already started
                 return
@@ -203,10 +205,9 @@ public class UPnPServer {
                 try self.httpServer!.route(pattern: "/.*") {
                     (request) in
                     guard let request = request else {
-                        print("HttpServer: error -- No Request")
+                        print("HttpServer::startHttpServer() error -- No Request")
                         return nil
                     }
-                    print("HttpServer: PATH -- \(request.path)")
                     if self.isDeviceQuery(request: request) {
                         return try self.handleDeviceQuery(request: request)
                     } else if self.isScpdQuery(request: request) {
@@ -216,13 +217,13 @@ public class UPnPServer {
                     } else if self.isEventQuery(request: request) {
                         return try self.handleEventQuery(request: request)
                     } else {
-                        print("HttpServer: unknown request -- \(request.path)")
+                        print("HttpServer::startHttpServer() unknown request -- \(request.path)")
                     }
                     return nil
                 }
                 try self.httpServer!.run()
             } catch let error{
-                print("HttpServer: error -- \(error)")
+                print("HttpServer::startHttpServer() error -- \(error)")
             }
             self.httpServer = nil
         }
@@ -269,41 +270,41 @@ public class UPnPServer {
                 return response
             }
         }
-        print("HttpServer: failed -- scpd not found")
+        print("HttpServer::handleScpdQuery() failed -- scpd not found for '\(request.path)'")
         return nil
     }
 
     func handleControlQuery(request: HttpRequest) throws -> HttpResponse?{
-        print("HttpServer: Action Request -- \(request.path)")
+        print("HttpServer::handleControlQuery() Action Request -- \(request.path)")
         
         guard let contentLength = request.header.contentLength else {
-            print("HttpServer: error -- no content length")
+            print("HttpServer::handleControlQuery() error -- no content length")
             return nil
         }
 
         guard contentLength > 0 else {
-            print("HttpServer: content length -- \(contentLength)")
+            print("HttpServer::handleControlQuery() content length -- \(contentLength)")
             return nil
         }
 
         var data = Data(capacity: contentLength)
         guard try request.remoteSocket?.read(into: &data) == contentLength else {
-            print("HttpServer: socket read() -- failed")
+            print("HttpServer::handleControlQuery() socket read() -- failed")
             return nil
         }
 
         guard let xmlString = String(data: data, encoding: .utf8) else {
-            print("HttpServer: XML STRING FAILED")
+            print("HttpServer::handleControlQuery() XML STRING FAILED")
             return nil
         }
 
         guard let soapRequest = UPnPSoapRequest.read(xmlString: xmlString) else {
-            print("HttpServer: NOT SOAP REQUEST -- \(xmlString)")
+            print("HttpServer::handleControlQuery() NOT SOAP REQUEST -- \(xmlString)")
             return nil
         }
 
         guard let handler = self.onActionRequestHandler else {
-            print("HttpServer: No Handler")
+            print("HttpServer::handleControlQuery() No Handler")
             return nil
         }
         
@@ -326,7 +327,7 @@ public class UPnPServer {
 
     func handleEventQuery(request: HttpRequest) throws -> HttpResponse? {
         guard let callbackUrls = request.header["CALLBACK"] else {
-            print("HttpServer: no callback field")
+            print("HttpServer::handleEventQuery() no callback field")
             return nil
         }
         let urls = readCallbackUrls(text: callbackUrls)
@@ -336,7 +337,7 @@ public class UPnPServer {
             }
             let subscription = UPnPEventSubscription.generate(service: service,
                                                               callbackUrls: urls)
-            print("HttpServer: generated sid -- \(subscription.sid)")
+            print("HttpServer::handleEventQuery() generated sid -- \(subscription.sid)")
             self.subscriptions[subscription.sid] = subscription
             let response = HttpResponse(code: 200, reason: "OK")
             response.header["SID"] = subscription.sid
@@ -349,7 +350,9 @@ public class UPnPServer {
      Start SSDP Receiver
      */
     public func startSsdpReceiver() {
-        DispatchQueue.global(qos: .background).async {
+
+        DispatchQueue.global(qos: .default).async {
+
             guard self.ssdpReceiver == nil else {
                 return
             }
@@ -360,7 +363,7 @@ public class UPnPServer {
             do {
                 try self.ssdpReceiver!.run()
             } catch let error {
-                print("error - \(error)")
+                print("UPnPServer::startSsdpReceiver() error - \(error)")
             }
             self.ssdpReceiver = nil
         }
@@ -487,7 +490,7 @@ public class UPnPServer {
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml") {
                 (data, response, error) in
                 guard error == nil else {
-                    print("error - \(error!)")
+                    print("UPnPServer::sendEventProperties() error - \(error!)")
                     return
                 }
             }.start()

@@ -59,6 +59,7 @@ public class UPnPScpd : UPnPModel {
     public static func read(xmlString: String) -> UPnPScpd? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
+            print("UPnPScpd::read() - error no root xml element")
             return nil
         }
 
@@ -90,7 +91,10 @@ public class UPnPScpd : UPnPModel {
 
         for element in elements {
             if element.name == "action" {
-                let action = UPnPAction.read(xmlElement: element)
+                guard let action = UPnPAction.read(xmlElement: element) else {
+                    print("UPnPScpd::readActionList() error - action read failed")
+                    continue
+                }
                 actions.append(action)
             }
         }

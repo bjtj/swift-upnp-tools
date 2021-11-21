@@ -79,9 +79,8 @@ public class HttpClient {
      Start request
      */
     public func start() {
-        let configuration = URLSessionConfiguration.default
-        let session = URLSession(configuration: configuration)
-        var request = URLRequest(url: self.url)
+        let session = URLSession(configuration: URLSessionConfiguration.default)
+        var request = URLRequest(url: url)
         if let method = self.method {
             request.httpMethod = method
         }
@@ -98,10 +97,7 @@ public class HttpClient {
         }
         let task = session.dataTask(with: request) {
             (data, response, error) in
-
-            if let delegate = self.delegate {
-                delegate(data, response, error)
-            }
+            self.delegate?(data, response, error)
         }
         task.resume()
     }

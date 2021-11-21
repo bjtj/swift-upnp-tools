@@ -1,3 +1,3 @@
-# Swift Upnp App
+# UPnP Controlpoint Sample
 
-A sample swift upnp app
+UPnP Controlpoint Sample

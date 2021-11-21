@@ -9,6 +9,7 @@ import Foundation
  */
 public protocol UPnPDeviceBuilderDelegate {
     func onDeviceBuild(url: URL?, device: UPnPDevice?)
+    func onDeviceBuildError(error: String?)
 }
 
 /**
@@ -21,9 +22,9 @@ public class UPnPDeviceBuilder {
      */
     public var delegate: UPnPDeviceBuilderDelegate?
 
-    public var scpdHandler: ((UPnPService, UPnPScpd) -> Void)?
+    public var scpdHandler: (UPnPScpdBuilderDelegate)?
 
-    public init(delegate: UPnPDeviceBuilderDelegate?, scpdHandler: ((UPnPService, UPnPScpd) -> Void)?) {
+    public init(delegate: UPnPDeviceBuilderDelegate?, scpdHandler: (UPnPScpdBuilderDelegate)?) {
         self.delegate = delegate
         self.scpdHandler = scpdHandler
     }
@@ -35,20 +36,19 @@ public class UPnPDeviceBuilder {
         HttpClient(url: url) {
             (data, response, error) in
             guard error == nil else {
-                print("error - \(error!)")
+                self.delegate?.onDeviceBuildError(error: "error - \(error!)")
                 return
             }
             guard let data = data else {
-                print("no data")
+                self.delegate?.onDeviceBuildError(error: "no data")
                 return
             }
             guard let xmlString = String(data: data, encoding: .utf8) else {
-                print("no xml string")
+                self.delegate?.onDeviceBuildError(error: "no xml string")
                 return
             }
             guard let device = UPnPDevice.read(xmlString: xmlString) else {
-                print("UPnPDevice.read() failed")
-                print(xmlString)
+                self.delegate?.onDeviceBuildError(error: "UPnPDevice.read() failed")
                 return
             }
 

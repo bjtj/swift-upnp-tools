@@ -4,6 +4,8 @@
 
 import Foundation
 
+public typealias UPnPActionInvokeDelegate = ((UPnPSoapResponse?, String?) -> Void)
+
 /**
  UPnP Action Invoke
  */
@@ -19,9 +21,9 @@ public class UPnPActionInvoke {
     /**
      complete handler
      */
-    public var completeHandler: ((UPnPSoapResponse?) -> Void)?
+    public var completeHandler: (UPnPActionInvokeDelegate)?
     
-    public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: ((UPnPSoapResponse?) -> Void)?) {
+    public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: (UPnPActionInvokeDelegate)?) {
         self.url = url
         self.soapRequest = soapRequest
         self.completeHandler = completeHandler
@@ -35,34 +37,28 @@ public class UPnPActionInvoke {
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "Content-Type", value: "text/xml"))
         fields.append(KeyValuePair(key: "SOAPACTION", value: "\"\(soapRequest.soapaction)\""))
+
         HttpClient(url: url, method: "POST", data: data, fields: fields) {
             (data, response, error) in
-            guard let completeHandler = self.completeHandler else {
-                return
-            }
 
             guard error == nil else {
-                print("error - \(error!)")
-                completeHandler(nil)
+                self.completeHandler?(nil, "error - \(error!)")
                 return
             }
-            
             guard let data = data else {
-                print("no data")
-                completeHandler(nil)
+                self.completeHandler?(nil, "no data")
                 return
             }
             guard let text = String(data: data, encoding: .utf8) else {
-                print("not string")
-                completeHandler(nil)
+                self.completeHandler?(nil, "not string")
                 return
             }
             guard let soapResponse = UPnPSoapResponse.read(xmlString: text) else {
-                print("not soap response -- \(text)")
-                completeHandler(nil)
+                self.completeHandler?(nil, "not soap response -- \(text)")
                 return
             }
-            completeHandler(soapResponse)
+            self.completeHandler?(soapResponse, nil)
+
         }.start()
     }
 }

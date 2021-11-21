@@ -1,7 +1,7 @@
 import XCTest
 
-import controlpointTests
+import serverTests
 
 var tests = [XCTestCaseEntry]()
-tests += controlpointTests.allTests()
+tests += serverTests.allTests()
 XCTMain(tests)

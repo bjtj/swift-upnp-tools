@@ -13,6 +13,43 @@ import SwiftXml
 final class ModelTests: XCTestCase {
 
     /**
+     test property
+     */
+    func testProperty() {
+        let propertyXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+          "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">" +
+          "  <e:property>" +
+          "  <ContainerUpdateIDs></ContainerUpdateIDs>" +
+          "  </e:property>" +
+          "  <e:property>" +
+          "  <SystemUpdateID>76185766</SystemUpdateID>" +
+          "  </e:property>" +
+          "</e:propertyset>"
+        
+        guard let props = UPnPEventProperties.read(xmlString: propertyXml) else {
+            XCTAssert(false)
+            return
+        }
+        helperTestProperties(props: props)
+
+        // --
+        
+        guard let props2 = UPnPEventProperties.read(xmlString: props.xmlDocument) else {
+            XCTAssert(false)
+            return
+        }
+        helperTestProperties(props: props2)
+    }
+
+    /**
+     helper test properties
+     */
+    func helperTestProperties(props: UPnPEventProperties)  {
+        XCTAssertEqual("", props["ContainerUpdateIDs"])
+        XCTAssertEqual("76185766", props["SystemUpdateID"])
+    }
+
+    /**
      test upnp model
      */
     func testUPnPModel() {
@@ -105,6 +142,65 @@ final class ModelTests: XCTestCase {
     }
 
     /**
+     test action argument 
+     */
+    func testActionArgument() {
+        let argumentXml = "  <argument>" +
+          "    <name>GetLoadlevelTarget</name>" +
+          "    <direction>out</direction>" +
+          "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+          "  </argument>"
+
+        let doc = parseXml(xmlString: argumentXml)
+        guard let root = doc.rootElement else {
+            XCTFail("parsing xml error")
+            return
+        }
+        
+        guard let argument = UPnPActionArgument.read(xmlElement: root) else {
+            XCTFail("UPnPActionArgument.read failed")
+            return
+        }
+        XCTAssertEqual(argument.name, "GetLoadlevelTarget")
+        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
+        argument.direction = UPnPActionArgumentDirection.input
+        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
+        XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
+    }
+
+    /**
+     test action
+     */
+    func testAction() {
+        let action = UPnPActionRequest(actionName: "aBc")
+        XCTAssertEqual(action.actionName, "aBc")
+
+        let actionXml = " <action>" +
+          "   <name>SetLoadLevelTarget</name>" +
+          "   <argumentList>" +
+          "  <argument>" +
+          "    <name>newLoadlevelTarget</name>" +
+          "    <direction>in</direction>" +
+          "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+          "  </argument>" +
+          "   </argumentList>" +
+          " </action>"
+
+        guard let action = UPnPAction.read(xmlString: actionXml) else {
+            XCTFail("upnpaction read failed")
+            return
+        }
+
+        guard let name = action.arguments[0].name else {
+            XCTFail("action.arguments[0].name is nil")
+            return
+        }
+
+        XCTAssertEqual("newLoadlevelTarget", name)
+        
+    }
+
+    /**
      test scpd
      */
     func testScpd() {
@@ -169,8 +265,54 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual("GetLoadLevelStatus", scpd.actions[2].name!)
         XCTAssertEqual("LoadLevelTarget", scpd.stateVariables[0].name!)
         XCTAssertEqual("LoadLevelStatus", scpd.stateVariables[1].name!)
+
+        XCTAssertEqual("LoadLevelTarget", scpd.stateVariables[0].name!)
+        XCTAssertEqual("ui1", scpd.stateVariables[0].dataType!)
+        XCTAssertEqual("LoadLevelStatus", scpd.stateVariables[1].name!)
+        XCTAssertEqual("ui1", scpd.stateVariables[1].dataType!)
     }
 
+    /**
+     test soap
+     */
+    func testSoap() {
+
+        let soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+          "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"" +
+          "      xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+          "  <s:Body>" +
+          "  <u:SetTarget xmlns:u=\"urn:schemas-upnp-org:service:SwitchPower:1\">" +
+          "    <newTargetValue>10</newTargetValue>" +
+          "  </u:SetTarget>" +
+          "  </s:Body>" +
+          "</s:Envelope>"
+        
+        guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
+            XCTAssert(false)
+            return
+        }
+        XCTAssertEqual("urn:schemas-upnp-org:service:SwitchPower:1#SetTarget", request.soapaction)
+
+        // --
+
+        let soapResponse = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+          "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+          "  <s:Body>" +
+          "  <u:BrowseResponse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">" +
+          "    <Result>&lt;DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"&gt;&lt;container id=\"94467912-bd40-4d2f-ad25-7b8423f7b05a\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Video&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Video&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"abe6121c-1731-4683-815c-89e1dcd2bf11\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Music&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Music&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"b0184133-f840-4a4f-a583-45f99645edcd\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Photos&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Photos&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;</Result>" +
+          "  <NumberReturned>3</NumberReturned><TotalMatches>3</TotalMatches><UpdateID>76229067</UpdateID></u:BrowseResponse>" +
+          "  </s:Body>" +
+          "</s:Envelope>"
+        
+        guard let response = UPnPSoapResponse.read(xmlString: soapResponse) else {
+            XCTAssert(false)
+            return
+        }
+        XCTAssertEqual("urn:schemas-upnp-org:service:ContentDirectory:1", response.serviceType)
+        XCTAssertEqual("Browse", response.actionName)
+    }
+
+    
 
     /**
      test servcie
@@ -255,130 +397,20 @@ final class ModelTests: XCTestCase {
     }
 
     /**
-     test soap
-     */
-    func testSoap() {
-
-        let soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
-          "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"" +
-          "      xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
-          "  <s:Body>" +
-          "  <u:SetTarget xmlns:u=\"urn:schemas-upnp-org:service:SwitchPower:1\">" +
-          "    <newTargetValue>10</newTargetValue>" +
-          "  </u:SetTarget>" +
-          "  </s:Body>" +
-          "</s:Envelope>"
-        
-        guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
-            XCTAssert(false)
-            return
-        }
-        XCTAssertEqual("urn:schemas-upnp-org:service:SwitchPower:1#SetTarget", request.soapaction)
-
-        // --
-
-        let soapResponse = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-          "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
-          "  <s:Body>" +
-          "  <u:BrowseResponse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\">" +
-          "    <Result>&lt;DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"&gt;&lt;container id=\"94467912-bd40-4d2f-ad25-7b8423f7b05a\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Video&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Video&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"abe6121c-1731-4683-815c-89e1dcd2bf11\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Music&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Music&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;container id=\"b0184133-f840-4a4f-a583-45f99645edcd\" parentID=\"0\" restricted=\"1\" searchable=\"0\"&gt;&lt;dc:title&gt;Photos&lt;/dc:title&gt;&lt;dc:creator&gt;Unknown&lt;/dc:creator&gt;&lt;upnp:genre&gt;Unknown&lt;/upnp:genre&gt;&lt;dc:description&gt;Photos&lt;/dc:description&gt;&lt;upnp:class&gt;object.container.storageFolder&lt;/upnp:class&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;</Result>" +
-          "  <NumberReturned>3</NumberReturned><TotalMatches>3</TotalMatches><UpdateID>76229067</UpdateID></u:BrowseResponse>" +
-          "  </s:Body>" +
-          "</s:Envelope>"
-        
-        guard let response = UPnPSoapResponse.read(xmlString: soapResponse) else {
-            XCTAssert(false)
-            return
-        }
-        XCTAssertEqual("urn:schemas-upnp-org:service:ContentDirectory:1", response.serviceType)
-        XCTAssertEqual("Browse", response.actionName)
-    }
-
-    /**
-     test action
-     */
-    func testAction() {
-        let action = UPnPActionRequest(actionName: "aBc")
-        XCTAssertEqual(action.actionName, "aBc")
-    }
-
-    /**
-     test action argument 
-     */
-    func testActionArgument() {
-        let argumentXml = "  <argument>" +
-          "    <name>GetLoadlevelTarget</name>" +
-          "    <direction>out</direction>" +
-          "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
-          "  </argument>"
-
-        let doc = parseXml(xmlString: argumentXml)
-        guard let root = doc.rootElement else {
-            XCTFail("parsing xml error")
-            return
-        }
-        
-        let argument = UPnPActionArgument.read(xmlElement: root)
-        XCTAssertEqual(argument.name, "GetLoadlevelTarget")
-        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
-        argument.direction = UPnPActionArgumentDirection.input
-        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
-        XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
-    }
-
-
-    /**
-     test property
-     */
-    func testProperty() {
-        let propertyXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-          "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">" +
-          "  <e:property>" +
-          "  <ContainerUpdateIDs></ContainerUpdateIDs>" +
-          "  </e:property>" +
-          "  <e:property>" +
-          "  <SystemUpdateID>76185766</SystemUpdateID>" +
-          "  </e:property>" +
-          "</e:propertyset>"
-        
-        guard let props = UPnPEventProperties.read(xmlString: propertyXml) else {
-            XCTAssert(false)
-            return
-        }
-        helperTestProperties(props: props)
-
-        // --
-        
-        guard let props2 = UPnPEventProperties.read(xmlString: props.xmlDocument) else {
-            XCTAssert(false)
-            return
-        }
-        helperTestProperties(props: props2)
-    }
-
-
-    /**
-     helper test properties
-     */
-    func helperTestProperties(props: UPnPEventProperties)  {
-        XCTAssertEqual("", props["ContainerUpdateIDs"])
-        XCTAssertEqual("76185766", props["SystemUpdateID"])
-    }
-
-    /**
      all tests
      */
     static var allTests = [
+      ("testProperty", testProperty),
       ("testUPnPModel", testUPnPModel),
       ("testUsn", testUsn),
       ("testXml", testXml),
       ("testDeviceDescription", testDeviceDescription),
-      ("testScpd", testScpd),
       ("testService", testService),
       ("testSoap", testSoap),
-      ("testAction", testAction),
       ("testAction", testActionArgument),
-      ("testProperty", testProperty),
+      ("testAction", testAction),
+      ("testScpd", testScpd),
+      
     ]
 
 

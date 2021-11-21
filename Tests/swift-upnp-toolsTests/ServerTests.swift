@@ -15,6 +15,7 @@ final class ServerTests: XCTestCase {
      UPnP Sever for test
      */
     static var upnpServer: UPnPServer?
+    static var receiver: SSDPReceiver?
 
     /**
      set up
@@ -24,10 +25,11 @@ final class ServerTests: XCTestCase {
 
         print("-- SET UP --")
 
-        startReceiver()
         DispatchQueue.global(qos: .background).async {
-            upnpServer = startServer()
+            startReceiver()
         }
+        
+        upnpServer = startServer()
         
         sleep(1)
 
@@ -60,6 +62,7 @@ final class ServerTests: XCTestCase {
             return
         }
         service.scpd = UPnPScpd.read(xmlString: ServerTests.scpd_SwitchPower)
+
         XCTAssertNotNil(service.scpd)
         
         server.registerDevice(device: device)
@@ -72,30 +75,31 @@ final class ServerTests: XCTestCase {
         print("-- TEAR DOWN --")
         super.tearDown()
         ServerTests.upnpServer?.finish()
+        receiver?.finish()
         print("-- TEAR DOWN :: DONE --")
+        usleep(500 * 1000)
     }
 
     /**
      start receiver
      */
     class func startReceiver() {
-        DispatchQueue.global(qos: .background).async {
-            do {
-                let receiver = SSDPReceiver() {
-                    (address, ssdpHeader) in
-                    if let ssdpHeader = ssdpHeader {
-                        if let address = address {
-                            print("from -- \(address.hostname):\(address.port) / \(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
-                        }
+        do {
+            receiver = SSDPReceiver() {
+                (address, ssdpHeader) in
+                if let ssdpHeader = ssdpHeader {
+                    if let address = address {
+                        print("[SSDP] from -- \(address.hostname):\(address.port) / " +
+                                "\(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
                     }
-                    return nil
                 }
-                try receiver.run()
-            } catch let error {
-                print(error)
+                return nil
             }
-            print("receiver done")
+            try receiver?.run()
+        } catch let error {
+            print(error)
         }
+        print("-- Receiver Done --")
     }
 
     /**
@@ -132,14 +136,25 @@ final class ServerTests: XCTestCase {
             return properties
         }
 
+        var called = false
+
         let actionRequest = UPnPActionRequest(actionName: "GetLoadLevelTarget")
         helperControlPointInvokeAction(st: "ssdp:all",
                                        serviceType: "urn:schemas-upnp-org:service:SwitchPower:1",
                                        actionRequest: actionRequest)
         {
-            (soapResponse) in 
+            (soapResponse, error) in
+
+            called = true
+            
+            XCTAssertNil(error)
+            if let soapResponse = soapResponse {
+                print("soapResponse: \(soapResponse.description)")
+            }
             XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
         }
+
+        XCTAssertTrue(called)
     }
 
     /**
@@ -148,45 +163,62 @@ final class ServerTests: XCTestCase {
     func helperControlPointInvokeAction(st: String,
                                         serviceType: String,
                                         actionRequest: UPnPActionRequest,
-                                        handler: ((UPnPSoapResponse?) -> Void)?)
+                                        handler: (UPnPActionInvokeDelegate)?)
     {
         let cp = UPnPControlPoint(httpServerBindPort: 0)
 
-        cp.onDeviceAdded {
-            (device) in
-            DispatchQueue.global(qos: .background).async {
-                print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+        var handledService = [UPnPService]()
 
-                guard let service = device.getService(type: serviceType) else {
-                    // no expected service found
-                    return
-                }
+        cp.onScpd {
+            (service, scpd, error) in
 
-                cp.invoke(service: service, actionRequest: actionRequest, completeHandler: handler)
-
-                let _ = cp.subscribe(service: service) {
-                    (subscription) in
-                    print("subscribe result -- sid: \(subscription.sid)")
-                }
+            guard error == nil else {
+                // error
+                return
             }
+
+            guard let service = service else {
+                // error
+                return
+            }
+
+            guard service.serviceType == serviceType else {
+                // not expected service
+                return
+            }
+
+            cp.invoke(service: service, actionRequest: actionRequest, completeHandler: handler)
+
+            let _ = cp.subscribe(service: service) {
+                (subscription) in
+                print("Subscribe Result -- SID: '\(subscription.sid)'")
+            }
+
+            handledService.append(service)
         }
 
         cp.onEventProperty {
             (sid, properties) in
-            print("sid -- \(sid)")
+            print("OnEventProperty - SID -- '\(sid)'")
             for field in properties.fields {
-                print("\(field.key) = \(field.value)")
+                print(" - \(field.key) = \(field.value)")
             }
         }
 
-        cp.run()
+        do {
+            try cp.run()
+        } catch let e {
+            XCTFail("cp.run() failed \(e)")
+        }
+
         cp.sendMsearch(st: st, mx: 3)
 
-        for _ in 0..<60 {
+        print("Wait ...")
+        for _ in 0..<10 * 10 {
             usleep(100 * 1000)
         }
 
-        XCTAssert(cp.devices.isEmpty == false)
+        XCTAssertFalse(handledService.isEmpty)
         
         cp.finish()
     }
@@ -224,29 +256,55 @@ final class ServerTests: XCTestCase {
 
         cp.onDeviceAdded {
             (device) in
-            DispatchQueue.global(qos: .background).async {
-                print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+            print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
 
-                guard let _ = device.getService(type: serviceType) else {
-                    // no expected service found
-                    return
-                }
-                handledDevices.append(device)
+            guard let _ = device.getService(type: serviceType) else {
+                // no expected service found
+                return
             }
+            handledDevices.append(device)
         }
 
         cp.onScpd {
-            (service, scpd) in
-            print("on scpd")
+            (service, scpd, error) in
+
+            if let error = error {
+                print("ERROR - \(error)")
+                XCTAssertEqual(service?.buildStatus, .failed)
+                return
+            }
+
+            guard let service = service else {
+                XCTFail("service is nil")
+                return
+            }
+
+            guard let scpd = scpd else {
+                XCTFail("scpd is nil")
+                return
+            }
+            
             XCTAssertNotNil(service.scpd)
+            XCTAssertEqual(service.buildStatus, .completed)
+
+            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget"))
+            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget")!.arguments)
+            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget")!.arguments[0])
+            XCTAssertEqual("newLoadlevelTarget", scpd.getAction(name: "SetLoadLevelTarget")!.arguments[0].name)
+            
             handledScpds.append(scpd)
         }
 
-        cp.run()
+        do {
+            try cp.run()
+        } catch let e {
+            XCTFail("cp.run() failed \(e)")
+        }
+
         cp.sendMsearch(st: st, mx: 3)
 
-        for _ in 0..<60 {
-            usleep(100 * 1000)
+        for _ in 0..<6 {
+            usleep(1000 * 1000)
         }
 
         XCTAssertFalse(handledDevices.isEmpty)

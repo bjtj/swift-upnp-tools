@@ -41,7 +41,7 @@ Add it to dependency (package.swift)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/bjtj/swift-upnp-tools.git", from: "0.1.7"),
+    .package(url: "https://github.com/bjtj/swift-upnp-tools.git", from: "0.1.13"),
   ],
 ```
 
@@ -57,16 +57,27 @@ Sample application code (UPnPControlPoint)
 
 ## Examples
 
+Check out `/Samples` please.
+
 ### UPnPControlPoint
 
 ```swift
 let cp = UPnPControlPoint(port: 0)
 cp.onDeviceAdded {
     (device) in
-    DispatchQueue.global(qos: .background).async {
-    ...
-    }
+	
+	...
 }
+
+cp.onScpd {
+	(service, scpd, error) in
+	
+	...
+}
+
+try cp.run()
+
+cp.sendMsearch(st: "ssdp:all", mx: 3)
 
 ...
 
@@ -86,6 +97,7 @@ guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
 server.registerDevice(device: device)
 server.onActionRequest {
     (service, soapRequest) in
+	
     let properties = OrderedProperties()
     properties["GetLoadlevelTarget"] = "10"
     return properties
