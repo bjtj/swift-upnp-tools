@@ -172,8 +172,8 @@ final class ModelTests: XCTestCase {
      test action
      */
     func testAction() {
-        let action = UPnPActionRequest(actionName: "aBc")
-        XCTAssertEqual(action.actionName, "aBc")
+        let actionRequest = UPnPActionRequest(actionName: "aBc")
+        XCTAssertEqual(actionRequest.actionName, "aBc")
 
         let actionXml = " <action>" +
           "   <name>SetLoadLevelTarget</name>" +
@@ -407,7 +407,7 @@ final class ModelTests: XCTestCase {
       ("testDeviceDescription", testDeviceDescription),
       ("testService", testService),
       ("testSoap", testSoap),
-      ("testAction", testActionArgument),
+      ("testActionArgument", testActionArgument),
       ("testAction", testAction),
       ("testScpd", testScpd),
       
