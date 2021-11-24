@@ -121,52 +121,47 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
                 // already started
                 return
             }
-            do {
-                self.httpServer = HttpServer(port: self.port)
-                try self.httpServer!.route(pattern: "/notify") {
-                    (request) in
-                    guard let request = request else {
-                        print("UPnPControlPoint::startHttpServer() error - no request")
-                        return nil
-                    }
+
+            class NotifyHandler : HttpRequestHandlerDelegate {
+
+                var eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?
+
+                init(eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?) {
+                    self.eventPropertyLisetner = eventPropertyLisetner
+                }
+
+                
+                func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
+                }
+
+                func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
                     print("UPnPControlPoint::startHttpServer() error - path -- \(request.path)")
                     guard let sid = request.header["sid"] else {
-                        print("UPnPControlPoint::startHttpServer() error - no sid")
-                        return nil
+                        throw HttpServerError.illegalArgument(string: "no sid")
                     }
 
-                    guard let contentLength = request.header.contentLength else {
-                        print("UPnPControlPoint::startHttpServer() error - no content length")
-                        return nil
-                    }
-
-                    guard contentLength > 0 else {
-                        print("UPnPControlPoint::startHttpServer() error - content length -- \(contentLength)")
-                        return nil
-                    }
-
-                    var data = Data(capacity: contentLength)
-                    guard try request.remoteSocket?.read(into: &data) == contentLength else {
-                        print("UPnPControlPoint::startHttpServer() error - socket read() -- failed")
-                        return nil
+                    guard let data = body else {
+                        throw HttpServerError.illegalArgument(string: "no content")
                     }
 
                     guard let xmlString = String(data: data, encoding: .utf8) else {
-                        print("UPnPControlPoint::startHttpServer() error - xml string failed")
-                        return nil
+                        throw HttpServerError.illegalArgument(string: "wrong xml string")
                     }
 
                     guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
-                        print("UPnPControlPoint::startHttpServer() error - not event properties")
-                        return nil
+                        throw HttpServerError.custom(string: "parse failed event properties")
                     }
 
-                    print("UPnPControlPoint::startHttpServer() error - sid -- \(sid)")
-
-                    self.eventPropertyLisetner?(sid, properties)
-                    
-                    return HttpResponse(code: 200)
+                    print("UPnPControlPoint::startHttpServer() sid -- \(sid)")
+                    eventPropertyLisetner?(sid, properties)
+                    response.code = 200
                 }
+            }
+            
+            do {
+                self.httpServer = HttpServer(port: self.port)
+                try self.httpServer!.route(pattern: "/notify", handler: NotifyHandler(eventPropertyLisetner: self.eventPropertyLisetner))
+
                 try self.httpServer!.run()
             } catch let error{
                 print("UPnPControlPoint::startHttpServer() error - error - \(error)")

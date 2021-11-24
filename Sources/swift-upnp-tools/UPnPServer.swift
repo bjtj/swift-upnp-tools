@@ -8,7 +8,7 @@ import SwiftHttpServer
 /**
  UPnP Server Implementation
  */
-public class UPnPServer {
+public class UPnPServer : HttpRequestHandlerDelegate {
 
     /**
      http server bind port
@@ -200,32 +200,34 @@ public class UPnPServer {
                 // already started
                 return
             }
+            
             do {
                 self.httpServer = HttpServer(port: self.port)
-                try self.httpServer!.route(pattern: "/.*") {
-                    (request) in
-                    guard let request = request else {
-                        print("HttpServer::startHttpServer() error -- No Request")
-                        return nil
-                    }
-                    if self.isDeviceQuery(request: request) {
-                        return try self.handleDeviceQuery(request: request)
-                    } else if self.isScpdQuery(request: request) {
-                        return try self.handleScpdQuery(request: request)
-                    } else if self.isControlQuery(request: request) {
-                        return try self.handleControlQuery(request: request)
-                    } else if self.isEventQuery(request: request) {
-                        return try self.handleEventQuery(request: request)
-                    } else {
-                        print("HttpServer::startHttpServer() unknown request -- \(request.path)")
-                    }
-                    return nil
-                }
+                try self.httpServer!.route(pattern: "/**", handler: self)
                 try self.httpServer!.run()
             } catch let error{
                 print("HttpServer::startHttpServer() error -- \(error)")
             }
             self.httpServer = nil
+        }
+    }
+
+
+    public func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
+    }
+
+    public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
+        if isDeviceQuery(request: request) {
+            return try handleDeviceQuery(request: request, response: response)
+        } else if isScpdQuery(request: request) {
+            return try handleScpdQuery(request: request, response: response)
+        } else if isControlQuery(request: request) {
+            return try handleControlQuery(data: body, request: request, response: response)
+        } else if isEventQuery(request: request) {
+            return try handleEventQuery(request: request, response: response)
+        } else {
+            response.code = 404
+            return
         }
     }
 
@@ -245,67 +247,50 @@ public class UPnPServer {
         return request.path.hasSuffix("event.xml")
     }
 
-    func handleDeviceQuery(request: HttpRequest) throws -> HttpResponse? {
-        let response = HttpResponse(code: 200, reason: "OK")
+    func handleDeviceQuery(request: HttpRequest, response: HttpResponse) throws {
         let tokens = request.path.split(separator: "/")
         guard tokens.isEmpty == false else {
-            return nil
+            throw HttpServerError.custom(string: "tokens.isEmpty == false failed")
         }
         let udn = String(tokens[0])
         guard let device = self.devices[udn] else {
-            return nil
+            throw HttpServerError.custom(string: "no device")
         }
+        response.code = 200
         response.data = device.xmlDocument.data(using: .utf8)
-        return response
     }
 
-    func handleScpdQuery(request: HttpRequest) throws -> HttpResponse? {
+    func handleScpdQuery(request: HttpRequest, response: HttpResponse) throws {
         for (_, device) in self.devices {
             if let service = device.getService(withScpdUrl: request.path) {
                 guard let scpd = service.scpd else {
                     continue
                 }
-                let response = HttpResponse(code: 200, reason: "OK")
+                response.code = 200
                 response.data = scpd.xmlDocument.data(using: .utf8)
-                return response
+                return
             }
         }
-        print("HttpServer::handleScpdQuery() failed -- scpd not found for '\(request.path)'")
-        return nil
+        throw HttpServerError.custom(string: "no service")
     }
 
-    func handleControlQuery(request: HttpRequest) throws -> HttpResponse?{
-        print("HttpServer::handleControlQuery() Action Request -- \(request.path)")
-        
-        guard let contentLength = request.header.contentLength else {
-            print("HttpServer::handleControlQuery() error -- no content length")
-            return nil
-        }
-
-        guard contentLength > 0 else {
-            print("HttpServer::handleControlQuery() content length -- \(contentLength)")
-            return nil
-        }
-
-        var data = Data(capacity: contentLength)
-        guard try request.remoteSocket?.read(into: &data) == contentLength else {
-            print("HttpServer::handleControlQuery() socket read() -- failed")
-            return nil
+    func handleControlQuery(data: Data?, request: HttpRequest, response: HttpResponse) throws {
+        guard let data = data else {
+            throw HttpServerError.illegalArgument(string: "no content")
         }
 
         guard let xmlString = String(data: data, encoding: .utf8) else {
-            print("HttpServer::handleControlQuery() XML STRING FAILED")
-            return nil
+            throw HttpServerError.illegalArgument(string: "wrong xml string")
         }
 
         guard let soapRequest = UPnPSoapRequest.read(xmlString: xmlString) else {
-            print("HttpServer::handleControlQuery() NOT SOAP REQUEST -- \(xmlString)")
-            return nil
+            throw HttpServerError.custom(string: "parse failed soap request")
         }
 
         guard let handler = self.onActionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
-            return nil
+            response.code = 404
+            return
         }
         
         for (_, device) in self.devices {
@@ -313,22 +298,23 @@ public class UPnPServer {
                 guard let properties = handler(service, soapRequest) else {
                     continue
                 }
-                let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType, actionName: soapRequest.actionName)
+                let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
+                                                    actionName: soapRequest.actionName)
                 for field in properties.fields {
                     soapResponse[field.key] = field.value
                 }
-                let response = HttpResponse(code: 200, reason: "OK")
+                response.code = 200
                 response.data = soapResponse.xmlDocument.data(using: .utf8)
-                return response
+                return
             }
         }
-        return nil
+
+        throw HttpServerError.custom(string: "no matching device")
     }
 
-    func handleEventQuery(request: HttpRequest) throws -> HttpResponse? {
+    func handleEventQuery(request: HttpRequest, response: HttpResponse) throws {
         guard let callbackUrls = request.header["CALLBACK"] else {
-            print("HttpServer::handleEventQuery() no callback field")
-            return nil
+            throw HttpServerError.illegalArgument(string: "no callback header field")
         }
         let urls = readCallbackUrls(text: callbackUrls)
         for (_, device) in self.devices {
@@ -337,13 +323,12 @@ public class UPnPServer {
             }
             let subscription = UPnPEventSubscription.generate(service: service,
                                                               callbackUrls: urls)
-            print("HttpServer::handleEventQuery() generated sid -- \(subscription.sid)")
             self.subscriptions[subscription.sid] = subscription
-            let response = HttpResponse(code: 200, reason: "OK")
+            response.code = 200
             response.header["SID"] = subscription.sid
-            return response
+            return
         }
-        return nil
+        throw HttpServerError.custom(string: "no matching device")
     }
 
     /**
