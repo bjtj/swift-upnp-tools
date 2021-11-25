@@ -424,7 +424,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     /**
      Subscribe with service and completeListener (Optional)
      */
-    @discardableResult public func subscribe(service: UPnPService, completeListener: ((UPnPEventSubscription) -> Void)? = nil) -> UPnPEventSubscriber? {
+    @discardableResult public func subscribe(service: UPnPService, completeListener: (eventSubscribeHandler)? = nil) -> UPnPEventSubscriber? {
         guard let callbackUrls = getCallbackUrl(of: service) else {
             return nil
         }

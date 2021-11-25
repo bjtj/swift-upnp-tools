@@ -192,8 +192,14 @@ final class ServerTests: XCTestCase {
             cp.invoke(service: service, actionRequest: actionRequest, completeHandler: handler)
 
             let _ = cp.subscribe(service: service) {
-                (subscription) in
-                print("Subscribe Result -- SID: '\(subscription.sid)'")
+                (subscription, error) in
+                XCTAssertNil(error)
+                guard let sub = subscription else {
+                    XCTFail("no subscription")
+                    return
+                }
+                XCTAssertNotNil(sub.sid)
+                print("Subscribe Result -- SID: '\(sub.sid)'")
             }
 
             handledService.append(service)

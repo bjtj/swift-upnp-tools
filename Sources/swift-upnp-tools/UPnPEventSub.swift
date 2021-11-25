@@ -10,9 +10,9 @@ import FoundationNetworking
 #endif
 
 /**
- On Event Subscription Type
+ On Event Subscription
  */
-public typealias OnEventSubscription = (UPnPEventSubscription?) -> Void
+public typealias eventSubscribeHandler = (UPnPEventSubscription?, Error?) -> Void
 
 /**
  UPnP Event Subscription Model
@@ -140,29 +140,27 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Subscribe
      */
-    public func subscribe(completeListener: ((UPnPEventSubscription) -> Void)? = nil) {
+    public func subscribe(completeListener: (eventSubscribeHandler)? = nil) {
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
         fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
-        fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-\(timeout)"))
+        fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
             (data, response, error) in
 
             guard error == nil else {
-                print("[subscribe] error - '\(error!)'")
+                completeListener?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - '\(error!)'"))
                 return
             }
             
             guard let response = response as? HTTPURLResponse else {
-                print("[subscribe] not http url response")
+                completeListener?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
                 return
             }
-            
-            guard let sid = response.allHeaderFields["SID"] as? String else {
-                print("[subscribe] NO SID")
+            guard let sid = response.value(forHTTPHeaderField: "SID") else {
+                completeListener?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
                 return
             }
-
             var second: UInt64 = 1800
             if let timeout = response.allHeaderFields["TIMEOUT"] as? String {
                 let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
@@ -170,7 +168,7 @@ public class UPnPEventSubscriber : TimeBase {
             }
             self.sid = sid
             let subscription = UPnPEventSubscription(service: self.service, sid: sid, timeout: second)
-            completeListener?(subscription)
+            completeListener?(subscription, nil)
         }.start()
     }
 
@@ -185,7 +183,7 @@ public class UPnPEventSubscriber : TimeBase {
         
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "SID", value: sid))
-        fields.append(KeyValuePair(key: "TIEMOUT", value: "Second-\(timeout)"))
+        fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
             (data, response, error) in
         }.start()
