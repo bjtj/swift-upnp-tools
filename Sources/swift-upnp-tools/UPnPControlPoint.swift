@@ -25,6 +25,10 @@ public protocol UPnPControlPointDelegate {
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
     /**
+     http server bind hostname
+     */
+    public var hostname: String?
+    /**
      http server bind port
      */
     public var port: Int
@@ -70,7 +74,12 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
      */
     var timer: DispatchSourceTimer?
     
-    public init(httpServerBindPort: Int, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
+    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
+        if httpServerBindHostname == nil {
+            self.hostname = Network.getInetAddress()?.hostname
+        } else {
+            self.hostname = httpServerBindHostname
+        }
         self.port = httpServerBindPort
         self.eventPropertyLisetner = eventPropertyLisetner
     }
@@ -159,7 +168,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             }
             
             do {
-                self.httpServer = HttpServer(port: self.port)
+                self.httpServer = HttpServer(hostname: self.hostname, port: self.port)
                 try self.httpServer!.route(pattern: "/notify", handler: NotifyHandler(eventPropertyLisetner: self.eventPropertyLisetner))
 
                 try self.httpServer!.run()

@@ -11,6 +11,11 @@ import SwiftHttpServer
 public class UPnPServer : HttpRequestHandlerDelegate {
 
     /**
+     http server hostname
+     */
+    public var hostname: String?
+
+    /**
      http server bind port
      */
     public var port: Int
@@ -35,7 +40,12 @@ public class UPnPServer : HttpRequestHandlerDelegate {
      */
     var onActionRequestHandler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?
 
-    public init(httpServerBindPort: Int) {
+    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
+        if httpServerBindHostname == nil {
+            self.hostname = Network.getInetAddress()?.hostname
+        } else {
+            self.hostname = httpServerBindHostname
+        }
         self.port = httpServerBindPort
     }
 
@@ -202,7 +212,7 @@ public class UPnPServer : HttpRequestHandlerDelegate {
             }
             
             do {
-                self.httpServer = HttpServer(port: self.port)
+                self.httpServer = HttpServer(hostname: self.hostname, port: self.port)
                 try self.httpServer!.route(pattern: "/**", handler: self)
                 try self.httpServer!.run()
             } catch let error{

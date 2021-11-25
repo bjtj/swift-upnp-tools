@@ -33,6 +33,8 @@ final class ServerTests: XCTestCase {
         
         sleep(1)
 
+        // print(upnpServer?.httpServer?.serverAddress?.description)
+
         print("-- SET UP :: DONE --")
     }
 
@@ -211,6 +213,10 @@ final class ServerTests: XCTestCase {
             XCTFail("cp.run() failed \(e)")
         }
 
+        sleep(1)
+
+        // print(cp.httpServer?.serverAddress?.description)
+
         cp.sendMsearch(st: st, mx: 3)
 
         print("Wait ...")
@@ -300,6 +306,10 @@ final class ServerTests: XCTestCase {
         } catch let e {
             XCTFail("cp.run() failed \(e)")
         }
+
+        sleep(1)
+
+        // print(cp.httpServer?.serverAddress?.description)
 
         cp.sendMsearch(st: st, mx: 3)
 
