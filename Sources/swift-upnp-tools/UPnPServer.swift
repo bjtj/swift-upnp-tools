@@ -336,6 +336,7 @@ public class UPnPServer : HttpRequestHandlerDelegate {
             self.subscriptions[subscription.sid] = subscription
             response.code = 200
             response.header["SID"] = subscription.sid
+            response.header["TIMEOUT"] = "Second-1800"
             return
         }
         throw HttpServerError.custom(string: "no matching device")

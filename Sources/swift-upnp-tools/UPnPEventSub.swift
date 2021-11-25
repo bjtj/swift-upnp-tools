@@ -157,19 +157,31 @@ public class UPnPEventSubscriber : TimeBase {
                 completeListener?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
                 return
             }
-            guard let sid = response.value(forHTTPHeaderField: "SID") else {
+
+            guard let sid = self.getValueCaseInsensitive(response: response, key: "SID") else {
                 completeListener?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
                 return
             }
+
             var second: UInt64 = 1800
-            if let timeout = response.allHeaderFields["TIMEOUT"] as? String {
+            if let timeout = self.getValueCaseInsensitive(response: response, key: "TIMEOUT") {
+                print("TIMEOUT: \(timeout)")
                 let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
                 second = UInt64(String(timeout[start..<timeout.endIndex]))!
             }
+
             self.sid = sid
             let subscription = UPnPEventSubscription(service: self.service, sid: sid, timeout: second)
             completeListener?(subscription, nil)
         }.start()
+    }
+
+    func getValueCaseInsensitive(response: HTTPURLResponse, key: String) -> String? {
+        #if compiler(>=5.3)
+        return response.value(forHTTPHeaderField: key)
+        #else
+        return response.allHeaderFields.first(where: { ($0.key as! String).description.caseInsensitiveCompare(key) == .orderedSame })?.value as? String
+        #endif
     }
 
     /**
