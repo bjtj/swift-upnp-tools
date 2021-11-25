@@ -109,8 +109,18 @@ func main() {
                 continue
             }
             cp.subscribe(service: service) {
-                (subscription) in
-                print("[EVENT] Subscribe is done -- \(subscription.sid)")
+                (subscription, error) in
+                if let e = error {
+                    print("[EVENT] Subscribe failed -- \(e)")
+                }
+
+                guard let sub = subscription else {
+                    print("[EVENT] Subscribe failed -- no subscription")
+                    return
+                }
+                
+                print("[EVENT] Subscribe is done -- \(sub.sid)")
+
             }
         default:
             print("[ERR] Unknown Command -- '\(tokens[0])'")
