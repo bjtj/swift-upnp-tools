@@ -21,12 +21,12 @@ public class UPnPActionInvoke {
     /**
      complete handler
      */
-    public var completeHandler: (UPnPActionInvokeDelegate)?
+    public var completionHandler: (UPnPActionInvokeDelegate)?
     
-    public init(url: URL, soapRequest: UPnPSoapRequest, completeHandler: (UPnPActionInvokeDelegate)?) {
+    public init(url: URL, soapRequest: UPnPSoapRequest, completionHandler: (UPnPActionInvokeDelegate)?) {
         self.url = url
         self.soapRequest = soapRequest
-        self.completeHandler = completeHandler
+        self.completionHandler = completionHandler
     }
 
     /**
@@ -35,29 +35,28 @@ public class UPnPActionInvoke {
     public func invoke() {
         let data = soapRequest.xmlDocument.data(using: .utf8)
         var fields = [KeyValuePair]()
-        fields.append(KeyValuePair(key: "Content-Type", value: "text/xml"))
         fields.append(KeyValuePair(key: "SOAPACTION", value: "\"\(soapRequest.soapaction)\""))
 
-        HttpClient(url: url, method: "POST", data: data, fields: fields) {
+        HttpClient(url: url, method: "POST", data: data, contentType: "text/xml", fields: fields) {
             (data, response, error) in
 
             guard error == nil else {
-                self.completeHandler?(nil, "error - \(error!)")
+                self.completionHandler?(nil, "error - \(error!)")
                 return
             }
             guard let data = data else {
-                self.completeHandler?(nil, "no data")
+                self.completionHandler?(nil, "no data")
                 return
             }
             guard let text = String(data: data, encoding: .utf8) else {
-                self.completeHandler?(nil, "not string")
+                self.completionHandler?(nil, "not string")
                 return
             }
             guard let soapResponse = UPnPSoapResponse.read(xmlString: text) else {
-                self.completeHandler?(nil, "not soap response -- \(text)")
+                self.completionHandler?(nil, "not soap response -- \(text)")
                 return
             }
-            self.completeHandler?(soapResponse, nil)
+            self.completionHandler?(soapResponse, nil)
 
         }.start()
     }

@@ -36,9 +36,17 @@ func main() {
         print("-*- [REMOVED] \(device.friendlyName ?? "nil") (UDN: \(device.udn ?? "nil"))")
     }
 
-    cp.onEventProperty {
-        (sid, properties) in
-        print("-*- EVENT NOTIFY -- (SID: \(sid))")
+    cp.addEventNotificationHandler {
+        (subscription, properties, error) in
+        guard error == nil else {
+            print("Error - \(error!)")
+            return
+        }
+        guard let subscription = subscription, let properties = properties else {
+            print("Error - no subscription or properties")
+            return
+        }
+        print("-*- EVENT NOTIFY -- (SID: \(subscription.sid))")
         for field in properties.fields {
             print("  - \(field.key): \(field.value)")
         }
@@ -104,11 +112,15 @@ func main() {
 
             handleInvokeAction(cp: cp, service: service, actionName: tokens[1])
         case "subscribe":
-            guard let service = session.service else {
-                print("[ERR] Service is not selected")
+            guard let device = session.device, let service = session.service else {
+                print("[ERR] Device and Service must be selected")
                 continue
             }
-            cp.subscribe(service: service) {
+            guard let udn = device.udn else {
+                print("[ERR] Device has no udn field <-- weird")
+                continue
+            }
+            cp.subscribe(udn: udn, service: service) {
                 (subscription, error) in
                 if let e = error {
                     print("[EVENT] Subscribe failed -- \(e)")

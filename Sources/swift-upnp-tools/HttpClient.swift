@@ -67,10 +67,11 @@ public class HttpClient {
         self.delegate = delegate
     }
 
-    public init(url: URL, method: String?, data: Data?, fields: [KeyValuePair]?, delegate: HttpClientDelegate?) {
+    public init(url: URL, method: String?, data: Data?, contentType: String?, fields: [KeyValuePair]?, delegate: HttpClientDelegate?) {
         self.url = url
         self.method = method
         self.data = data
+        self.contentType = contentType
         self.fields = fields
         self.delegate = delegate
     }

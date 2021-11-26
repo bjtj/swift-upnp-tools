@@ -1,64 +1,7 @@
 import Foundation
 import SwiftUpnpTools
 
-func main() {
-
-    print(" --=== UPnP Server ===--")
-
-    let server = startServer(port: 9999)
-
-    server.onActionRequest {
-        (service, soapRequest) in
-        let properties = OrderedProperties()
-        properties["GetLoadlevelTarget"] = "10"
-        return properties
-    }
-
-    var done = false
-
-    while !done {
-        guard let line = readLine() else {
-            continue
-        }
-
-        switch line {
-        case "quit", "q":
-            done = true
-            break;
-        default:
-            break;
-        }
-    }
-
-    print(" --=== DONE ===--")
-
-    server.finish()
-}
-
-
-func startServer(port: Int) -> UPnPServer {
-    let server = UPnPServer(httpServerBindPort: port)
-    server.run()
-    registerDevice(server: server)
-    return server
-}
-
-func registerDevice(server: UPnPServer) {
-    guard let device = UPnPDevice.read(xmlString: deviceDescription_DimmableLight) else {
-        print("UPnPDevice read failed")
-        return
-    }
-
-    guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
-        print("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
-        return
-    }
-    service.scpd = UPnPScpd.read(xmlString: scpd_SwitchPower)
-    
-    server.registerDevice(device: device)
-}
-
-var deviceDescription_DimmableLight = "<?xml version=\"1.0\"?>" +
+let deviceDescription_DimmableLight = "<?xml version=\"1.0\"?>" +
   "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
   "  <specVersion>" +
   "  <major>1</major>" +
@@ -95,7 +38,7 @@ var deviceDescription_DimmableLight = "<?xml version=\"1.0\"?>" +
   "</root>"
 
 
-var scpd_SwitchPower = "<?xml version=\"1.0\"?>" +
+let scpd_SwitchPower = "<?xml version=\"1.0\"?>" +
   "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
   "  <specVersion>" +
   " <major>1</major>" +
@@ -145,4 +88,96 @@ var scpd_SwitchPower = "<?xml version=\"1.0\"?>" +
   "  </serviceStateTable>" +
   "</scpd>"
 
+
+func main() {
+
+    print(" --=== UPnP Server ===--")
+
+    let server = startServer(port: 9999)
+
+    var loadLevelTarget = 0
+    var loadLevelStatus = 0
+
+    server.onActionRequest {
+        (service, soapRequest) in
+
+        switch soapRequest.actionName {
+        case "SetLoadLevelTarget":
+            guard let newTargetStr = soapRequest["newLoadlevelTarget"], let newTarget = Int(newTargetStr) else {
+                return nil
+            }
+            loadLevelTarget = newTarget
+            return OrderedProperties()
+        case "GetLoadLevelTarget":
+            let properties = OrderedProperties()
+            properties["GetLoadlevelTarget"] = "\(loadLevelTarget)"
+            return properties
+        case "GetLoadLevelStatus":
+            let properties = OrderedProperties()
+            properties["retLoadlevelStatus"] = "\(loadLevelStatus)"
+            return properties
+        default:
+            break
+        }
+        return nil
+    }
+
+    var done = false
+
+    while !done {
+        guard let line = readLine() else {
+            continue
+        }
+
+        switch line {
+        case "quit", "q":
+            done = true
+            break
+        case "prop":
+            guard let device = server.devices.first?.value, let udn = device.udn else {
+                print("No Device Found...")
+                continue
+            }
+            guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1"), let serviceId = service.serviceId else {
+                print("No Service Found...")
+                continue
+            }
+            loadLevelStatus += 1
+            server.setProperty(udn: udn, serviceId: serviceId, properties: ["GetLoadLevelStatus":"\(loadLevelStatus % 2)"])
+            break
+        default:
+            break
+        }
+    }
+
+    print(" --=== DONE ===--")
+
+    server.finish()
+}
+
+
+func startServer(port: Int) -> UPnPServer {
+    let server = UPnPServer(httpServerBindPort: port)
+    server.run()
+    registerDevice(server: server)
+    return server
+}
+
+func registerDevice(server: UPnPServer) {
+    guard let device = UPnPDevice.read(xmlString: deviceDescription_DimmableLight) else {
+        print("UPnPDevice read failed")
+        return
+    }
+
+    guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
+        print("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
+        return
+    }
+    service.scpd = UPnPScpd.read(xmlString: scpd_SwitchPower)
+    
+    server.registerDevice(device: device)
+}
+
+
 main()
+

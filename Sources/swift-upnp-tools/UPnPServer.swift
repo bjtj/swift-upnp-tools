@@ -54,19 +54,6 @@ public class UPnPServer : HttpRequestHandlerDelegate {
     }
 
     /**
-     Get Event Subcscriptions with service
-     */
-    public func getEventSubscriptions(service: UPnPService) -> [UPnPEventSubscription] {
-        var result = [UPnPEventSubscription]()
-        for (_, subscription) in subscriptions {
-            if subscription.service === service {
-                result.append(subscription)
-            }
-        }
-        return result
-    }
-
-    /**
      Register Devcie
      */
     public func registerDevice(device: UPnPDevice) {
@@ -171,20 +158,6 @@ public class UPnPServer : HttpRequestHandlerDelegate {
     }
 
     /**
-     Register Event Subscription
-     */
-    public func registerEventSubscription(subscription: UPnPEventSubscription) {
-        subscriptions[subscription.sid] = subscription
-    }
-
-    /**
-     Unregister Event Subscription
-     */
-    public func unregisterEventSubscription(subscription: UPnPEventSubscription) {
-        subscriptions[subscription.sid] = nil
-    }
-
-    /**
      On Action Request
      */
     public func onActionRequest(handler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?) {
@@ -233,8 +206,8 @@ public class UPnPServer : HttpRequestHandlerDelegate {
             return try handleScpdQuery(request: request, response: response)
         } else if isControlQuery(request: request) {
             return try handleControlQuery(data: body, request: request, response: response)
-        } else if isEventQuery(request: request) {
-            return try handleEventQuery(request: request, response: response)
+        } else if isEventSubQuery(request: request) {
+            return try handleEventSubQuery(request: request, response: response)
         } else {
             response.code = 404
             return
@@ -253,7 +226,7 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         return request.path.hasSuffix("control.xml")
     }
 
-    func isEventQuery(request: HttpRequest) -> Bool {
+    func isEventSubQuery(request: HttpRequest) -> Bool {
         return request.path.hasSuffix("event.xml")
     }
 
@@ -322,21 +295,24 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         throw HttpServerError.custom(string: "no matching device")
     }
 
-    func handleEventQuery(request: HttpRequest, response: HttpResponse) throws {
+    func handleEventSubQuery(request: HttpRequest, response: HttpResponse) throws {
         guard let callbackUrls = request.header["CALLBACK"] else {
-            throw HttpServerError.illegalArgument(string: "no callback header field")
+            throw HttpServerError.illegalArgument(string: "No Callback Header Field")
         }
         let urls = readCallbackUrls(text: callbackUrls)
         for (_, device) in self.devices {
             guard let service = device.getService(withEventSubUrl: request.path) else {
                 continue
             }
-            let subscription = UPnPEventSubscription.generate(service: service,
-                                                              callbackUrls: urls)
-            self.subscriptions[subscription.sid] = subscription
+            guard let udn = device.udn else {
+                continue
+            }
+            let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
             response.code = 200
             response.header["SID"] = subscription.sid
             response.header["TIMEOUT"] = "Second-1800"
+
+            self.subscriptions[subscription.sid] = subscription
             return
         }
         throw HttpServerError.custom(string: "no matching device")
@@ -466,12 +442,25 @@ public class UPnPServer : HttpRequestHandlerDelegate {
     /**
      Set Property with Service and properties
      */
-    public func setProperty(service: UPnPService, properties: [String:String]) {
-        let subscriptions = getEventSubscriptions(service: service)
+    public func setProperty(udn: String, serviceId: String, properties: [String:String]) {
+        let subscriptions = getEventSubscriptions(udn: udn, serviceId: serviceId)
         for subscription in subscriptions {
             let properties = UPnPEventProperties(fromDict: properties)
             sendEventProperties(subscription: subscription, properties: properties)
         }
+    }
+
+    /**
+     Get Event Subcscriptions with service
+     */
+    public func getEventSubscriptions(udn: String, serviceId: String) -> [UPnPEventSubscription] {
+        var result = [UPnPEventSubscription]()
+        for (_, subscription) in subscriptions {
+            if subscription.udn == udn && subscription.service?.serviceId == serviceId {
+                result.append(subscription)
+            }
+        }
+        return result
     }
 
     /**
@@ -481,9 +470,8 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         for url in subscription.callbackUrls {
             let data = properties.xmlDocument.data(using: .utf8)
             var fields = [KeyValuePair]()
-            fields.append(KeyValuePair(key: "Content-Type", value: "text/xml"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
-            HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml") {
+            HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in
                 guard error == nil else {
                     print("UPnPServer::sendEventProperties() error - \(error!)")

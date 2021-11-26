@@ -20,9 +20,14 @@ public protocol UPnPControlPointDelegate {
 }
 
 /**
+ scpdHandler
+ */
+public typealias scpdHandler = ((UPnPDevice?, UPnPService?, UPnPScpd?, String?) -> Void)
+
+/**
  UPnP Control Point Implementation
  */
-public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
+public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandlerDelegate {
 
     /**
      http server bind hostname
@@ -47,15 +52,15 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     /**
      delegate
      */
-    public var delegate: UPnPControlPointDelegate?
+    var delegate: UPnPControlPointDelegate?
     /**
      event subscribers
      */
-    public var eventSubscribers = [UPnPEventSubscriber]()
+    var eventSubscribers = [UPnPEventSubscriber]()
     /**
-     event property listener
+     event property handlers
      */
-    public var eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?
+    var eventNotificationHandlers = [eventNotificationHandler]()
     /**
      on device added handlers
      */
@@ -67,21 +72,20 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     /**
      on scpd handlers
      */
-    var onScpdHandlers = [(UPnPService?, UPnPScpd?, String?) -> Void]()
+    var onScpdHandlers = [scpdHandler]()
 
     /**
      timer
      */
     var timer: DispatchSourceTimer?
     
-    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0, eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)? = nil) {
+    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
         if httpServerBindHostname == nil {
             self.hostname = Network.getInetAddress()?.hostname
         } else {
             self.hostname = httpServerBindHostname
         }
         self.port = httpServerBindPort
-        self.eventPropertyLisetner = eventPropertyLisetner
     }
 
     deinit {
@@ -120,6 +124,16 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     }
 
     /**
+     add event notification handler
+     */
+    public func addEventNotificationHandler(eventHandler: eventNotificationHandler?) {
+        guard let handler = eventHandler else {
+            return
+        }
+        eventNotificationHandlers.append(handler)
+    }
+
+    /**
      Start HTTP Server
      */
     public func startHttpServer() {
@@ -127,55 +141,65 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         DispatchQueue.global(qos: .default).async {
 
             guard self.httpServer == nil else {
+                print("UPnPControlPoint::startHttpServer() already started")
                 // already started
                 return
             }
 
-            class NotifyHandler : HttpRequestHandlerDelegate {
-
-                var eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?
-
-                init(eventPropertyLisetner: ((String, UPnPEventProperties) -> Void)?) {
-                    self.eventPropertyLisetner = eventPropertyLisetner
-                }
-
-                
-                func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
-                }
-
-                func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
-                    print("UPnPControlPoint::startHttpServer() error - path -- \(request.path)")
-                    guard let sid = request.header["sid"] else {
-                        throw HttpServerError.illegalArgument(string: "no sid")
-                    }
-
-                    guard let data = body else {
-                        throw HttpServerError.illegalArgument(string: "no content")
-                    }
-
-                    guard let xmlString = String(data: data, encoding: .utf8) else {
-                        throw HttpServerError.illegalArgument(string: "wrong xml string")
-                    }
-
-                    guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
-                        throw HttpServerError.custom(string: "parse failed event properties")
-                    }
-
-                    print("UPnPControlPoint::startHttpServer() sid -- \(sid)")
-                    eventPropertyLisetner?(sid, properties)
-                    response.code = 200
-                }
-            }
-            
             do {
                 self.httpServer = HttpServer(hostname: self.hostname, port: self.port)
-                try self.httpServer!.route(pattern: "/notify", handler: NotifyHandler(eventPropertyLisetner: self.eventPropertyLisetner))
+                try self.httpServer!.route(pattern: "/notify/**", handler: self)
 
                 try self.httpServer!.run()
             } catch let error{
                 print("UPnPControlPoint::startHttpServer() error - error - \(error)")
             }
             self.httpServer = nil
+        }
+    }
+
+    public func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
+    }
+
+    public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
+        print("UPnPControlPoint::startHttpServer() path -- \(request.path)")
+        guard let sid = request.header["sid"] else {
+            let err = HttpServerError.illegalArgument(string: "No SID")
+            handleEventProperties(subscription: nil, properties: nil, error: err)
+            throw err
+        }
+
+        guard let subscription = getEventSubscriber(sid: sid)?.subscription else {
+            let err = HttpServerError.illegalArgument(string: "No Subscription Found with SID: '\(sid)'")
+            handleEventProperties(subscription: nil, properties: nil, error: err)
+            throw err
+        }
+
+        guard let data = body else {
+            let err = HttpServerError.illegalArgument(string: "No Content")
+            handleEventProperties(subscription: subscription, properties: nil, error: err)
+            throw err
+        }
+
+        guard let xmlString = String(data: data, encoding: .utf8) else {
+            let err = HttpServerError.illegalArgument(string: "Wrong XML String")
+            handleEventProperties(subscription: subscription, properties: nil, error: err)
+            throw err
+        }
+
+        guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
+            let err = HttpServerError.custom(string: "Parse Failed Event Properties")
+            handleEventProperties(subscription: subscription, properties: nil, error: err)
+            throw err
+        }
+        
+        handleEventProperties(subscription: subscription, properties: properties, error: nil)
+        response.code = 200
+    }
+
+    func handleEventProperties(subscription: UPnPEventSubscription?, properties: UPnPEventProperties?, error: Error?) {
+        for notificationHandler in eventNotificationHandlers {
+            notificationHandler(subscription, properties, error)
         }
     }
 
@@ -298,9 +322,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
 
     func buildDevice(url: URL) {
         UPnPDeviceBuilder(delegate: self) {
-            (service, scpd, error) in 
+            (device, service, scpd, error) in 
             for handler in self.onScpdHandlers {
-                handler(service, scpd, error)
+                handler(device, service, scpd, error)
             }
         }.build(url: url)
     }
@@ -345,7 +369,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     /**
      Add Handler: On Scpd
      */
-    func onScpd(handler: ((UPnPService?, UPnPScpd?, String?) -> Void)?) {
+    func onScpd(handler: (scpdHandler)?) {
         guard let handler = handler else {
             return
         }
@@ -387,14 +411,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
     /**
      Invoek with Service and actionRequest
      */
-    public func invoke(service: UPnPService, actionRequest: UPnPActionRequest, completeHandler: (UPnPActionInvokeDelegate)?) {
-        return self.invoke(service: service, actionName: actionRequest.actionName, fields: actionRequest.fields, completeHandler: completeHandler);
+    public func invoke(service: UPnPService, actionRequest: UPnPActionRequest, completionHandler: (UPnPActionInvokeDelegate)?) {
+        return self.invoke(service: service, actionName: actionRequest.actionName, fields: actionRequest.fields, completionHandler: completionHandler);
     }
 
     /**
-     Invoke with Service and action, properties, completeHandler (Optional)
+     Invoke with Service and action, properties, completionHandler (Optional)
      */
-    public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completeHandler: (UPnPActionInvokeDelegate)?) {
+    public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completionHandler: (UPnPActionInvokeDelegate)?) {
         guard let serviceType = service.serviceType else {
             print("UPnPControlPoint::invoke() error - no service type")
             return
@@ -411,25 +435,26 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             print("UPnPControlPoint::invoke() error - url failed")
             return
         }
-        UPnPActionInvoke(url: url, soapRequest: soapRequest, completeHandler: completeHandler).invoke()
+        UPnPActionInvoke(url: url, soapRequest: soapRequest, completionHandler: completionHandler).invoke()
     }
 
     /**
-     On Event Property with listener (Optional)
+     Subscribe with service
      */
-    public func onEventProperty(listener: ((String, UPnPEventProperties) -> Void)?) {
-        eventPropertyLisetner = listener
-    }
-
-    /**
-     Subscribe with service and completeListener (Optional)
-     */
-    @discardableResult public func subscribe(service: UPnPService, completeListener: (eventSubscribeHandler)? = nil) -> UPnPEventSubscriber? {
-        guard let callbackUrls = getCallbackUrl(of: service) else {
+    @discardableResult public func subscribe(udn: String, service: UPnPService, completionHandler: (eventSubscribeCompleteHandler)? = nil) -> UPnPEventSubscriber? {
+        guard let callbackUrls = makeCallbackUrl(udn: udn, service: service) else {
             return nil
         }
-        let subscriber = UPnPEventSubscriber(service: service, callbackUrls: [callbackUrls])
-        subscriber.subscribe(completeListener: completeListener)
+        let subscriber = UPnPEventSubscriber(udn: udn, service: service, callbackUrls: [callbackUrls])
+        subscriber.subscribe {
+            (subscription, error) in
+
+            completionHandler?(subscription, error)
+
+            if error == nil && subscription != nil {
+                self.eventSubscribers.append(subscriber)
+            }
+        }
         return subscriber
     }
 
@@ -441,7 +466,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
         eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
     }
 
-    func getCallbackUrl(of service: UPnPService) -> URL? {
+    func makeCallbackUrl(udn: String, service: UPnPService) -> URL? {
         
         guard let httpServer = self.httpServer else {
             return nil
@@ -455,6 +480,6 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate {
             return nil
         }
         let hostname = addr.hostname
-        return URL(string: "http://\(hostname):\(httpServerAddress.port)/notify")
+        return URL(string: "http://\(hostname):\(httpServerAddress.port)/notify/\(udn)/\(service.serviceId ?? "nil")")
     }
 }
