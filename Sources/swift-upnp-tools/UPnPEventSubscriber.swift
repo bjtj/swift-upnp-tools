@@ -102,11 +102,12 @@ public class UPnPEventSubscriber : TimeBase {
 
     
     func getValueCaseInsensitive(response: HTTPURLResponse, key: String) -> String? {
-        #if compiler(>=5.3)
-        return response.value(forHTTPHeaderField: key)
-        #else
+        // TODO: fix it as elengant
+        // #if compiler(>=5.3)
+        // return response.value(forHTTPHeaderField: key)
+        // #else
         return response.allHeaderFields.first(where: { ($0.key as! String).description.caseInsensitiveCompare(key) == .orderedSame })?.value as? String
-        #endif
+        // #endif
     }
     
 
