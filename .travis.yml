@@ -1,4 +1,8 @@
-osx_image: xcode10
+osx_image: 
+  - xcode10
+  - xcode11
+  - xcode12
+  - xcode13.1
 os: osx
 language: swift
 script:
