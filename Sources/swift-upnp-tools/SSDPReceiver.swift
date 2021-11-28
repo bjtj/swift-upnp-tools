@@ -16,6 +16,16 @@ public class SSDPReceiver {
     var finishing: Bool = false
 
     /**
+     is running
+     */
+    public var running: Bool {
+        get {
+            return _running
+        }
+    }
+    var _running: Bool = false
+
+    /**
      SSDP header handler
      */
     public var handler: SSDPHeaderHandler?
@@ -28,7 +38,17 @@ public class SSDPReceiver {
      Run server
      */
     public func run() throws {
+        if _running {
+            print("SSDPReceiver::run() already running")
+            return
+        }
+
+        defer {
+            _running = false
+        }
+        
         finishing = false
+        _running = true
         let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
         let group = in_addr(s_addr: inet_addr(SSDP.MCAST_HOST))
         let interface = in_addr(s_addr: inet_addr("0.0.0.0"))

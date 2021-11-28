@@ -39,6 +39,10 @@ public class UPnPServer : HttpRequestHandlerDelegate {
      on action request handler
      */
     var onActionRequestHandler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?
+    /**
+     lock queue
+     */
+    let lockQueue = DispatchQueue(label: "com.tjapp.swiftUPnPServer.lockQueue")
 
     public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
         if httpServerBindHostname == nil {
@@ -60,7 +64,9 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         guard let udn = device.udn else {
             return
         }
-        devices[udn] = device
+        lockQueue.sync {
+            devices[udn] = device
+        }
     }
 
     /**
@@ -70,7 +76,9 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         guard let udn = device.udn else {
             return
         }
-        devices[udn] = nil
+        lockQueue.sync {
+            devices[udn] = nil
+        }
     }
 
     /**
@@ -199,19 +207,28 @@ public class UPnPServer : HttpRequestHandlerDelegate {
     public func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
     }
 
+    
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
         if isDeviceQuery(request: request) {
-            return try handleDeviceQuery(request: request, response: response)
-        } else if isScpdQuery(request: request) {
-            return try handleScpdQuery(request: request, response: response)
-        } else if isControlQuery(request: request) {
-            return try handleControlQuery(data: body, request: request, response: response)
-        } else if isEventSubQuery(request: request) {
-            return try handleEventSubQuery(request: request, response: response)
-        } else {
-            response.code = 404
+            try handleDeviceQuery(request: request, response: response)
             return
+        } else if isScpdQuery(request: request) {
+            try handleScpdQuery(request: request, response: response)
+            return
+        } else if isControlQuery(request: request) {
+            try handleControlQuery(data: body, request: request, response: response)
+            return
+        } else if isEventSubQuery(request: request) {
+            if request.header.firstLine.first == "SUBSCRIBE" {
+                try handleEventSubQuery(request: request, response: response)
+                return
+            }
+            if request.header.firstLine.first == "UNSUBSCRIBE" {
+                try handleEventUnSubQuery(request: request, response: response)
+                return
+            }
         }
+        response.code = 404
     }
 
     func isDeviceQuery(request: HttpRequest) -> Bool {
@@ -308,14 +325,28 @@ public class UPnPServer : HttpRequestHandlerDelegate {
                 continue
             }
             let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
+            lockQueue.sync {
+                self.subscriptions[subscription.sid] = subscription
+            }
+            
             response.code = 200
             response.header["SID"] = subscription.sid
             response.header["TIMEOUT"] = "Second-1800"
 
-            self.subscriptions[subscription.sid] = subscription
+            
             return
         }
         throw HttpServerError.custom(string: "no matching device")
+    }
+
+    func handleEventUnSubQuery(request: HttpRequest, response: HttpResponse) throws {
+        guard let sid = request.header["SID"] else {
+            throw UPnPError.custom(string: "unsubscribe failed - no sid found in header")
+        }
+        lockQueue.sync {
+            self.subscriptions[sid] = nil
+        }
+        response.code = 200
     }
 
     /**
@@ -345,11 +376,12 @@ public class UPnPServer : HttpRequestHandlerDelegate {
      Stop UPnP Server
      */
     public func finish() {
-        if let httpServer = httpServer {
-            httpServer.finish()
-        }
-        if let ssdpReceiver = ssdpReceiver {
-            ssdpReceiver.finish()
+        httpServer?.finish()
+        ssdpReceiver?.finish()
+        lockQueue.sync {
+            devices.removeAll()
+            subscriptions.removeAll()
+            onActionRequestHandler = nil
         }
     }
 
@@ -455,9 +487,11 @@ public class UPnPServer : HttpRequestHandlerDelegate {
      */
     public func getEventSubscriptions(udn: String, serviceId: String) -> [UPnPEventSubscription] {
         var result = [UPnPEventSubscription]()
-        for (_, subscription) in subscriptions {
-            if subscription.udn == udn && subscription.service?.serviceId == serviceId {
-                result.append(subscription)
+        lockQueue.sync {
+            for (_, subscription) in subscriptions {
+                if subscription.udn == udn && subscription.service?.serviceId == serviceId {
+                    result.append(subscription)
+                }
             }
         }
         return result

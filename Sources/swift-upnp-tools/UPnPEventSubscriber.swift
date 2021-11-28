@@ -14,6 +14,16 @@ import FoundationNetworking
  */
 public typealias eventSubscribeCompleteHandler = (UPnPEventSubscription?, Error?) -> Void
 
+/**
+ event subscribe renew handler
+ */
+public typealias eventRenewSubscribeCompleteHandler = (String, Error?) -> Void
+
+/**
+ event unsubscribe handler
+ */
+public typealias eventUnsubscribeCompleteHandler = (String, Error?) -> Void
+
 
 /**
  event property handler
@@ -53,11 +63,14 @@ public class UPnPEventSubscriber : TimeBase {
      */
     public var sid: String?
 
-    public init(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800) {
+    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800) {
         self.udn = udn
         self.service = service
         self.callbackUrls = callbackUrls
-        url = service.eventSubUrlFull!
+        guard let eventSubUrlFull = service.eventSubUrlFull else {
+            return nil
+        }
+        url = eventSubUrlFull
         super.init(timeout: timeout)
     }
 
@@ -114,8 +127,9 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Review Subscription
      */
-    public func renewSubscribe() {
+    public func renewSubscribe(completionHandler: eventRenewSubscribeCompleteHandler? = nil) {
         guard let sid = sid else {
+            print("UPnPEventSubscriber::renewSubscribe() error - no sid")
             return
         }
         
@@ -124,6 +138,11 @@ public class UPnPEventSubscriber : TimeBase {
         fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
             (data, response, error) in
+            guard error == nil else {
+                completionHandler?(sid, error)
+                return
+            }
+            completionHandler?(sid, nil)
         }.start()
     }
 
@@ -131,15 +150,20 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Unsubscribe
      */
-    public func unsubscribe() {
+    public func unsubscribe(completionHandler: eventUnsubscribeCompleteHandler? = nil) {
         guard let sid = sid else {
+            print("UPnPEventSubscriber::unsubscribe() error - no sid")
             return
         }
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "SID", value: sid))
         HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
             (data, response, error) in
-            
+            guard error == nil else {
+                completionHandler?(sid, error)
+                return
+            }
+            completionHandler?(sid, nil)
         }.start()
     }
 }

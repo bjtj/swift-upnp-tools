@@ -19,6 +19,8 @@ extension DispatchTime {
     }
 }
 
+public typealias ssdpHandler = (((String, Int32)?, SSDPHeader?) -> Void)
+
 /**
  SSDP implmentation
  */
@@ -30,7 +32,7 @@ public class SSDP {
     /**
      Send m-search
      */
-    public static func sendMsearch(st: String, mx: Int, handler: (((String, Int32)?, SSDPHeader?) -> Void)? = nil) {
+    public static func sendMsearch(st: String, mx: Int, handler: (ssdpHandler)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
           "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +

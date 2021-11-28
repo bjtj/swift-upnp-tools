@@ -33,8 +33,6 @@ final class ServerTests: XCTestCase {
         
         sleep(1)
 
-        // print(upnpServer?.httpServer?.serverAddress?.description)
-
         print("-- SET UP :: DONE --")
     }
 
@@ -166,6 +164,10 @@ final class ServerTests: XCTestCase {
         XCTAssertNotNil(device!.udn)
         helperEventSubscribe(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: device!.udn!, service: service!, properties: ["GetLoadlevelTarget" : "12"])
 
+        
+        helperEventSubscribeAndUnsubscribe(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: device!.udn!, service: service!, properties: ["GetLoadlevelTarget" : "321"])
+        
+
         sleep(1)
 
 
@@ -182,7 +184,7 @@ final class ServerTests: XCTestCase {
                                         actionRequest: UPnPActionRequest,
                                         handler: (UPnPActionInvokeDelegate)?)
     {
-        let cp = UPnPControlPoint(httpServerBindPort: 0)
+        let cp = UPnPControlPoint()
 
         var handledService = [UPnPService]()
 
@@ -211,23 +213,40 @@ final class ServerTests: XCTestCase {
 
         do {
             try cp.run()
+            sleep(2)
         } catch let e {
             XCTFail("cp.run() failed \(e)")
+            return
         }
 
-        sleep(1)
+        guard let httpServer = cp.httpServer else {
+            XCTFail("cp.httpServer is nil")
+            return
+        }
+        XCTAssertTrue(httpServer.running)
 
-        // print(cp.httpServer?.serverAddress?.description)
+        guard let ssdpReceiver = cp.ssdpReceiver else {
+            XCTFail("cp.ssdpReceiver is nil")
+            return
+        }
+        XCTAssertTrue(ssdpReceiver.running)
 
-        cp.sendMsearch(st: st, mx: 3)
+        cp.sendMsearch(st: st, mx: 3) {
+            (address, header) in
+            guard let header = header else {
+                return
+            }
+            print(header.description)
+        }
 
-        print("... Wait ...")
-        sleep(5)
-        print("............")
+        sleep(3)
 
         XCTAssertFalse(handledService.isEmpty)
         
         cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
     }
 
 
@@ -263,7 +282,7 @@ final class ServerTests: XCTestCase {
                 return
             }
 
-            let _ = cp.subscribe(udn: udn, service: service) {
+            cp.subscribe(udn: udn, service: service) {
                 (subscription, error) in
                 XCTAssertNil(error)
                 guard let sub = subscription else {
@@ -302,7 +321,7 @@ final class ServerTests: XCTestCase {
 
             XCTAssertEqual(properties.count, props.fields.count)
 
-            print("[EVENT] Notification (SID: '\(subscription.sid)')")
+            print("x [EVENT] Notification (SID: '\(subscription.sid)')")
             for field in props.fields {
                 print(" - Property - '\(field.key)': '\(field.value)'")
                 XCTAssertNotNil(properties[field.key])
@@ -314,19 +333,15 @@ final class ServerTests: XCTestCase {
 
         do {
             try cp.run()
+            sleep(2)
         } catch let e {
             XCTFail("cp.run() failed \(e)")
+            return
         }
-
-        sleep(1)
-
-        // print(cp.httpServer?.serverAddress?.description)
 
         cp.sendMsearch(st: st, mx: 3)
 
-        print("... Wait ...")
-        sleep(5)
-        print("............")
+        sleep(3)
 
         XCTAssertNotNil(service.serviceId)
         server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
@@ -337,6 +352,99 @@ final class ServerTests: XCTestCase {
         XCTAssertFalse(handledEvents.isEmpty)
         
         cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
+    }
+
+    /**
+     event subscribe and unsubscribe
+     */
+    func helperEventSubscribeAndUnsubscribe(st: String, serviceType: String, server: UPnPServer, udn: String, service: UPnPService, properties: [String:String]) -> Void {
+        let cp = UPnPControlPoint()
+
+        var handledService = [UPnPService]()
+        var handledEvents = [UPnPEventSubscription?]()
+        var unsubscribeCalled = false
+
+        cp.onScpd {
+            (device, service, scpd, error) in
+
+            guard error == nil else {
+                // error
+                return
+            }
+
+            guard let service = service else {
+                // error
+                return
+            }
+
+            guard service.serviceType == serviceType else {
+                // not expected service
+                return
+            }
+
+            guard let device = device, let udn = device.udn else {
+                // error
+                return
+            }
+
+            cp.subscribe(udn: udn, service: service) {
+                (subscription, error) in
+                XCTAssertNil(error)
+                guard let sub = subscription else {
+                    XCTFail("No Subscription")
+                    return
+                }
+                XCTAssertNotNil(sub.sid)
+                print("[SUBSCRIBE] result (SID: '\(sub.sid)')")
+
+                DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.1) {
+                    cp.unsubscribe(sid: sub.sid) {
+                        (sid, error) in
+                        if let error = error {
+                            XCTFail("unsubscribe - error: \(error)")
+                        }
+                        XCTAssertEqual(sid, sub.sid)
+                        unsubscribeCalled = true
+                    }
+                }
+            }
+
+            handledService.append(service)
+        }
+
+        cp.addEventNotificationHandler {
+            (subscription, props, error) in
+            handledEvents.append(subscription)
+        }
+
+        do {
+            try cp.run()
+            sleep(2)
+        } catch let e {
+            XCTFail("cp.run() failed \(e)")
+            return
+        }
+
+        cp.sendMsearch(st: st, mx: 3)
+
+        sleep(3)
+
+        XCTAssertNotNil(service.serviceId)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+
+        sleep(3)
+
+        XCTAssertFalse(handledService.isEmpty)
+        XCTAssertTrue(handledEvents.isEmpty)
+        XCTAssertTrue(unsubscribeCalled)
+        
+        cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
     }
 
     /**
@@ -365,7 +473,7 @@ final class ServerTests: XCTestCase {
      helper control point discovery
      */
     func helperControlPointDiscovery(st: String, serviceType: String) {
-        let cp = UPnPControlPoint(httpServerBindPort: 0)
+        let cp = UPnPControlPoint()
 
         var handledDevices = [UPnPDevice]()
         var handledScpds = [UPnPScpd]()
@@ -413,24 +521,23 @@ final class ServerTests: XCTestCase {
 
         do {
             try cp.run()
+            sleep(2)
         } catch let e {
             XCTFail("cp.run() failed \(e)")
+            return
         }
-
-        sleep(1)
-
-        // print(cp.httpServer?.serverAddress?.description)
 
         cp.sendMsearch(st: st, mx: 3)
 
-        for _ in 0..<6 {
-            usleep(1000 * 1000)
-        }
+        sleep(3)
 
         XCTAssertFalse(handledDevices.isEmpty)
         XCTAssertFalse(handledScpds.isEmpty)
         
         cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
     }
 
     /**
