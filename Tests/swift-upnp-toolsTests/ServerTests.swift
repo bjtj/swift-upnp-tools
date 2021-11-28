@@ -85,7 +85,7 @@ final class ServerTests: XCTestCase {
      */
     class func startReceiver() {
         do {
-            receiver = SSDPReceiver() {
+            receiver = try SSDPReceiver() {
                 (address, ssdpHeader) in
                 if let ssdpHeader = ssdpHeader {
                     if let address = address {
@@ -152,7 +152,7 @@ final class ServerTests: XCTestCase {
             
             XCTAssertNil(error)
             if let soapResponse = soapResponse {
-                print("[ACTION INVOKE] soapResponse: \(soapResponse.description)")
+                print("[ACTION INVOKE] soapResponse:\n\(soapResponse.description)")
             }
             XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
         }
@@ -242,7 +242,7 @@ final class ServerTests: XCTestCase {
         sleep(3)
 
         XCTAssertFalse(handledService.isEmpty)
-        
+
         cp.finish()
 
         usleep(500 * 1000)
@@ -257,7 +257,9 @@ final class ServerTests: XCTestCase {
         let cp = UPnPControlPoint()
 
         var handledService = [UPnPService]()
-        var handledEvents = [UPnPEventSubscription]()
+        var handledEvents = [UPnPEventSubscriber]()
+
+        var serviceId: String? = nil
 
         cp.onScpd {
             (device, service, scpd, error) in
@@ -277,58 +279,86 @@ final class ServerTests: XCTestCase {
                 return
             }
 
+            serviceId = service.serviceId
+
             guard let device = device, let udn = device.udn else {
                 // error
                 return
             }
 
             cp.subscribe(udn: udn, service: service) {
-                (subscription, error) in
+                (subscriber, error) in
                 XCTAssertNil(error)
-                guard let sub = subscription else {
-                    XCTFail("No Subscription")
+                guard let subscriber = subscriber else {
+                    XCTFail("No Subscriber")
                     return
                 }
-                XCTAssertNotNil(sub.sid)
-                print("[SUBSCRIBE] result (SID: '\(sub.sid)')")
+                XCTAssertNotNil(subscriber.sid)
+                print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
+                
+            }?.onNotification {
+                (subscriber, properties, error) in
+                guard error == nil else {
+                    XCTFail("notification error - \(error!)")
+                    return
+                }
+                guard let subscriber = subscriber else {
+                    XCTFail("no subscriber")
+                    return
+                }
+                guard let sid = subscriber.sid else {
+                    XCTFail("no sid")
+                    return
+                }
+                XCTAssertNotNil(properties)
+                print(" >>> \(sid) <<<\n- \(properties?.description ?? "nil")")
+
+                handledEvents.append(subscriber)
             }
 
             handledService.append(service)
         }
 
-        cp.addEventNotificationHandler {
-            (subscription, props, error) in
+        cp.addNotificationHandler {
+            (subscriber, props, error) in
             print("[EXTRA EVENT LOG] EVENT COME~ '\(props?.description ?? "nil")'")
+
+            guard let subscriber = subscriber else {
+                XCTFail("no subscriber")
+                return
+            }
+            handledEvents.append(subscriber)
         }
 
-        cp.addEventNotificationHandler {
-            (subscription, props, error) in
+        cp.addNotificationHandler {
+            (subscriber, props, error) in
 
             guard error == nil else {
                 print("[EVENT] Notification Handling Error - \(error!)")
                 return
             }
 
-            XCTAssertNotNil(subscription)
-            guard let subscription = subscription else {
+            guard let subscriber = subscriber else {
+                XCTFail("no subscriber")
                 return
             }
 
-            XCTAssertNotNil(properties)
             guard let props = props else {
+                XCTFail("no properties")
                 return
             }
 
             XCTAssertEqual(properties.count, props.fields.count)
 
-            print("x [EVENT] Notification (SID: '\(subscription.sid)')")
+            XCTAssertNotNil(subscriber.sid)
+            print("x [EVENT] Notification (SID: '\(subscriber.sid!)')")
             for field in props.fields {
-                print(" - Property - '\(field.key)': '\(field.value)'")
+                print("- Property - '\(field.key)': '\(field.value)'")
                 XCTAssertNotNil(properties[field.key])
                 XCTAssertEqual(properties[field.key]!, field.value)
             }
 
-            handledEvents.append(subscription)
+            handledEvents.append(subscriber)
         }
 
         do {
@@ -348,9 +378,14 @@ final class ServerTests: XCTestCase {
 
         sleep(1)
 
+        XCTAssertNotNil(serviceId)
+        if let serviceId = serviceId {
+            XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+        }
         XCTAssertFalse(handledService.isEmpty)
         XCTAssertFalse(handledEvents.isEmpty)
-        
+        XCTAssertEqual(handledEvents.count, 3)
+
         cp.finish()
 
         usleep(500 * 1000)
@@ -364,8 +399,9 @@ final class ServerTests: XCTestCase {
         let cp = UPnPControlPoint()
 
         var handledService = [UPnPService]()
-        var handledEvents = [UPnPEventSubscription?]()
+        var handledEvents = [UPnPEventSubscriber?]()
         var unsubscribeCalled = false
+        var serviceId: String? = nil
 
         cp.onScpd {
             (device, service, scpd, error) in
@@ -385,27 +421,37 @@ final class ServerTests: XCTestCase {
                 return
             }
 
+            serviceId = service.serviceId
+
             guard let device = device, let udn = device.udn else {
                 // error
                 return
             }
 
             cp.subscribe(udn: udn, service: service) {
-                (subscription, error) in
+                (subscriber, error) in
                 XCTAssertNil(error)
-                guard let sub = subscription else {
-                    XCTFail("No Subscription")
+                guard let sub = subscriber else {
+                    XCTFail("No Subscriber")
                     return
                 }
                 XCTAssertNotNil(sub.sid)
-                print("[SUBSCRIBE] result (SID: '\(sub.sid)')")
+                print("[SUBSCRIBE] result (SID: '\(sub.sid!)')")
 
                 DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.1) {
-                    cp.unsubscribe(sid: sub.sid) {
+
+                    XCTAssertNotNil(serviceId)
+                    if let serviceId = serviceId {
+                        XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+                    }
+
+                    XCTAssertNotNil(sub.sid)
+                    cp.unsubscribe(sid: sub.sid!) {
                         (sid, error) in
                         if let error = error {
                             XCTFail("unsubscribe - error: \(error)")
                         }
+                        print("\(Date()) - unsubscribed")
                         XCTAssertEqual(sid, sub.sid)
                         unsubscribeCalled = true
                     }
@@ -415,9 +461,9 @@ final class ServerTests: XCTestCase {
             handledService.append(service)
         }
 
-        cp.addEventNotificationHandler {
-            (subscription, props, error) in
-            handledEvents.append(subscription)
+        cp.addNotificationHandler {
+            (subscriber, props, error) in
+            handledEvents.append(subscriber)
         }
 
         do {
@@ -437,10 +483,15 @@ final class ServerTests: XCTestCase {
 
         sleep(3)
 
+        XCTAssertNotNil(serviceId)
+        if let serviceId = serviceId {
+            XCTAssertTrue(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+        }
+
         XCTAssertFalse(handledService.isEmpty)
         XCTAssertTrue(handledEvents.isEmpty)
         XCTAssertTrue(unsubscribeCalled)
-        
+
         cp.finish()
 
         usleep(500 * 1000)
@@ -457,7 +508,12 @@ final class ServerTests: XCTestCase {
             return
         }
 
-        XCTAssertNotNil(server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000"))
+        guard let device = server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000") else {
+            XCTFail("server.getDevice failed")
+            return
+        }
+
+        let service = device.services[0]
         
         server.onActionRequest {
             (service, soapRequest) in
@@ -467,7 +523,10 @@ final class ServerTests: XCTestCase {
         }
 
         helperControlPointDiscovery(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
+
+        helperControlPointSuspendResume(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: "e399855c-7ecb-1fff-8000-000000000000", service: service, properties: ["GetLoadlevelTarget" : "14"])
     }
+
     
     /**
      helper control point discovery
@@ -533,7 +592,154 @@ final class ServerTests: XCTestCase {
 
         XCTAssertFalse(handledDevices.isEmpty)
         XCTAssertFalse(handledScpds.isEmpty)
+
+        cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
+    }
+
+    /**
+     suspend resume
+     */
+    func helperControlPointSuspendResume(st: String, serviceType: String, server: UPnPServer, udn: String, service: UPnPService, properties: [String:String]) -> Void {
+        let cp = UPnPControlPoint()
+
+        var handledService = [UPnPService]()
+        var handledEvents = [UPnPEventSubscriber]()
+
+        var serviceId: String? = nil
+
+        cp.onScpd {
+            (device, service, scpd, error) in
+
+            guard error == nil else {
+                // error
+                return
+            }
+
+            guard let service = service else {
+                // error
+                return
+            }
+
+            guard service.serviceType == serviceType else {
+                // not expected service
+                return
+            }
+
+            serviceId = service.serviceId
+
+            guard let device = device, let udn = device.udn else {
+                // error
+                return
+            }
+
+            if cp.getEventSubscribers(forUdn: udn).isEmpty {
+                cp.subscribe(udn: udn, service: service) {
+                    (subscriber, error) in
+                    XCTAssertNil(error)
+                    guard let subscriber = subscriber else {
+                        XCTFail("No Subscriber")
+                        return
+                    }
+                    XCTAssertNotNil(subscriber.sid)
+                    print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
+
+                    subscriber.onNotification {
+                        (subscriber, properties, error) in
+                        guard let subscriber = subscriber else {
+                            XCTFail("subscriber is nil")
+                            return
+                        }
+                        print("SID - '\(subscriber.sid ?? "nil")'\n\(properties?.description ?? "nil")")
+                        handledEvents.append(subscriber)
+                    }
+                }
+            }
+
+            handledService.append(service)
+        }
+
+        cp.addNotificationHandler {
+            (subscriber, props, error) in
+
+            guard error == nil else {
+                print("[EVENT] Notification Handling Error - \(error!)")
+                return
+            }
+            
+            guard let subscriber = subscriber else {
+                XCTFail("subscriber is nil")
+                return
+            }
+
+            XCTAssertNotNil(properties)
+            guard let props = props else {
+                return
+            }
+
+            XCTAssertEqual(properties.count, props.fields.count)
+
+            XCTAssertNotNil(subscriber.sid)
+            print("x [EVENT] Notification (SID: '\(subscriber.sid!)')")
+            for field in props.fields {
+                print("- Property - '\(field.key)': '\(field.value)'")
+                XCTAssertNotNil(properties[field.key])
+                XCTAssertEqual(properties[field.key]!, field.value)
+            }
+
+            handledEvents.append(subscriber)
+        }
+
+        do {
+            try cp.run()
+            sleep(2)
+        } catch let e {
+            XCTFail("cp.run() failed \(e)")
+            return
+        }
+
+        cp.sendMsearch(st: st, mx: 3)
+
+        sleep(3)
+
+        XCTAssertNotNil(service.serviceId)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+
+        sleep(1)
+
+        XCTAssertNotNil(serviceId)
+        if let serviceId = serviceId {
+            XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+        }
+
+
+        // ----------------------
+
+        cp.suspend()
+
+        sleep(1)
+
+        do {
+            try cp.resume()
+        } catch let err {
+            XCTFail("cp.resume() failed - \(err)")
+        }
+
+        sleep(1)
+
+        XCTAssertNotNil(service.serviceId)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+
+        sleep(1)
+
+        // ---------------------------
         
+        XCTAssertFalse(handledService.isEmpty)
+        XCTAssertFalse(handledEvents.isEmpty)
+        XCTAssertEqual(handledEvents.count, 3)
+
         cp.finish()
 
         usleep(500 * 1000)

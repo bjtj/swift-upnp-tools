@@ -15,8 +15,8 @@
         "repositoryURL": "https://github.com/bjtj/swift-http-server.git",
         "state": {
           "branch": null,
-          "revision": "2fb4952ab8ddb0a19078ed3ebb1cd61a5e9ab8da",
-          "version": "0.1.13"
+          "revision": "84b99bd4a92b22ff4b7a454d1aa9644719306835",
+          "version": "0.1.15"
         }
       },
       {

@@ -12,7 +12,7 @@ import FoundationNetworking
 /**
  event subscribe handler
  */
-public typealias eventSubscribeCompleteHandler = (UPnPEventSubscription?, Error?) -> Void
+public typealias eventSubscribeCompleteHandler = (UPnPEventSubscriber?, Error?) -> Void
 
 /**
  event subscribe renew handler
@@ -28,7 +28,7 @@ public typealias eventUnsubscribeCompleteHandler = (String, Error?) -> Void
 /**
  event property handler
  */
-public typealias eventNotificationHandler = (UPnPEventSubscription?, UPnPEventProperties?, Error?) -> Void
+public typealias notificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) -> Void
 
 
 /**
@@ -36,6 +36,14 @@ public typealias eventNotificationHandler = (UPnPEventSubscription?, UPnPEventPr
  */
 public class UPnPEventSubscriber : TimeBase {
 
+    /**
+     error
+     */
+    public var error: Error?
+
+    /**
+     UDN
+     */
     public var udn: String
 
     /**
@@ -54,16 +62,16 @@ public class UPnPEventSubscriber : TimeBase {
     public var callbackUrls = [URL]()
 
     /**
-     Event Subscription
+     notification handler
      */
-    public var subscription: UPnPEventSubscription?
+    var notificationHandler: notificationHandler?
     
     /**
      SID (Subscription ID)
      */
     public var sid: String?
 
-    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800) {
+    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800, notificationHandler: notificationHandler? = nil) {
         self.udn = udn
         self.service = service
         self.callbackUrls = callbackUrls
@@ -71,6 +79,7 @@ public class UPnPEventSubscriber : TimeBase {
             return nil
         }
         url = eventSubUrlFull
+        self.notificationHandler = notificationHandler
         super.init(timeout: timeout)
     }
 
@@ -100,17 +109,18 @@ public class UPnPEventSubscriber : TimeBase {
                 return
             }
 
-            var second: UInt64 = 1800
-            if let timeout = self.getValueCaseInsensitive(response: response, key: "TIMEOUT") {
-                let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
-                second = UInt64(String(timeout[start..<timeout.endIndex]))!
-            }
-
             self.sid = sid
-            let subscription = UPnPEventSubscription(udn: self.udn, service: self.service, sid: sid, timeout: second)
-            completionHandler?(subscription, nil)
-            self.subscription = subscription
+            completionHandler?(self, nil)
         }.start()
+    }
+
+    func extractSecond(fromTimeout timeout: String?, defaultSecond: UInt64 = 1800) -> UInt64 {
+        guard let timeout = timeout else {
+            return defaultSecond
+        }
+
+        let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
+        return UInt64(String(timeout[start..<timeout.endIndex]))!
     }
 
     
@@ -166,20 +176,20 @@ public class UPnPEventSubscriber : TimeBase {
             completionHandler?(sid, nil)
         }.start()
     }
+
+    /**
+     set on notification handler
+     */
+    public func onNotification(notificationHandler: notificationHandler?) {
+        self.notificationHandler = notificationHandler
+    }
+
+    /**
+     handle notification
+     */
+    public func handleNotification(properties: UPnPEventProperties?, error: Error?) {
+        notificationHandler?(self, properties, error)
+    }
 }
 
-/**
- Read Callback URLs
- */
-public func readCallbackUrls(text: String) -> [URL] {
-    let tokens = text.split(separator: " ")
-    let urls = tokens.map { URL(string: unwrap(text: String($0), prefix: "<", suffix: ">"))! }
-    return urls
-}
 
-/**
- Unwrap
- */
-public func unwrap(text: String, prefix: String, suffix: String) -> String {
-    return String(text[text.index(text.startIndex, offsetBy: prefix.count)..<text.index(text.endIndex, offsetBy: -suffix.count)])
-}

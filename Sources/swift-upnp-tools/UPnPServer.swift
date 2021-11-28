@@ -8,7 +8,7 @@ import SwiftHttpServer
 /**
  UPnP Server Implementation
  */
-public class UPnPServer : HttpRequestHandlerDelegate {
+public class UPnPServer : HttpRequestHandler {
 
     /**
      http server hostname
@@ -316,7 +316,7 @@ public class UPnPServer : HttpRequestHandlerDelegate {
         guard let callbackUrls = request.header["CALLBACK"] else {
             throw HttpServerError.illegalArgument(string: "No Callback Header Field")
         }
-        let urls = readCallbackUrls(text: callbackUrls)
+        let urls = UPnPCallbackUrl.read(text: callbackUrls)
         for (_, device) in self.devices {
             guard let service = device.getService(withEventSubUrl: request.path) else {
                 continue
@@ -359,11 +359,11 @@ public class UPnPServer : HttpRequestHandlerDelegate {
             guard self.ssdpReceiver == nil else {
                 return
             }
-            self.ssdpReceiver = SSDPReceiver() {
-                (address, ssdpHeader) in
-                return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
-            }
             do {
+                self.ssdpReceiver = try SSDPReceiver() {
+                    (address, ssdpHeader) in
+                    return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+                }
                 try self.ssdpReceiver!.run()
             } catch let error {
                 print("UPnPServer::startSsdpReceiver() error - \(error)")

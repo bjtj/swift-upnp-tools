@@ -30,8 +30,18 @@ public class SSDPReceiver {
      */
     public var handler: SSDPHeaderHandler?
 
-    public init(handler: SSDPHeaderHandler? = nil) {
+    /**
+     
+     */
+    var listenSocket: Socket
+
+    public init?(handler: SSDPHeaderHandler? = nil) throws {
         self.handler = handler
+        listenSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
+    }
+
+    deinit {
+        listenSocket.close()
     }
 
     /**
@@ -49,32 +59,43 @@ public class SSDPReceiver {
         
         finishing = false
         _running = true
-        let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
         let group = in_addr(s_addr: inet_addr(SSDP.MCAST_HOST))
         let interface = in_addr(s_addr: inet_addr("0.0.0.0"))
         var mreq = ip_mreq(imr_multiaddr: group, imr_interface: interface)
-        setsockopt(socket.socketfd, Int32(IPPROTO_IP), IP_ADD_MEMBERSHIP,
+        setsockopt(listenSocket.socketfd, Int32(IPPROTO_IP), IP_ADD_MEMBERSHIP,
                    &mreq, socklen_t(MemoryLayout<ip_mreq>.size))
         while finishing == false {
             var readData = Data(capacity: 4096)
-            let ret = try socket.listen(forMessage: &readData, on: SSDP.MCAST_PORT)
+            let ret = try listenSocket.listen(forMessage: &readData, on: SSDP.MCAST_PORT)
+
+            guard ret.bytesRead > 0 else {
+                if finishing == false {
+                    throw UPnPError.custom(string: "SSDPReceiver::run() unexpectedly socket closed")
+                }
+                return
+            }
+            
             let header = SSDPHeader.read(text: String(data: readData, encoding: .utf8)!)
             
             guard let handler = handler else {
                 continue
             }
 
-            let address = Socket.hostnameAndPort(from: ret.address!)
+            guard let addr = ret.address else {
+                throw UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
+            }
+
+            let address = Socket.hostnameAndPort(from: addr)
             guard let responseHeaders = handler(address, header) else {
                 continue
             }
             
             for responseHeader in responseHeaders {
                 let data = responseHeader.description.data(using: .utf8)
-                try socket.write(from: data!, to: ret.address!)
+                try listenSocket.write(from: data!, to: ret.address!)
             }
         }
-        socket.close()
+        listenSocket.close()
     }
 
     /**
@@ -82,5 +103,6 @@ public class SSDPReceiver {
      */
     public func finish() {
         finishing = true
+        listenSocket.close()
     }
 }

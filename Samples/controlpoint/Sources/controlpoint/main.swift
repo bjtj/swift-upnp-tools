@@ -36,7 +36,7 @@ func main() {
         print("-*- [REMOVED] \(device.friendlyName ?? "nil") (UDN: \(device.udn ?? "nil"))")
     }
 
-    cp.addEventNotificationHandler {
+    cp.addNotificationHandler {
         (subscription, properties, error) in
         guard error == nil else {
             print("Error - \(error!)")
@@ -46,7 +46,11 @@ func main() {
             print("Error - no subscription or properties")
             return
         }
-        print("-*- EVENT NOTIFY -- (SID: \(subscription.sid))")
+        guard let sid = subscription.sid else {
+            print("Error - no sid")
+            return
+        }
+        print("-*- EVENT NOTIFY -- (SID: \(sid))")
         for field in properties.fields {
             print("  - \(field.key): \(field.value)")
         }
@@ -121,17 +125,22 @@ func main() {
                 continue
             }
             cp.subscribe(udn: udn, service: service) {
-                (subscription, error) in
+                (subscriber, error) in
                 if let e = error {
                     print("[EVENT] Subscribe failed -- \(e)")
                 }
 
-                guard let sub = subscription else {
-                    print("[EVENT] Subscribe failed -- no subscription")
+                guard let subscriber = subscriber else {
+                    print("[EVENT] Subscribe failed -- no subscriber")
+                    return
+                }
+
+                guard let sid = subscriber.sid else {
+                    print("[EVENT] Subscribe failed -- no sid")
                     return
                 }
                 
-                print("[EVENT] Subscribe is done -- \(sub.sid)")
+                print("[EVENT] Subscribe is done -- \(sid)")
 
             }
         default:
