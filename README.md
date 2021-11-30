@@ -1,6 +1,6 @@
 # SwiftUpnpTools
 
-[![Build Status](https://app.travis-ci.com/bjtj/swift-upnp-tools.svg?branch=master)](https://app.travis-ci.com/bjtj/swift-upnp-tools)
+[![Swift](https://github.com/bjtj/swift-upnp-tools/actions/workflows/swift.yml/badge.svg)](https://github.com/bjtj/swift-upnp-tools/actions/workflows/swift.yml) [![Build Status](https://app.travis-ci.com/bjtj/swift-upnp-tools.svg?branch=master)](https://app.travis-ci.com/bjtj/swift-upnp-tools)
 
 This is a swift upnp tool (library) mainly depends on IBM BlueSocket (<https://github.com/IBM-Swift/BlueSocket>).
 
