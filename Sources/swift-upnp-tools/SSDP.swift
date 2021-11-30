@@ -6,12 +6,6 @@ import Foundation
 import Socket
 import SwiftHttpServer
 
-/**
- Socket Error
- */
-enum SocketError: Error {
-    case select(String)
-}
 
 extension DispatchTime {
     public var uptime: UInt64 {
@@ -19,12 +13,15 @@ extension DispatchTime {
     }
 }
 
-public typealias ssdpHandler = (((String, Int32)?, SSDPHeader?) -> Void)
-
 /**
  SSDP implmentation
  */
 public class SSDP {
+
+    /**
+     ssdp ssdp handler
+     */
+    public typealias ssdpHandler = (((String, Int32)?, SSDPHeader?) -> Void)
 
     /**
      Multicast hostname
@@ -42,7 +39,7 @@ public class SSDP {
      - Parameter mx: max timeout
      - Parameter handler: ssdp handler
      */
-    public static func sendMsearch(st: String, mx: Int, handler: (ssdpHandler)? = nil) {
+    public static func sendMsearch(st: String, mx: Int, bufferSize: Int = 4096, handler: (SSDP.ssdpHandler)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
           "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
@@ -66,13 +63,17 @@ public class SSDP {
                 if dur >= Double(mx) {
                     break
                 }
-                
-                var readData = Data(capacity: 4096)
+                var readData = Data(capacity: bufferSize)
                 let ret = try socket.readDatagram(into: &readData)
                 guard let remote_address = ret.address else {
                     continue
                 }
-                let header = SSDPHeader.read(text: String(data: readData, encoding: .utf8)!)
+                guard let str = String(data: readData, encoding: .utf8) else {
+                    continue
+                }
+                guard let header = SSDPHeader.read(text: str) else {
+                    continue
+                }
                 if let handler = handler {
                     let address = Socket.hostnameAndPort(from: remote_address)
                     handler(address, header)

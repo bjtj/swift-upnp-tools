@@ -33,20 +33,45 @@ final class SsdpTests: XCTestCase {
     }
 
     func testSsdpHeaderFromString() {
-        let text = "M-SEARCH * HTTP/1.1\r\n" +
-          "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
-          "MAN: \"ssdp:discover\"\r\n" +
-          "MX: 3\r\n" +
-          "ST: ssdp:all\r\n" +
-          "\r\n"
-        let header = SSDPHeader.read(text: text)
-        XCTAssertEqual(header.description, text)
+        do {
+            let text = "M-SEARCH * HTTP/1.1\r\n" +
+              "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
+              "MAN: \"ssdp:discover\"\r\n" +
+              "MX: 3\r\n" +
+              "ST: ssdp:all\r\n" +
+              "\r\n"
+            guard let header = SSDPHeader.read(text: text) else {
+                XCTFail("SSDPHeader.read() failed")
+                return
+            }
+            XCTAssertEqual(header.description, text)
 
-        XCTAssertEqual(header.firstLineParts[0], "M-SEARCH")
-        XCTAssertEqual(header.firstLineParts[1], "*")
-        XCTAssertEqual(header.firstLineParts[2], "HTTP/1.1")
+            XCTAssertEqual(header.firstLineParts[0], "M-SEARCH")
+            XCTAssertEqual(header.firstLineParts[1], "*")
+            XCTAssertEqual(header.firstLineParts[2], "HTTP/1.1")
 
-        XCTAssert(header.isMsearch)
+            XCTAssertTrue(header.isMsearch)
+        }
+
+        do {
+            let text = "M-SEARCH  * \t HTTP/1.1\r\n" +
+              "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
+              "MAN: \"ssdp:discover\"\r\n" +
+              "MX: 3\r\n" +
+              "ST: ssdp:all\r\n" +
+              "\r\n"
+            guard let header = SSDPHeader.read(text: text) else {
+                XCTFail("SSDPHeader.read() failed")
+                return
+            }
+            // XCTAssertEqual(header.description, text)
+
+            XCTAssertEqual(header.firstLineParts[0], "M-SEARCH")
+            XCTAssertEqual(header.firstLineParts[1], "*")
+            XCTAssertEqual(header.firstLineParts[2], "HTTP/1.1")
+
+            XCTAssertTrue(header.isMsearch)
+        }
     }
 
     func testSsdpReceiver() {

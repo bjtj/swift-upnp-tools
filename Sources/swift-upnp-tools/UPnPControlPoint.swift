@@ -19,15 +19,20 @@ public protocol UPnPControlPointDelegate {
     func onDeviceRemoved(device: UPnPDevice)
 }
 
-/**
- scpdHandler
- */
-public typealias scpdHandler = ((UPnPDevice?, UPnPService?, UPnPScpd?, String?) -> Void)
 
 /**
  UPnP Control Point Implementation
  */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
+
+    /**
+     scpdHandler
+     - Parameter device
+     - Parameter service
+     - Parameter scpd
+     - Parameter error
+     */
+    public typealias scpdHandler = ((UPnPDevice?, UPnPService?, UPnPScpd?, Error?) -> Void)
 
     /**
      is running
@@ -88,7 +93,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      event property handlers
      */
-    var notificationHandlers = [notificationHandler]()
+    var notificationHandlers = [UPnPEventSubscriber.eventNotificationHandler]()
 
     /**
      on device added handlers
@@ -217,7 +222,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      add notification handler
      */
-    public func addNotificationHandler(notificationHandler: notificationHandler?) {
+    public func addNotificationHandler(notificationHandler: UPnPEventSubscriber.eventNotificationHandler?) {
         guard let notificationHandler = notificationHandler else {
             return
         }
@@ -348,7 +353,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Send M-SEARCH with ST (Service Type) and MX (Max)
      */
-    public func sendMsearch(st: String, mx: Int, ssdpHandler: ssdpHandler? = nil) {
+    public func sendMsearch(st: String, mx: Int, ssdpHandler: SSDP.ssdpHandler? = nil) {
 
         DispatchQueue.global(qos: .default).async {
 
@@ -507,14 +512,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Invoek with Service and actionRequest
      */
-    public func invoke(service: UPnPService, actionRequest: UPnPActionRequest, completionHandler: (UPnPActionInvokeDelegate)?) {
+    public func invoke(service: UPnPService, actionRequest: UPnPActionRequest, completionHandler: (UPnPActionInvoke.invokeCompletionHandler)?) {
         return self.invoke(service: service, actionName: actionRequest.actionName, fields: actionRequest.fields, completionHandler: completionHandler);
     }
 
     /**
      Invoke with Service and action, properties, completionHandler (Optional)
      */
-    public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completionHandler: (UPnPActionInvokeDelegate)?) {
+    public func invoke(service: UPnPService, actionName: String, fields: OrderedProperties, completionHandler: (UPnPActionInvoke.invokeCompletionHandler)?) {
         guard let serviceType = service.serviceType else {
             print("UPnPControlPoint::invoke() error - no service type")
             return
@@ -537,7 +542,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Subscribe with service
      */
-    @discardableResult public func subscribe(udn: String, service: UPnPService, completionHandler: (eventSubscribeCompleteHandler)? = nil) -> UPnPEventSubscriber? {
+    @discardableResult public func subscribe(udn: String, service: UPnPService, completionHandler: (UPnPEventSubscriber.subscribeCompletionHandler)? = nil) -> UPnPEventSubscriber? {
         guard let callbackUrls = makeCallbackUrl(udn: udn, service: service) else {
             print("UPnPControlPoint::subscribe() error - makeCallbackUrl failed")
             return nil
@@ -565,7 +570,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      unsubscribe event with sid
      */
-    public func unsubscribe(sid: String, completionHandler: eventUnsubscribeCompleteHandler? = nil) -> Void {
+    public func unsubscribe(sid: String, completionHandler: UPnPEventSubscriber.unsubscribeCompletionHandler? = nil) -> Void {
         guard let subscriber = getEventSubscriber(sid: sid) else {
             print("UPnPControlPoint::unsubscribe() error - event subscriber not found (sid: '\(sid)')")
             return
@@ -576,7 +581,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      unsubscribe event with subscriber
      */
-    public func unsubscribe(subscriber: UPnPEventSubscriber, completionHandler: eventUnsubscribeCompleteHandler? = nil) {
+    public func unsubscribe(subscriber: UPnPEventSubscriber, completionHandler: UPnPEventSubscriber.unsubscribeCompletionHandler? = nil) {
         subscriber.unsubscribe(completionHandler: completionHandler)
         lockQueue.sync {
             eventSubscribers.removeAll(where: { $0.sid == subscriber.sid })

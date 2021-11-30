@@ -25,10 +25,10 @@ public class UPnPDeviceBuilder {
     /**
      scpd handler
      */
-    public var scpdCompletionHandler: (scpdBuildCompletionHandler)?
+    public var scpdCompletionHandler: (UPnPScpdBuilder.completionHandler)?
 
     
-    public init(delegate: UPnPDeviceBuilderDelegate?, scpdCompletionHandler: (scpdBuildCompletionHandler)?) {
+    public init(delegate: UPnPDeviceBuilderDelegate?, scpdCompletionHandler: (UPnPScpdBuilder.completionHandler)?) {
         self.delegate = delegate
         self.scpdCompletionHandler = scpdCompletionHandler
     }

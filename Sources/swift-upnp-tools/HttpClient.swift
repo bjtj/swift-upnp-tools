@@ -9,14 +9,14 @@ import FoundationNetworking
 #endif
 
 /**
- Http Client Handler
- */
-public typealias httpClientHandler = (Data?, URLResponse?, Error?) -> Void
-
-/**
  Simple Http Client
  */
 public class HttpClient {
+
+    /**
+     Http Client Handler
+     */
+    public typealias httpClientHandler = (Data?, URLResponse?, Error?) -> Void
 
     var url: URL
     var method: String?

@@ -11,7 +11,7 @@ import SwiftXml
 public class UPnPScpd : UPnPModel {
 
     /**
-     sepc version
+     Sepc Version
      */
     public var specVersion: UPnPSpecVersion?
     /**
@@ -24,7 +24,7 @@ public class UPnPScpd : UPnPModel {
     public var stateVariables = [UPnPStateVariable]()
 
     /**
-     get action with name
+     Get action with name
      */
     public func getAction(name: String) -> UPnPAction? {
         for action in actions {
@@ -39,7 +39,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     get state variable with name
+     Get state variable with name
      */
     public func getStateVariable(name: String) -> UPnPStateVariable? {
         for stateVariable in stateVariables {
@@ -54,7 +54,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     read from xml string
+     Read scpd from xml string
      */
     public static func read(xmlString: String) -> UPnPScpd? {
         let document = parseXml(xmlString: xmlString)
@@ -81,7 +81,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     read action list from xml element
+     Read action list from xml element
      */
     public static func readActionList(xmlElement: XmlElement) -> [UPnPAction] {
         var actions = [UPnPAction]()
@@ -102,7 +102,7 @@ public class UPnPScpd : UPnPModel {
     }
     
     /**
-     read state variables from xml element
+     Read state variables from xml element
      */
     public static func readStateVariables(xmlElement: XmlElement) -> [UPnPStateVariable] {
         var stateVariables = [UPnPStateVariable]()
@@ -120,7 +120,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     get xml document
+     Get scpd xml document
      */
     public var xmlDocument: String {
         return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n\(self.description)"
@@ -137,7 +137,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     get action list in xml format
+     Get action list in xml format
      */
     public var actionListXml: String {
         let tag = XmlTag(name: "actionList", content: "")
@@ -148,7 +148,7 @@ public class UPnPScpd : UPnPModel {
     }
 
     /**
-     get service state table in xml format
+     Get service state table in xml format
      */
     public var serviceStateTableXml: String {
         let tag = XmlTag(name: "serviceStateTable", content: "")

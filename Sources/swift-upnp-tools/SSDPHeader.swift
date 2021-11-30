@@ -8,32 +8,31 @@ import Foundation
  SSDP Header
  */
 public class SSDPHeader : OrderedCaseInsensitiveProperties {
-    /**
-     first line parts
-     */
-    public var firstLineParts: [String] = []
+
+    var firstLineParts: [String] = []
+    
     /**
      firstline
      */
-    public var _firstLine: String = ""
-    public var firstLine: String? {
+    public var firstLine: String {
         get {
             return _firstLine
         }
         set(newValue) {
-            _firstLine = newValue!
-            let tokens = newValue!.split(separator: " ", maxSplits: 2)
+            _firstLine = newValue
+            let tokens = newValue.split(maxSplits: 2, whereSeparator: { $0 == " " || $0 == "\t" })
             firstLineParts.removeAll()
-            firstLineParts += tokens.map { "\($0)" }
+            firstLineParts += tokens.map { "\($0.trimmingCharacters(in: .whitespaces))" }
         }
     }
+    var _firstLine: String = ""
 
     /**
      test if it is mesarch
      */
     public var isMsearch: Bool {
         get {
-            return firstLineParts[0].compare("M-SEARCH") == .orderedSame
+            return firstLineParts[0].caseInsensitiveCompare("M-SEARCH") == .orderedSame
         }
     }
 
@@ -42,7 +41,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
      */
     public var isNotify: Bool {
         get {
-            return firstLineParts[0].compare("NOTIFY") == .orderedSame
+            return firstLineParts[0].caseInsensitiveCompare("NOTIFY") == .orderedSame
         }
     }
 
@@ -124,13 +123,13 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
 
     public var description: String {
         let headerFields = fields.map {"\($0.key): \($0.value)"}.joined(separator: "\r\n")
-        return "\(firstLine!)\r\n\(headerFields)\r\n\r\n"
+        return "\(_firstLine)\r\n\(headerFields)\r\n\r\n"
     }
 
     /**
      Read from string
      */
-    public static func read(text: String) -> SSDPHeader {
+    public static func read(text: String) -> SSDPHeader? {
         let header = SSDPHeader()
         var first = true
         let lines = text.components(separatedBy: "\r\n")

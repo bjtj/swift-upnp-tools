@@ -10,6 +10,15 @@ import Socket
  */
 public class SSDPReceiver {
 
+    /**
+     SSDP handler
+     - Parameter address (hostname, port)
+     - Parameter ssdp header
+
+     - Return ssdp headers to reponse
+     */
+    public typealias ssdpHandler = (((hostname:String, port: Int32)?, SSDPHeader?) -> [SSDPHeader]?)
+
     var finishing: Bool = false
 
     /**
@@ -21,15 +30,11 @@ public class SSDPReceiver {
         }
     }
     var _running: Bool = false
-
-    /**
-     SSDP header handler
-     */
-    public var handler: SSDPHeaderHandler?
-
+    
+    var handler: ssdpHandler?
     var listenSocket: Socket
 
-    public init?(handler: SSDPHeaderHandler? = nil) throws {
+    public init?(handler: SSDPReceiver.ssdpHandler? = nil) throws {
         self.handler = handler
         listenSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
     }
@@ -39,7 +44,7 @@ public class SSDPReceiver {
     }
 
     /**
-     Run server
+     Run
      */
     public func run() throws {
         if _running {
@@ -93,7 +98,7 @@ public class SSDPReceiver {
     }
 
     /**
-     Set finishing flag
+     Set finish
      */
     public func finish() {
         finishing = true

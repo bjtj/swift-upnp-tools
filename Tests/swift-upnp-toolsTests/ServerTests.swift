@@ -182,7 +182,7 @@ final class ServerTests: XCTestCase {
     func helperControlPointInvokeAction(st: String,
                                         serviceType: String,
                                         actionRequest: UPnPActionRequest,
-                                        handler: (UPnPActionInvokeDelegate)?)
+                                        handler: (UPnPActionInvoke.invokeCompletionHandler)?)
     {
         let cp = UPnPControlPoint()
 

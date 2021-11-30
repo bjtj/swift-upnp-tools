@@ -4,12 +4,18 @@
 
 import Foundation
 
-public typealias UPnPActionInvokeDelegate = ((UPnPSoapResponse?, String?) -> Void)
-
 /**
  UPnP Action Invoke
  */
 public class UPnPActionInvoke {
+
+    /**
+     action invoke completion handler
+     - Parameter upnp soap response
+     - Parameter error
+     */
+    public typealias invokeCompletionHandler = ((UPnPSoapResponse?, Error?) -> Void)
+    
     /**
      url to request
      */
@@ -21,9 +27,9 @@ public class UPnPActionInvoke {
     /**
      complete handler
      */
-    public var completionHandler: (UPnPActionInvokeDelegate)?
+    public var completionHandler: (invokeCompletionHandler)?
     
-    public init(url: URL, soapRequest: UPnPSoapRequest, completionHandler: (UPnPActionInvokeDelegate)?) {
+    public init(url: URL, soapRequest: UPnPSoapRequest, completionHandler: (invokeCompletionHandler)?) {
         self.url = url
         self.soapRequest = soapRequest
         self.completionHandler = completionHandler
@@ -41,19 +47,19 @@ public class UPnPActionInvoke {
             (data, response, error) in
 
             guard error == nil else {
-                self.completionHandler?(nil, "error - \(error!)")
+                self.completionHandler?(nil, UPnPError.custom(string: "error - \(error!)"))
                 return
             }
             guard let data = data else {
-                self.completionHandler?(nil, "no data")
+                self.completionHandler?(nil, UPnPError.custom(string: "no data"))
                 return
             }
             guard let text = String(data: data, encoding: .utf8) else {
-                self.completionHandler?(nil, "not string")
+                self.completionHandler?(nil, UPnPError.custom(string: "not string"))
                 return
             }
             guard let soapResponse = UPnPSoapResponse.read(xmlString: text) else {
-                self.completionHandler?(nil, "not soap response -- \(text)")
+                self.completionHandler?(nil, UPnPError.custom(string: "not soap response -- \(text)"))
                 return
             }
             self.completionHandler?(soapResponse, nil)

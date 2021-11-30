@@ -32,7 +32,7 @@ public class UPnPService : UPnPModel {
     /**
      error string
      */
-    public var errorString: String?
+    public var error: Error?
 
     /**
      service id

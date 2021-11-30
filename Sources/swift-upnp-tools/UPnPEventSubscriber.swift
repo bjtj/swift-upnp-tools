@@ -10,31 +10,39 @@ import FoundationNetworking
 #endif
 
 /**
- event subscribe handler
- */
-public typealias eventSubscribeCompleteHandler = (UPnPEventSubscriber?, Error?) -> Void
-
-/**
- event subscribe renew handler
- */
-public typealias eventRenewSubscribeCompleteHandler = (String, Error?) -> Void
-
-/**
- event unsubscribe handler
- */
-public typealias eventUnsubscribeCompleteHandler = (String, Error?) -> Void
-
-
-/**
- event property handler
- */
-public typealias notificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) -> Void
-
-
-/**
  UPnP Event Subscriber
  */
 public class UPnPEventSubscriber : TimeBase {
+
+    /**
+     Subscribe Completion Handler
+     - Parameter subscriber
+     - Parameter error
+     */
+    public typealias subscribeCompletionHandler = (UPnPEventSubscriber?, Error?) -> Void
+
+    /**
+     Renew subscribe completion handler
+     - Parameter sid
+     - Parameter error
+     */
+    public typealias renewSubscribeCompletionHandler = (String, Error?) -> Void
+
+    /**
+     Unsubscribe completion handler
+     - Parameter sid
+     - Parameter error
+     */
+    public typealias unsubscribeCompletionHandler = (String, Error?) -> Void
+
+    /**
+     Notification handler
+     - Parameter subscriber
+     - Parameter properties
+     - Parameter error
+     */
+    public typealias eventNotificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) -> Void
+    
 
     /**
      error
@@ -64,14 +72,14 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      notification handler
      */
-    var notificationHandler: notificationHandler?
+    var notificationHandler: eventNotificationHandler?
     
     /**
      SID (Subscription ID)
      */
     public var sid: String?
 
-    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800, notificationHandler: notificationHandler? = nil) {
+    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800, notificationHandler: eventNotificationHandler? = nil) {
         self.udn = udn
         self.service = service
         self.callbackUrls = callbackUrls
@@ -86,7 +94,7 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Subscribe
      */
-    public func subscribe(completionHandler: (eventSubscribeCompleteHandler)? = nil) {
+    public func subscribe(completionHandler: (subscribeCompletionHandler)? = nil) {
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
         fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
@@ -100,7 +108,7 @@ public class UPnPEventSubscriber : TimeBase {
             }
             
             guard let response = response as? HTTPURLResponse else {
-                completionHandler?(nil, UPnPError.custom(string: "UPnPEventSeventNotificationHandlerubscriber::subscribe() error - not http url response"))
+                completionHandler?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
                 return
             }
 
@@ -137,7 +145,7 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Review Subscription
      */
-    public func renewSubscribe(completionHandler: eventRenewSubscribeCompleteHandler? = nil) {
+    public func renewSubscribe(completionHandler: renewSubscribeCompletionHandler? = nil) {
         guard let sid = sid else {
             print("UPnPEventSubscriber::renewSubscribe() error - no sid")
             return
@@ -160,7 +168,7 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      Unsubscribe
      */
-    public func unsubscribe(completionHandler: eventUnsubscribeCompleteHandler? = nil) {
+    public func unsubscribe(completionHandler: unsubscribeCompletionHandler? = nil) {
         guard let sid = sid else {
             print("UPnPEventSubscriber::unsubscribe() error - no sid")
             return
@@ -180,7 +188,7 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      set on notification handler
      */
-    public func onNotification(notificationHandler: notificationHandler?) {
+    public func onNotification(notificationHandler: eventNotificationHandler?) {
         self.notificationHandler = notificationHandler
     }
 
