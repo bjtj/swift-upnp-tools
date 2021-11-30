@@ -10,9 +10,6 @@ import Socket
  */
 public class SSDPReceiver {
 
-    /**
-     finishing flag
-     */
     var finishing: Bool = false
 
     /**
@@ -30,9 +27,6 @@ public class SSDPReceiver {
      */
     public var handler: SSDPHeaderHandler?
 
-    /**
-     
-     */
     var listenSocket: Socket
 
     public init?(handler: SSDPHeaderHandler? = nil) throws {

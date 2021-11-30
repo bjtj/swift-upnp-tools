@@ -26,11 +26,21 @@ public typealias ssdpHandler = (((String, Int32)?, SSDPHeader?) -> Void)
  */
 public class SSDP {
 
+    /**
+     Multicast hostname
+     */
     public static var MCAST_HOST = "239.255.255.250"
+    
+    /**
+     Multicast port
+     */
     public static var MCAST_PORT = 1900
 
     /**
      Send m-search
+     - Parameter st: service type
+     - Parameter mx: max timeout
+     - Parameter handler: ssdp handler
      */
     public static func sendMsearch(st: String, mx: Int, handler: (ssdpHandler)? = nil) {
 

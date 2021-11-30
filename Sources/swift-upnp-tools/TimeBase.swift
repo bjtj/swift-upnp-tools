@@ -5,7 +5,7 @@
 import Foundation
 
 /**
- Time Base Helper
+ Time based object
  */
 public class TimeBase {
     public var tick: DispatchTime

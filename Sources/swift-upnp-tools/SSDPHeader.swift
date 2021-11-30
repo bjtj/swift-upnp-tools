@@ -63,7 +63,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
             guard let nts = self["NTS"] else {
                 return false
             }
-            return NTS(rawValue: nts) == .alive
+            return UPnPNts(rawValue: nts) == .alive
         }
     }
 
@@ -75,7 +75,7 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
             guard let nts = self["NTS"] else {
                 return false
             }
-            return NTS(rawValue: nts) == .update
+            return UPnPNts(rawValue: nts) == .update
         }
     }
 
@@ -87,19 +87,19 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
             guard let nts = self["NTS"] else {
                 return false
             }
-            return NTS(rawValue: nts) == .byebye
+            return UPnPNts(rawValue: nts) == .byebye
         }
     }
 
     /**
      NTS (Notify Types)
      */
-    public var nts: NTS? {
+    public var nts: UPnPNts? {
         get {
             guard let nts = self["NTS"] else {
                 return nil
             }
-            return NTS(rawValue: nts)
+            return UPnPNts(rawValue: nts)
         }
     }
 

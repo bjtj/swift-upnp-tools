@@ -292,7 +292,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
         
         handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
-        response.code = 200
+        response.setStatus(code: 200)
     }
 
     func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) {

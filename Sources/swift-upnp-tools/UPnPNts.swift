@@ -1,11 +1,12 @@
-/**
- NTS.swift
- */
+//
+// NTS.swift
+// 
+
 
 /**
- NTS (Notification Types)
+ UPnP NTS (Notification Types)
  */
-public enum NTS: String {
+public enum UPnPNts: String {
     case alive = "ssdp:alive"
     case update = "ssdp:update"
     case byebye = "ssdp:byebye"

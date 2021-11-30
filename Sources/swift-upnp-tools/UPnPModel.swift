@@ -19,7 +19,7 @@ public class UPnPModel : OrderedProperties {
 }
 
 /**
- UPnP Time Base Model (Base class)
+ UPnP Time Based Model (Base class)
  */
 public class UPnPTimeBasedModel : UPnPModel {
     var timeBase: TimeBase

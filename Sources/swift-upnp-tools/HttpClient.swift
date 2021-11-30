@@ -9,50 +9,32 @@ import FoundationNetworking
 #endif
 
 /**
- Http Client Delegate
+ Http Client Handler
  */
-public typealias HttpClientDelegate = (Data?, URLResponse?, Error?) -> Void
+public typealias httpClientHandler = (Data?, URLResponse?, Error?) -> Void
 
 /**
  Simple Http Client
  */
 public class HttpClient {
 
-    /**
-     url to request
-     */
     var url: URL
-    /**
-     http method
-     */
     var method: String?
-    /**
-     data
-     */
     var data: Data?
-    /**
-     content type
-     */
     var contentType: String?
-    /**
-     header fields
-     */
     var fields: [KeyValuePair]?
-    /**
-     delegate
-     */
-    var delegate: HttpClientDelegate?
+    var delegate: httpClientHandler?
 
     public init(url: URL) {
         self.url = url
     }
 
-    public init(url: URL, delegate: HttpClientDelegate?) {
+    public init(url: URL, delegate: httpClientHandler?) {
         self.url = url
         self.delegate = delegate
     }
 
-    public init(url: URL, method: String?, data: Data?, contentType: String?, delegate: HttpClientDelegate?) {
+    public init(url: URL, method: String?, data: Data?, contentType: String?, delegate: httpClientHandler?) {
         self.url = url
         self.method = method
         self.data = data
@@ -60,14 +42,14 @@ public class HttpClient {
         self.delegate = delegate
     }
 
-    public init(url: URL, method: String?, fields: [KeyValuePair]?, delegate: HttpClientDelegate?) {
+    public init(url: URL, method: String?, fields: [KeyValuePair]?, delegate: httpClientHandler?) {
         self.url = url
         self.method = method
         self.fields = fields
         self.delegate = delegate
     }
 
-    public init(url: URL, method: String?, data: Data?, contentType: String?, fields: [KeyValuePair]?, delegate: HttpClientDelegate?) {
+    public init(url: URL, method: String?, data: Data?, contentType: String?, fields: [KeyValuePair]?, delegate: httpClientHandler?) {
         self.url = url
         self.method = method
         self.data = data
@@ -77,7 +59,7 @@ public class HttpClient {
     }
 
     /**
-     Start request
+     Start Request
      */
     public func start() {
         let session = URLSession(configuration: URLSessionConfiguration.default)

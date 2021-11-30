@@ -228,7 +228,7 @@ public class UPnPServer : HttpRequestHandler {
                 return
             }
         }
-        response.code = 404
+        response.setStatus(code: 404)
     }
 
     func isDeviceQuery(request: HttpRequest) -> Bool {
@@ -256,7 +256,7 @@ public class UPnPServer : HttpRequestHandler {
         guard let device = self.devices[udn] else {
             throw HttpServerError.custom(string: "no device")
         }
-        response.code = 200
+        response.setStatus(code: 200)
         response.data = device.xmlDocument.data(using: .utf8)
     }
 
@@ -266,7 +266,7 @@ public class UPnPServer : HttpRequestHandler {
                 guard let scpd = service.scpd else {
                     continue
                 }
-                response.code = 200
+                response.setStatus(code: 200)
                 response.data = scpd.xmlDocument.data(using: .utf8)
                 return
             }
@@ -289,7 +289,7 @@ public class UPnPServer : HttpRequestHandler {
 
         guard let handler = self.onActionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
-            response.code = 404
+            response.setStatus(code: 404)
             return
         }
         
@@ -303,7 +303,7 @@ public class UPnPServer : HttpRequestHandler {
                 for field in properties.fields {
                     soapResponse[field.key] = field.value
                 }
-                response.code = 200
+                response.setStatus(code: 200)
                 response.data = soapResponse.xmlDocument.data(using: .utf8)
                 return
             }
@@ -329,7 +329,7 @@ public class UPnPServer : HttpRequestHandler {
                 self.subscriptions[subscription.sid] = subscription
             }
             
-            response.code = 200
+            response.setStatus(code: 200)
             response.header["SID"] = subscription.sid
             response.header["TIMEOUT"] = "Second-1800"
 
@@ -346,7 +346,7 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             self.subscriptions[sid] = nil
         }
-        response.code = 200
+        response.setStatus(code: 200)
     }
 
     /**
