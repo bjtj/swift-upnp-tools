@@ -25,6 +25,10 @@ public protocol UPnPControlPointDelegate {
  */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
+    public var dumpBody: Bool {
+        return true
+    }
+
     /**
      scpdHandler
      - Parameter device
@@ -297,7 +301,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
         
         handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
-        response.setStatus(code: 200)
+        response.status = .ok
     }
 
     func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) {

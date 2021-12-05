@@ -10,6 +10,10 @@ import SwiftHttpServer
  */
 public class UPnPServer : HttpRequestHandler {
 
+    public var dumpBody: Bool {
+        return true
+    }
+
     /**
      http server hostname
      */
@@ -228,7 +232,7 @@ public class UPnPServer : HttpRequestHandler {
                 return
             }
         }
-        response.setStatus(code: 404)
+        response.status = .notFound
     }
 
     func isDeviceQuery(request: HttpRequest) -> Bool {
@@ -256,7 +260,7 @@ public class UPnPServer : HttpRequestHandler {
         guard let device = self.devices[udn] else {
             throw HttpServerError.custom(string: "no device")
         }
-        response.setStatus(code: 200)
+        response.status = .ok
         response.data = device.xmlDocument.data(using: .utf8)
     }
 
@@ -266,7 +270,7 @@ public class UPnPServer : HttpRequestHandler {
                 guard let scpd = service.scpd else {
                     continue
                 }
-                response.setStatus(code: 200)
+                response.status = .ok
                 response.data = scpd.xmlDocument.data(using: .utf8)
                 return
             }
@@ -289,7 +293,7 @@ public class UPnPServer : HttpRequestHandler {
 
         guard let handler = self.onActionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
-            response.setStatus(code: 404)
+            response.status = .notFound
             return
         }
         
@@ -303,7 +307,7 @@ public class UPnPServer : HttpRequestHandler {
                 for field in properties.fields {
                     soapResponse[field.key] = field.value
                 }
-                response.setStatus(code: 200)
+                response.status = .ok
                 response.data = soapResponse.xmlDocument.data(using: .utf8)
                 return
             }
@@ -328,8 +332,8 @@ public class UPnPServer : HttpRequestHandler {
             lockQueue.sync {
                 self.subscriptions[subscription.sid] = subscription
             }
-            
-            response.setStatus(code: 200)
+
+            response.status = .ok
             response.header["SID"] = subscription.sid
             response.header["TIMEOUT"] = "Second-1800"
 
@@ -346,7 +350,7 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             self.subscriptions[sid] = nil
         }
-        response.setStatus(code: 200)
+        response.status = .ok
     }
 
     /**

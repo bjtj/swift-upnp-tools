@@ -64,6 +64,7 @@ public class HttpClient {
     public func start() {
         let session = URLSession(configuration: URLSessionConfiguration.default)
         var request = URLRequest(url: url)
+        request.addValue("close", forHTTPHeaderField: "Connection")
         if let method = self.method {
             request.httpMethod = method
         }

@@ -158,7 +158,12 @@ func printDevice(device: UPnPDevice) {
     print("[DEVICE] \(device.friendlyName ?? "nil") (UDN: \(device.udn ?? "nil"))")
     for service in device.services {
         print("  - [SERVICE] \(service.serviceType ?? "nil") (ID: \(service.serviceId ?? "nil"))")
-        print("    * STATUS: \(service.buildStatus) .. \(service.errorString ?? "")")
+        if let error = service.error {
+            print("    * STATUS: \(service.buildStatus) .. \(error)")
+        } else {
+            print("    * STATUS: \(service.buildStatus)")
+        }
+        
         guard let scpd = service.scpd else {
             print("    -- (NO SCPD)")
             continue
