@@ -251,7 +251,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 guard let httpServer = self.httpServer else {
                     throw UPnPError.custom(string: "UPnPControlPoint::startHttpServer() error - http server start failed")
                 }
-                try httpServer.route(pattern: "/notify/**", handler: self)
+                try httpServer.route(pattern: "/**", handler: self)
                 try httpServer.run(readyHandler: readyHandler)
             } catch let error{
                 print("UPnPControlPoint::startHttpServer() error - error - \(error)")
@@ -270,6 +270,13 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      when http request body completed
      */
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
+
+        guard request.method.caseInsensitiveCompare("NOTIFY") == .orderedSame else {
+            let err = UPnPError.custom(string: "Not Supported Method - '\(request.method)'")
+            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            throw err
+        }
+        
         guard let sid = request.header["sid"] else {
             let err = HttpServerError.illegalArgument(string: "No SID")
             handleEventProperties(subscriber: nil, properties: nil, error: err)
