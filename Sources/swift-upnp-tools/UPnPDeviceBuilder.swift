@@ -56,12 +56,18 @@ public class UPnPDeviceBuilder {
                 return
             }
 
+            device.status = .building
             device.baseUrl = url
             
             let services = device.allServices
-            for service in services {
-                UPnPScpdBuilder(device: device, service: service, completionHandler: self.scpdCompletionHandler)
-                  .build()
+            if services.isEmpty {
+                device.status = .completed
+            } else {
+                device.buildingServiceCount = services.count
+                for service in services {
+                    UPnPScpdBuilder(device: device, service: service, completionHandler: self.scpdCompletionHandler)
+                        .build()
+                }
             }
             
             if let delegate = self.delegate {

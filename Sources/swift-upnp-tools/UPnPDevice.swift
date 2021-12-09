@@ -9,6 +9,16 @@ import SwiftXml
  UPnP Device Model
  */
 public class UPnPDevice : UPnPTimeBasedModel {
+    
+    public enum Status {
+        case unknown, recognized, building, incompleted, completed
+    }
+    
+    /**
+     status
+     */
+    public var status: Status = .unknown
+    
     /**
      parent device
      */
@@ -106,6 +116,16 @@ public class UPnPDevice : UPnPTimeBasedModel {
         }
         return services
     }
+    
+    /**
+     building service count
+     */
+    public var buildingServiceCount: Int = 0
+    
+    /**
+     building service error count
+     */
+    public var buildingServiceErrorCount: Int = 0
 
     /**
      get device with type

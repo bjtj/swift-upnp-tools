@@ -7,6 +7,9 @@ import Socket
 import SwiftHttpServer
 
 
+/**
+ DispatchTime extension uptime
+ */
 extension DispatchTime {
     public var uptime: UInt64 {
         return uptimeNanoseconds / 1_000_000

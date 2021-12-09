@@ -45,67 +45,60 @@ public class UPnPScpdBuilder {
     public func build() {
 
         guard let device = service.device else {
-            service.buildStatus = .failed
-            service.error = UPnPError.custom(string: "service has no device")
-            self.completionHandler?(nil, service, nil, service.error)
+            handleError(string: "service has no device")
             return
         }
         guard let baseUrl = device.rootDevice.baseUrl else {
-            service.buildStatus = .failed
-            service.error = UPnPError.custom(string: "no base url")
-            self.completionHandler?(device, service, nil, service.error)
+            handleError(string: "no base url")
             return
         }
         guard let scpdUrl = service.scpdUrl else {
-            service.buildStatus = .failed
-            service.error = UPnPError.custom(string: "no scpd url")
-            self.completionHandler?(device, service, nil, service.error)
+            handleError(string: "no scpd url")
             return
         }
         guard let url = URL(string: scpdUrl, relativeTo: baseUrl) else {
-            service.buildStatus = .failed
-            service.error = UPnPError.custom(string: "url failed")
-            self.completionHandler?(device, service, nil, service.error)
+            handleError(string: "url failed")
             return
         }
         
-        service.buildStatus = .progress
+        service.status = .progress
         
         HttpClient(url: url) {
             (data, response, error) in
 
             guard error == nil else {
-                self.service.buildStatus = .failed
-                self.service.error = UPnPError.custom(string: "HttpClient - error: '\(error!)'")
-                self.completionHandler?(device, self.service, nil, self.service.error)
+                self.handleError(string: "HttpClient - error: '\(error!)'")
                 return
             }
             
             guard let data = data else {
-                self.service.buildStatus = .failed
-                self.service.error = UPnPError.custom(string: "HttpClient - error: no data")
-                self.completionHandler?(device, self.service, nil, self.service.error)
+                self.handleError(string: "HttpClient - error: no data")
                 return
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else {
-                self.service.buildStatus = .failed
-                self.service.error = UPnPError.custom(string: "HttpClient - error: xml string failed")
-                self.completionHandler?(device, self.service, nil, self.service.error)
+                self.handleError(string: "HttpClient - error: xml string failed")
                 return
             }
 
             guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
-                self.service.buildStatus = .failed
-                self.service.error = UPnPError.custom(string: "HttpClient - read scpd failed - URL: '\(url)'")
-                self.completionHandler?(device, self.service, nil, self.service.error)
+                self.handleError(string: "HttpClient - read scpd failed - URL: '\(url)'")
                 return
             }
-
-            self.service.scpd = scpd
-            self.service.buildStatus = .completed
-            self.completionHandler?(device, self.service, scpd, nil)
             
+            self.handleCompleted(scpd: scpd)
         }.start()
+    }
+    
+    func handleError(string: String) {
+        service.status = .failed
+        service.error = UPnPError.custom(string: string)
+        self.completionHandler?(device, service, nil, service.error)
+    }
+    
+    func handleCompleted(scpd: UPnPScpd) {
+        service.scpd = scpd
+        service.status = .completed
+        self.completionHandler?(device, service, scpd, nil)
     }
 }

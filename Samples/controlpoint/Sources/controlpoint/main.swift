@@ -72,13 +72,13 @@ func main() {
         case "search":
             handleSearch(cp: cp, st: tokens[1])
         case "ls":
-            print(" -== Device List (count: \(cp.devices.count)) ==-")
-            for device in cp.devices.values {
+            print(" -== Device List (count: \(cp.presentableDevices.count)) ==-")
+            for device in cp.presentableDevices.values {
                 printDevice(device: device)
             }
         case "device":
             let udn = tokens[1]
-            guard let device = cp.devices[udn] else {
+            guard let device = cp.presentableDevices[udn] else {
                 print("[ERR] No device found with UDN (\(udn))")
                 continue
             }
@@ -159,9 +159,9 @@ func printDevice(device: UPnPDevice) {
     for service in device.services {
         print("  - [SERVICE] \(service.serviceType ?? "nil") (ID: \(service.serviceId ?? "nil"))")
         if let error = service.error {
-            print("    * STATUS: \(service.buildStatus) .. \(error)")
+            print("    * STATUS: \(service.status) .. \(error)")
         } else {
-            print("    * STATUS: \(service.buildStatus)")
+            print("    * STATUS: \(service.status)")
         }
         
         guard let scpd = service.scpd else {

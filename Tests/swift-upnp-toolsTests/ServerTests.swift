@@ -553,7 +553,7 @@ final class ServerTests: XCTestCase {
 
             if let error = error {
                 print("ERROR - \(error)")
-                XCTAssertEqual(service?.buildStatus, .failed)
+                XCTAssertEqual(service?.status, .failed)
                 return
             }
 
@@ -568,7 +568,7 @@ final class ServerTests: XCTestCase {
             }
             
             XCTAssertNotNil(service.scpd)
-            XCTAssertEqual(service.buildStatus, .completed)
+            XCTAssertEqual(service.status, .completed)
 
             XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget"))
             XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget")!.arguments)

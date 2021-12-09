@@ -5,17 +5,14 @@
 import Foundation
 import SwiftXml
 
-public enum UPnPServiceBuildStatus {
-    case idle
-    case progress
-    case failed
-    case completed
-}
-
 /**
  UPnP Service (Model)
  */
 public class UPnPService : UPnPModel {
+    
+    public enum Status {
+        case idle, progress, failed, completed
+    }
 
     /**
      UPnP Device
@@ -28,7 +25,7 @@ public class UPnPService : UPnPModel {
     /**
      build status
      */
-    public var buildStatus: UPnPServiceBuildStatus
+    public var status: Status
     /**
      error string
      */
@@ -105,7 +102,7 @@ public class UPnPService : UPnPModel {
     }
 
     public override init() {
-        self.buildStatus = .idle
+        status = .idle
     }
 
     /**

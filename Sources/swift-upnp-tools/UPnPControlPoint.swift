@@ -80,9 +80,23 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     public var ssdpReceiver : SSDPReceiver?
 
     /**
-     devices
+     presentable devices
      */
-    public var devices = [String:UPnPDevice]()
+    public var presentableDevices: [String:UPnPDevice] {
+        lockQueue.sync {
+            return _devices.filter { [.incompleted, .completed].contains($1.status) }
+        }
+    }
+    var _devices = [String:UPnPDevice]()
+
+    /**
+     devices
+     @deprecated use `presentableDevices` instead
+     */
+    @available(*, deprecated, renamed: "presentableDevices")
+    public var devices: [String:UPnPDevice] {
+        return _devices
+    }
 
     /**
      delegate
@@ -162,7 +176,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         httpServer?.finish()
         ssdpReceiver?.finish()
 
-        devices.removeAll()
+        _devices.removeAll()
         delegate = nil
         for subscriber in eventSubscribers {
             unsubscribe(subscriber: subscriber)
@@ -220,7 +234,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      Get device with UDN
      */
     public func getDevice(udn: String) -> UPnPDevice? {
-        return devices[udn]
+        return _devices[udn]
     }
 
     /**
@@ -360,6 +374,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
         timer.resume()
     }
+    
+    func removeExpiredDevices() {
+        _devices = _devices.filter { $1.isExpired == false }
+    }
+
+    func removeExpiredSubscriber() {
+        eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
+    }
 
     /**
      Send M-SEARCH with ST (Service Type) and MX (Max)
@@ -392,11 +414,13 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 guard let usn = ssdpHeader.usn else {
                     break
                 }
-                if let device = self.devices[usn.uuid] {
+                if let device = self._devices[usn.uuid] {
                     device.renewTimeout()
                 } else if let location = ssdpHeader["LOCATION"] {
                     if let url = URL(string: location) {
-                        devices[usn.uuid] = UPnPDevice(timeout: 15)
+                        let device = UPnPDevice(timeout: 15)
+                        device.status = .recognized
+                        _devices[usn.uuid] = device
                         buildDevice(url: url)
                     }
                 }
@@ -408,7 +432,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 break
             case .update:
                 if let usn = ssdpHeader.usn {
-                    if let device = self.devices[usn.uuid] {
+                    if let device = self._devices[usn.uuid] {
                         device.renewTimeout()
                     }
                 }
@@ -418,11 +442,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             guard let usn = ssdpHeader.usn else {
                 return nil
             }
-            if let device = self.devices[usn.uuid] {
+            if let device = self._devices[usn.uuid] {
                 device.renewTimeout()
             } else if let location = ssdpHeader["LOCATION"] {
                 if let url = URL(string: location) {
-                    devices[usn.uuid] = UPnPDevice(timeout: 15)
+                    _devices[usn.uuid] = UPnPDevice(timeout: 15)
                     buildDevice(url: url)
                 }
             }
@@ -435,6 +459,18 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             (device, service, scpd, error) in 
             for handler in self.onScpdHandlers {
                 handler(device, service, scpd, error)
+            }
+            guard let device = device, let service = service else {
+                return
+            }
+            self.lockQueue.sync {
+                if service.status == .failed {
+                    device.buildingServiceErrorCount += 1
+                }
+                device.buildingServiceCount -= 1
+                if device.buildingServiceCount <= 0 {
+                    device.status = device.buildingServiceErrorCount == 0 ? .completed : .incompleted
+                }
             }
         }.build(url: url)
     }
@@ -493,10 +529,12 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let udn = device.udn else {
             return
         }
-        devices[udn] = device
-        delegate?.onDeviceAdded(device: device)
-        for handler in onDeviceAddedHandlers {
-            handler(device)
+        lockQueue.sync {
+            self._devices[udn] = device
+            self.delegate?.onDeviceAdded(device: device)
+            for handler in self.onDeviceAddedHandlers {
+                handler(device)
+            }
         }
     }
 
@@ -504,7 +542,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      Remove Device with UDN
      */
     public func removeDevice(udn: String) {
-        guard let device = devices[udn] else {
+        guard let device = _devices[udn] else {
             return
         }
         delegate?.onDeviceRemoved(device: device)
@@ -517,7 +555,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             }
         }
 
-        devices[udn] = nil
+        lockQueue.sync {
+            _devices[udn] = nil
+        }
     }
 
     /**
@@ -651,14 +691,6 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             }
         }
         return ret
-    }
-
-    func removeExpiredDevices() {
-        devices = devices.filter { $1.isExpired == false }
-    }
-
-    func removeExpiredSubscriber() {
-        eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
     }
 
     func makeCallbackUrl(udn: String, service: UPnPService) -> URL? {
