@@ -320,6 +320,15 @@ public class UPnPServer : HttpRequestHandler {
         guard let callbackUrls = request.header["CALLBACK"] else {
             throw HttpServerError.illegalArgument(string: "No Callback Header Field")
         }
+        
+        if let sid = request.header["SID"], let subscription = _subscription_safe(sid) {
+            subscription.renewTimeout()
+            response.status = .ok
+            response.header["SID"] = sid
+            response.header["TIMEOUT"] = "Second-1800"
+            return
+        }
+        
         let urls = UPnPCallbackUrl.read(text: callbackUrls)
         for (_, device) in self.devices {
             guard let service = device.getService(withEventSubUrl: request.path) else {
@@ -330,17 +339,23 @@ public class UPnPServer : HttpRequestHandler {
             }
             let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
             lockQueue.sync {
-                self.subscriptions[subscription.sid] = subscription
+                subscriptions[subscription.sid] = subscription
             }
 
             response.status = .ok
             response.header["SID"] = subscription.sid
             response.header["TIMEOUT"] = "Second-1800"
-
-            
             return
         }
         throw HttpServerError.custom(string: "no matching device")
+    }
+
+    func _subscription_safe(_ sid: String) -> UPnPEventSubscription? {
+        var result: UPnPEventSubscription?
+        lockQueue.sync {
+            result = subscriptions[sid]
+        }
+        return result
     }
 
     func handleEventUnSubQuery(request: HttpRequest, response: HttpResponse) throws {

@@ -24,7 +24,7 @@ public class TimeBase {
     }
 
     /**
-     Duration
+     Duration in Seconds
      */
     public var duration: UInt64 {
         return (DispatchTime.now().uptimeNanoseconds - tick.uptimeNanoseconds) / 1_000_000_000

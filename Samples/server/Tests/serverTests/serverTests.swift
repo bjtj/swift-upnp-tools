@@ -12,6 +12,8 @@ final class serverTests: XCTestCase {
             return
         }
 
+        #if swift(>=5.0)
+
         let fooBinary = productsDirectory.appendingPathComponent("swift_upnp_app")
 
         let process = Process()
@@ -27,21 +29,23 @@ final class serverTests: XCTestCase {
         let output = String(data: data, encoding: .utf8)
 
         XCTAssertEqual(output, "Hello, world!\n")
+
+        #endif
     }
 
     /// Returns path to the built products directory.
     var productsDirectory: URL {
-      #if os(macOS)
+        #if os(macOS)
         for bundle in Bundle.allBundles where bundle.bundlePath.hasSuffix(".xctest") {
             return bundle.bundleURL.deletingLastPathComponent()
         }
         fatalError("couldn't find the products directory")
-      #else
+        #else
         return Bundle.main.bundleURL
-      #endif
+        #endif
     }
 
     static var allTests = [
-        ("testExample", testExample),
+      ("testExample", testExample),
     ]
 }

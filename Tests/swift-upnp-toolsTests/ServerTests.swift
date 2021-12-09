@@ -447,9 +447,14 @@ final class ServerTests: XCTestCase {
 
                     XCTAssertNotNil(sub.sid)
                     cp.unsubscribe(sid: sub.sid!) {
-                        (sid, error) in
-                        if let error = error {
-                            XCTFail("unsubscribe - error: \(error)")
+                        (subscriber, error) in
+                        guard error == nil else {
+                            XCTFail("unsubscribe - error: \(error!)")
+                            return
+                        }
+                        guard let sid = subscriber?.sid else {
+                            XCTFail("unsubscribe - no sid")
+                            return
                         }
                         print("\(Date()) - unsubscribed")
                         XCTAssertEqual(sid, sub.sid)
@@ -738,7 +743,7 @@ final class ServerTests: XCTestCase {
         
         XCTAssertFalse(handledService.isEmpty)
         XCTAssertFalse(handledEvents.isEmpty)
-        XCTAssertEqual(handledEvents.count, 3)
+        XCTAssertEqual(4, handledEvents.count)
 
         cp.finish()
 

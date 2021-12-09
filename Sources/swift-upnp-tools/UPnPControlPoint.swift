@@ -25,6 +25,9 @@ public protocol UPnPControlPointDelegate {
  */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
+    /**
+     set dump body flag for http server
+     */
     public var dumpBody: Bool {
         return true
     }
@@ -83,9 +86,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      presentable devices
      */
     public var presentableDevices: [String:UPnPDevice] {
+        var result: [String:UPnPDevice]?
         lockQueue.sync {
-            return _devices.filter { [.incompleted, .completed].contains($1.status) }
+            result = _devices.filter { [.incompleted, .completed].contains($1.status) }
         }
+        return result ?? [String:UPnPDevice]()
     }
     var _devices = [String:UPnPDevice]()
 
@@ -203,8 +208,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         timer?.cancel()
         httpServer?.finish()
         ssdpReceiver?.finish()
-        for subscriber in eventSubscribers {
-            subscriber.unsubscribe()
+        eventSubscribers.forEach {
+            $0.unsubscribe()
         }
     }
 
@@ -217,13 +222,28 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             // already suspended or not running
             return
         }
+
+        lockQueue.sync {
+            removeExpiredSubscriber()
+            removeExpiredDevices()
+        }
+        
         _suspended = false
         startHttpServer {
             (httpServer, error) in
-            let subscribers = self.eventSubscribers
-            self.eventSubscribers = [UPnPEventSubscriber]()
-            for subscriber in subscribers {
-                self.subscribe(udn: subscriber.udn, service: subscriber.service)
+            
+            self.eventSubscribers.forEach {
+                guard let callbackUrls = self.makeCallbackUrl(udn: $0.udn, service: $0.service) else {
+                    print("UPnPControlPoint::subscribe() error - makeCallbackUrl failed")
+                    return
+                }
+                $0.callbackUrls = [callbackUrls]
+                $0.subscribe {
+                    (subscriber, error) in
+                    guard error == nil else {
+                        return
+                    }
+                }
             }
         }
         startSsdpReceiver()
@@ -290,34 +310,34 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
-        
-        guard let sid = request.header["sid"] else {
-            let err = HttpServerError.illegalArgument(string: "No SID")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
-            throw err
-        }
-
-        guard let subscriber = getEventSubscriber(sid: sid) else {
-            let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
-            throw err
-        }
 
         guard let data = body else {
             let err = HttpServerError.illegalArgument(string: "No Content")
-            handleEventProperties(subscriber: subscriber, properties: nil, error: err)
+            handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let xmlString = String(data: data, encoding: .utf8) else {
             let err = HttpServerError.illegalArgument(string: "Wrong XML String")
-            handleEventProperties(subscriber: subscriber, properties: nil, error: err)
+            handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
             let err = HttpServerError.custom(string: "Parse Failed Event Properties")
-            handleEventProperties(subscriber: subscriber, properties: nil, error: err)
+            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            throw err
+        }
+
+        guard let sid = request.header["sid"] else {
+            let err = HttpServerError.illegalArgument(string: "No SID")
+            handleEventProperties(subscriber: nil, properties: properties, error: err)
+            throw err
+        }
+
+        guard let subscriber = getEventSubscriber(sid: sid) else {
+            let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
+            handleEventProperties(subscriber: nil, properties: properties, error: err)
             throw err
         }
         
@@ -349,7 +369,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                     guard let ssdpHeader = ssdpHeader else {
                         return nil
                     }
-                    return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+                    return self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
                 }
                 try self.ssdpReceiver?.run()
             } catch let error {
@@ -368,25 +388,29 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         timer.schedule(deadline: .now(), repeating: 10.0, leeway: .seconds(0))
         timer.setEventHandler { () in
             self.lockQueue.sync {
-                self.removeExpiredDevices()
                 self.removeExpiredSubscriber()
+                self.removeExpiredDevices()
+
+                // TODO: renew subscribers
             }
         }
         timer.resume()
     }
     
     func removeExpiredDevices() {
+        // TODO: on device removed
         _devices = _devices.filter { $1.isExpired == false }
     }
 
     func removeExpiredSubscriber() {
-        eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
+        // TODO: on event subscription removed
+        eventSubscribers = eventSubscribers.filter { $0.isExpired == false && $0.error == nil }
     }
 
     /**
      Send M-SEARCH with ST (Service Type) and MX (Max)
      */
-    public func sendMsearch(st: String, mx: Int, ssdpHandler: SSDP.ssdpHandler? = nil) {
+    public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDP.ssdpHandler? = nil) {
 
         DispatchQueue.global(qos: .default).async {
 
@@ -395,16 +419,13 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 guard let ssdpHeader = ssdpHeader else {
                     return
                 }
-                self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+                self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
                 ssdpHandler?(address, ssdpHeader)
             }
         }
     }
 
-    /**
-     On SSDP Header is received
-     */
-    @discardableResult public func onSSDPHeader(address: (String, Int32)?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
+    @discardableResult func ssdpHeader(address: (String, Int32)?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
         if ssdpHeader.isNotify {
             guard let nts = ssdpHeader.nts else {
                 return nil
@@ -613,7 +634,10 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             guard let subscriber = subscriber else {
                 return
             }
-            self.eventSubscribers.append(subscriber)
+            
+            self.lockQueue.sync {
+                self.eventSubscribers.append(subscriber)
+            }
         }
         return subscriber
     }

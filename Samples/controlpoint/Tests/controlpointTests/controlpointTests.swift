@@ -12,6 +12,7 @@ final class controlpointTests: XCTestCase {
             return
         }
 
+        #if swift(>=5.0)
         let fooBinary = productsDirectory.appendingPathComponent("swift_upnp_app")
 
         let process = Process()
@@ -27,6 +28,7 @@ final class controlpointTests: XCTestCase {
         let output = String(data: data, encoding: .utf8)
 
         XCTAssertEqual(output, "Hello, world!\n")
+        #endif
     }
 
     /// Returns path to the built products directory.

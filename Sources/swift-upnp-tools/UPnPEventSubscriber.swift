@@ -26,14 +26,14 @@ public class UPnPEventSubscriber : TimeBase {
      - Parameter sid
      - Parameter error
      */
-    public typealias renewSubscribeCompletionHandler = (String, Error?) -> Void
+    public typealias renewSubscribeCompletionHandler = (UPnPEventSubscriber?, Error?) -> Void
 
     /**
      Unsubscribe completion handler
      - Parameter sid
      - Parameter error
      */
-    public typealias unsubscribeCompletionHandler = (String, Error?) -> Void
+    public typealias unsubscribeCompletionHandler = (UPnPEventSubscriber?, Error?) -> Void
 
     /**
      Notification handler
@@ -103,32 +103,35 @@ public class UPnPEventSubscriber : TimeBase {
             (data, response, error) in
 
             guard error == nil else {
-                completionHandler?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - '\(error!)'"))
+                self.error = error
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - '\(error!)'"))
                 return
             }
             
             guard let response = response as? HTTPURLResponse else {
-                completionHandler?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
                 return
             }
 
             guard let sid = self.getValueCaseInsensitive(response: response, key: "SID") else {
-                completionHandler?(nil, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
                 return
             }
+
+            self.timeout = self.extractSecond(fromTimeout: self.getValueCaseInsensitive(response: response, key: "TIMEOUT"))
 
             self.sid = sid
             completionHandler?(self, nil)
         }.start()
     }
 
-    func extractSecond(fromTimeout timeout: String?, defaultSecond: UInt64 = 1800) -> UInt64 {
+    func extractSecond(fromTimeout timeout: String?, minTimeoutSecond: UInt64 = 1800) -> UInt64 {
         guard let timeout = timeout else {
-            return defaultSecond
+            return minTimeoutSecond
         }
 
         let start = timeout.index(timeout.startIndex, offsetBy: "Second-".count)
-        return UInt64(String(timeout[start..<timeout.endIndex]))!
+        return max(UInt64(String(timeout[start..<timeout.endIndex])) ?? minTimeoutSecond, minTimeoutSecond)
     }
 
     
@@ -157,10 +160,25 @@ public class UPnPEventSubscriber : TimeBase {
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
             (data, response, error) in
             guard error == nil else {
-                completionHandler?(sid, error)
+                self.error = error
+                completionHandler?(self, error)
                 return
             }
-            completionHandler?(sid, nil)
+
+            guard let response = response as? HTTPURLResponse else {
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
+                return
+            }
+
+            guard let sid = self.getValueCaseInsensitive(response: response, key: "SID") else {
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
+                return
+            }
+
+            self.timeout = self.extractSecond(fromTimeout: self.getValueCaseInsensitive(response: response, key: "TIMEOUT"))
+            self.renewTimeout()
+            self.sid = sid
+            completionHandler?(self, nil)
         }.start()
     }
 
@@ -178,10 +196,10 @@ public class UPnPEventSubscriber : TimeBase {
         HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
             (data, response, error) in
             guard error == nil else {
-                completionHandler?(sid, error)
+                completionHandler?(self, error)
                 return
             }
-            completionHandler?(sid, nil)
+            completionHandler?(self, nil)
         }.start()
     }
 
