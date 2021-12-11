@@ -64,7 +64,7 @@ public class UPnPAction : UPnPModel {
             
             if name == "argumentList" {
                 guard let argListElements = element.elements else {
-                    print("UPnPAction::read() error - wrong arg list")
+                    // no arguments
                     continue
                 }
                 for argElement in argListElements {
@@ -75,16 +75,11 @@ public class UPnPAction : UPnPModel {
                     action.arguments.append(argument)
                 }
             } else {
-                guard element.elements!.isEmpty else {
+                let (_name, value) = readNameValue(element: element)
+                guard let name = _name else {
                     continue
                 }
-                guard let name = element.name else {
-                    continue
-                }
-                guard let value = element.firstText!.text else {
-                    continue
-                }
-                action[name] = value
+                action[name] = value ?? ""
             }
         }
         return action
@@ -107,3 +102,4 @@ public class UPnPAction : UPnPModel {
         return tag.description
     }
 }
+

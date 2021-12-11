@@ -34,7 +34,7 @@ public class SSDPReceiver {
     var handler: ssdpHandler?
     var listenSocket: Socket
 
-    public init?(handler: SSDPReceiver.ssdpHandler? = nil) throws {
+    public init(handler: SSDPReceiver.ssdpHandler? = nil) throws {
         self.handler = handler
         listenSocket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
     }
@@ -73,25 +73,30 @@ public class SSDPReceiver {
                 }
                 return
             }
+
+            guard let remoteAddress = ret.address else {
+                throw UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
+            }
+
+            guard let text = String(data: readData, encoding: .utf8) else {
+                continue
+            }
             
-            let header = SSDPHeader.read(text: String(data: readData, encoding: .utf8)!)
+            let header = SSDPHeader.read(text: text)
             
             guard let handler = handler else {
                 continue
             }
 
-            guard let addr = ret.address else {
-                throw UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
-            }
-
-            let address = Socket.hostnameAndPort(from: addr)
-            guard let responseHeaders = handler(address, header) else {
+            guard let responseHeaders = handler(Socket.hostnameAndPort(from: remoteAddress), header) else {
                 continue
             }
             
             for responseHeader in responseHeaders {
-                let data = responseHeader.description.data(using: .utf8)
-                try listenSocket.write(from: data!, to: ret.address!)
+                guard let data = responseHeader.description.data(using: .utf8) else {
+                    continue
+                }
+                try listenSocket.write(from: data, to: remoteAddress)
             }
         }
         listenSocket.close()

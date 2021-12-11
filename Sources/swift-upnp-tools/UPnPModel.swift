@@ -16,6 +16,21 @@ public class UPnPModel : OrderedProperties {
         }
         return str
     }
+
+    static func readNameValue(element: XmlNode) -> (String?, String?) {
+        if let elements = element.elements {
+            guard elements.isEmpty else {
+                return (nil, nil)
+            }
+        }
+        guard let name = element.name, name.isEmpty == false else {
+            return (nil, nil)
+        }
+        guard let firstText = element.firstText else {
+            return (name, nil)
+        }
+        return (name, firstText.text)   
+    }
 }
 
 /**

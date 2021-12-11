@@ -34,9 +34,12 @@ public class UPnPStateVariable : UPnPModel {
             return stateVariable
         }
         for element in elements {
-            if element.firstText != nil && element.elements!.isEmpty {
-                stateVariable[element.name!] = element.firstText!.text
+
+            let (_name, value) = readNameValue(element: element)
+            guard let name = _name else {
+                continue
             }
+            stateVariable[name] = value ?? ""
         }
         return stateVariable
     }

@@ -97,75 +97,252 @@ final class ModelTests: XCTestCase {
      */
     func testDeviceDescription() {
 
-        let deviceDescription = "<?xml version=\"1.0\"?>" +
-          "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
-          "  <specVersion>" +
-          "  <major>1</major>" +
-          "  <minor>0</minor>" +
-          "  </specVersion>" +
-          "  <device>" +
-          "  <deviceType>urn:schemas-upnp-org:device:DimmableLight:1</deviceType>" +
-          "  <friendlyName>UPnP Sample Dimmable Light ver.1</friendlyName>" +
-          "  <manufacturer>Testers</manufacturer>" +
-          "  <manufacturerURL>www.example.com</manufacturerURL>" +
-          "  <modelDescription>UPnP Test Device</modelDescription>" +
-          "  <modelName>UPnP Test Device</modelName>" +
-          "  <modelNumber>1</modelNumber>" +
-          "  <modelURL>www.example.com</modelURL>" +
-          "  <serialNumber>12345678</serialNumber>" +
-          "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
-          "  <serviceList>" +
-          "    <service>" +
-          "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +
-          "    <serviceId>urn:upnp-org:serviceId:SwitchPower.1</serviceId>" +
-          "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/scpd.xml</SCPDURL>" +
-          "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/control.xml</controlURL>" +
-          "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/event.xml</eventSubURL>" +
-          "    </service>" +
-          "    <service>" +
-          "    <serviceType>urn:schemas-upnp-org:service:Dimming:1</serviceType>" +
-          "    <serviceId>urn:upnp-org:serviceId:Dimming.1</serviceId>" +
-          "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/scpd.xml</SCPDURL>" +
-          "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/control.xml</controlURL>" +
-          "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/event.xml</eventSubURL>" +
-          "    </service>" +
-          "  </serviceList>" +
-          "  </device>" +
-          "</root>"
-        
-        guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
-            XCTAssert(false)
-            return
+        do {
+            let deviceDescription = "<?xml version=\"1.0\"?>" +
+              "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
+              "  <specVersion>" +
+              "  <major>1</major>" +
+              "  <minor>0</minor>" +
+              "  </specVersion>" +
+              "  <device>" +
+              "  <deviceType>urn:schemas-upnp-org:device:DimmableLight:1</deviceType>" +
+              "  <friendlyName>UPnP Sample Dimmable Light ver.1</friendlyName>" +
+              "  <manufacturer>Testers</manufacturer>" +
+              "  <manufacturerURL>www.example.com</manufacturerURL>" +
+              "  <modelDescription>UPnP Test Device</modelDescription>" +
+              "  <modelName>UPnP Test Device</modelName>" +
+              "  <modelNumber>1</modelNumber>" +
+              "  <modelURL>www.example.com</modelURL>" +
+              "  <serialNumber>12345678</serialNumber>" +
+              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+              "  <serviceList>" +
+              "    <service>" +
+              "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +
+              "    <serviceId>urn:upnp-org:serviceId:SwitchPower.1</serviceId>" +
+              "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/scpd.xml</SCPDURL>" +
+              "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/control.xml</controlURL>" +
+              "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/event.xml</eventSubURL>" +
+              "    </service>" +
+              "    <service>" +
+              "    <serviceType>urn:schemas-upnp-org:service:Dimming:1</serviceType>" +
+              "    <serviceId>urn:upnp-org:serviceId:Dimming.1</serviceId>" +
+              "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/scpd.xml</SCPDURL>" +
+              "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/control.xml</controlURL>" +
+              "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/event.xml</eventSubURL>" +
+              "    </service>" +
+              "  </serviceList>" +
+              "  </device>" +
+              "</root>"
+            
+            guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+                XCTAssert(false)
+                return
+            }
+            
+            XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
+
+            XCTAssertTrue(device.embeddedDevices.isEmpty)
         }
-        
-        XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
+
+
+
+        do {
+            let deviceDescription = "<?xml version=\"1.0\"?>" +
+              "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">" +
+              "  <specVersion>" +
+              "  <major>1</major>" +
+              "  <minor>0</minor>" +
+              "  </specVersion>" +
+              "  <device>" +
+              "  <deviceType>urn:schemas-upnp-org:device:DimmableLight:1</deviceType>" +
+              "  <friendlyName>UPnP Sample Dimmable Light ver.1</friendlyName>" +
+              "  <manufacturer>Testers</manufacturer>" +
+              "  <manufacturerURL>www.example.com</manufacturerURL>" +
+              "  <modelDescription>UPnP Test Device</modelDescription>" +
+              "  <modelName>UPnP Test Device</modelName>" +
+              "  <modelNumber>1</modelNumber>" +
+              "  <modelURL>www.example.com</modelURL>" +
+              "  <serialNumber>12345678</serialNumber>" +
+              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+
+              "<iconList>" +
+              "<icon>" +
+              "<mimetype>image/png</mimetype>" +
+              "<width>100</width>" +
+              "<height>80</height>" +
+              "<depth>4</depth>" +
+              "<url>http://example.com/icon</url>" +
+              "</icon>" +
+              "</iconList>" +
+              
+              "  <serviceList>" +
+              "    <service>" +
+              "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +
+              "    <serviceId>urn:upnp-org:serviceId:SwitchPower.1</serviceId>" +
+              "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/scpd.xml</SCPDURL>" +
+              "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/control.xml</controlURL>" +
+              "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:SwitchPower:1/event.xml</eventSubURL>" +
+              "    </service>" +
+              "    <service>" +
+              "    <serviceType>urn:schemas-upnp-org:service:Dimming:1</serviceType>" +
+              "    <serviceId>urn:upnp-org:serviceId:Dimming.1</serviceId>" +
+              "    <SCPDURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/scpd.xml</SCPDURL>" +
+              "    <controlURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/control.xml</controlURL>" +
+              "    <eventSubURL>/e399855c-7ecb-1fff-8000-000000000000/urn:schemas-upnp-org:service:Dimming:1/event.xml</eventSubURL>" +
+              "    </service>" +
+              "  </serviceList>" +
+
+              "<deviceList>" +
+              "<device>" +
+              "  <deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>" +
+              "  <friendlyName>UPnP Basic Device</friendlyName>" +
+              "  <manufacturer>Testers</manufacturer>" +
+              "  <manufacturerURL>www.example.com</manufacturerURL>" +
+              "  <modelDescription>UPnP Test Device</modelDescription>" +
+              "  <modelName>UPnP Test Device</modelName>" +
+              "  <modelNumber>2</modelNumber>" +
+              "  <modelURL>www.example.com</modelURL>" +
+              "  <serialNumber>abcd12345678</serialNumber>" +
+              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+              "</device>" +
+              "</deviceList>" +
+              
+              "  </device>" +
+              "</root>"
+            
+            guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+                XCTAssert(false)
+                return
+            }
+
+            XCTAssertTrue(device.isRootDevice)
+            XCTAssertTrue(device === device.rootDevice)
+            
+            XCTAssertEqual("UPnP Sample Dimmable Light ver.1", device.friendlyName)
+
+            XCTAssertEqual(device.icons.count, 1)
+            XCTAssertEqual(device.icons[0].mimeType, "image/png")
+            XCTAssertEqual(device.icons[0].widthString, "100")
+            XCTAssertEqual(device.icons[0].heightString, "80")
+            XCTAssertEqual(device.icons[0].width, 100)
+            XCTAssertEqual(device.icons[0].height, 80)
+            XCTAssertEqual(device.icons[0].url, "http://example.com/icon")
+
+            XCTAssertFalse(device.embeddedDevices.isEmpty)
+            XCTAssertEqual(device.embeddedDevices.count, 1)
+
+            let basicDevice = device.embeddedDevices[0]
+
+            XCTAssertFalse(basicDevice.isRootDevice)
+            XCTAssertTrue(device === basicDevice.rootDevice)
+            
+            XCTAssertEqual("UPnP Basic Device", basicDevice.friendlyName)
+            XCTAssertTrue(basicDevice.services.isEmpty)
+
+            basicDevice["x-key"] = "x-var"
+            XCTAssertEqual("x-var", basicDevice["x-key"])
+            basicDevice["x-key"] = nil
+            XCTAssertNil(basicDevice["x-key"])
+        }
     }
 
     /**
      test action argument 
      */
     func testActionArgument() {
-        let argumentXml = "  <argument>" +
-          "    <name>GetLoadlevelTarget</name>" +
-          "    <direction>out</direction>" +
-          "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
-          "  </argument>"
 
-        let doc = parseXml(xmlString: argumentXml)
-        guard let root = doc.rootElement else {
-            XCTFail("parsing xml error")
-            return
+        do {
+            let argumentXml = "  <argument>" +
+              "    <name>GetLoadlevelTarget</name>" +
+              "    <direction>out</direction>" +
+              "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+              "  </argument>"
+
+            let doc = parseXml(xmlString: argumentXml)
+            guard let root = doc.rootElement else {
+                XCTFail("parsing xml error")
+                return
+            }
+            
+            guard let argument = UPnPActionArgument.read(xmlElement: root) else {
+                XCTFail("UPnPActionArgument.read failed")
+                return
+            }
+            XCTAssertEqual(argument.name, "GetLoadlevelTarget")
+            XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
+            argument.direction = UPnPActionArgumentDirection.input
+            XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
+            XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
         }
-        
-        guard let argument = UPnPActionArgument.read(xmlElement: root) else {
-            XCTFail("UPnPActionArgument.read failed")
-            return
+
+        do {
+            let argumentXml = "  <argument>" +
+              "    <name>GetLoadlevelTarget</name>" +
+              "    <direction>out</direction>" +
+              "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+              "  </argument>"
+
+            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+                XCTFail("UPnPActionArgument.read failed")
+                return
+            }
+            XCTAssertEqual(argument.name, "GetLoadlevelTarget")
+            XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
+            argument.direction = UPnPActionArgumentDirection.input
+            XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
+            XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
         }
-        XCTAssertEqual(argument.name, "GetLoadlevelTarget")
-        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.output)
-        argument.direction = UPnPActionArgumentDirection.input
-        XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
-        XCTAssertEqual(argument.relatedStateVariable, "LoadLevelTarget")
+
+        do {
+            let argumentXml = "  <argument>" +
+              "    <name>GetLoadlevelTarget</name>" +
+              "  </argument>"
+
+            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+                XCTFail("UPnPActionArgument.read failed")
+                return
+            }
+            XCTAssertEqual(argument.name, "GetLoadlevelTarget")
+            XCTAssertNil(argument.direction)
+            argument.direction = UPnPActionArgumentDirection.input
+            XCTAssertEqual(argument.direction, UPnPActionArgumentDirection.input)
+            XCTAssertNil(argument.relatedStateVariable)
+        }
+
+        do {
+            let argumentXml = "  <argument>" +
+              "    <name></name>" +
+              "  </argument>"
+
+            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+                XCTFail("UPnPActionArgument.read failed")
+                return
+            }
+            XCTAssertEqual("", argument.name)
+            XCTAssertNil(argument.direction)
+            XCTAssertNil(argument.relatedStateVariable)
+        }
+
+        do {
+            let argumentXml = "  <argument>" +
+              "    <name></name>" +
+              "    <x-ext></x-ext>" +
+              "    <x-ext2 />" +
+              "  </argument>"
+
+            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+                XCTFail("UPnPActionArgument.read failed")
+                return
+            }
+            XCTAssertEqual("", argument.name)
+            XCTAssertNil(argument.direction)
+            XCTAssertNil(argument.relatedStateVariable)
+            XCTAssertNotNil(argument["x-ext"])
+            XCTAssertTrue(argument["x-ext"]?.isEmpty ?? false)
+            XCTAssertNotNil(argument["x-ext2"])
+            XCTAssertTrue(argument["x-ext2"]?.isEmpty ?? false)
+            XCTAssertNil(argument["noname"])
+        }
     }
 
     /**
@@ -175,28 +352,132 @@ final class ModelTests: XCTestCase {
         let actionRequest = UPnPActionRequest(actionName: "aBc")
         XCTAssertEqual(actionRequest.actionName, "aBc")
 
-        let actionXml = " <action>" +
-          "   <name>SetLoadLevelTarget</name>" +
-          "   <argumentList>" +
-          "  <argument>" +
-          "    <name>newLoadlevelTarget</name>" +
-          "    <direction>in</direction>" +
-          "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
-          "  </argument>" +
-          "   </argumentList>" +
-          " </action>"
+        do {
+            
+            let actionXml = " <action>" +
+              "   <name>SetLoadLevelTarget</name>" +
+              "   <argumentList>" +
+              "  <argument>" +
+              "    <name>newLoadlevelTarget</name>" +
+              "    <direction>in</direction>" +
+              "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
+              "  </argument>" +
+              "   </argumentList>" +
+              " </action>"
 
-        guard let action = UPnPAction.read(xmlString: actionXml) else {
-            XCTFail("upnpaction read failed")
-            return
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("SetLoadLevelTarget", action.name)
+
+            guard let name = action.arguments[0].name else {
+                XCTFail("action.arguments[0].name is nil")
+                return
+            }
+
+            XCTAssertEqual("newLoadlevelTarget", name)
+
         }
 
-        guard let name = action.arguments[0].name else {
-            XCTFail("action.arguments[0].name is nil")
-            return
+        do {
+            
+            let actionXml = """
+              <action>
+                 <name>SetLoadLevelTarget</name>
+                 <argumentList>
+                 </argumentList>
+               </action>
+              """
+
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("SetLoadLevelTarget", action.name)
+
+            XCTAssertTrue(action.arguments.isEmpty)
         }
 
-        XCTAssertEqual("newLoadlevelTarget", name)
+        do {
+            
+            let actionXml = """
+              <action>
+                 <name>SetLoadLevelTarget</name>
+               </action>
+              """
+
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("SetLoadLevelTarget", action.name)
+
+            XCTAssertTrue(action.arguments.isEmpty)
+        }
+
+        do {
+            
+            let actionXml = """
+              <action>
+                 <name></name>
+               </action>
+              """
+
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("", action.name)
+
+            XCTAssertTrue(action.arguments.isEmpty)
+        }
+
+        do {
+            
+            let actionXml = """
+              <action>
+                 <name>anyname</name>
+                 <x-ext />
+               </action>
+              """
+
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("anyname", action.name)
+            XCTAssertNotNil(action["x-ext"])
+            XCTAssertNil(action["noitem"])
+
+            XCTAssertTrue(action.arguments.isEmpty)
+        }
+
+        do {
+            
+            let actionXml = """
+              <action>
+                 <name>anyname</name>
+                 <x-ext></ x-ext>
+               </action>
+              """
+
+            guard let action = UPnPAction.read(xmlString: actionXml) else {
+                XCTFail("upnpaction read failed")
+                return
+            }
+
+            XCTAssertEqual("anyname", action.name)
+            XCTAssertNotNil(action["x-ext"])
+            XCTAssertNil(action["noitem"])
+
+            XCTAssertTrue(action.arguments.isEmpty)
+        }
         
     }
 
@@ -277,6 +558,26 @@ final class ModelTests: XCTestCase {
      */
     func testSoap() {
 
+        do {
+            let soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+              "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"" +
+              "      xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
+              "  <s:Body>" +
+              "  <u:SetTarget xmlns:u=\"urn:schemas-upnp-org:service:SwitchPower:1\">" +
+              "  </u:SetTarget>" +
+              "  </s:Body>" +
+              "</s:Envelope>"
+            
+            guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
+                XCTAssert(false)
+                return
+            }
+            XCTAssertEqual("urn:schemas-upnp-org:service:SwitchPower:1#SetTarget", request.soapaction)
+            XCTAssertEqual("SetTarget", request.actionName)
+            XCTAssertTrue(request.keys.isEmpty)
+            XCTAssertNil(request["newTargetValue"])
+        }
+
         let soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
           "<s:Envelope s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"" +
           "      xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
@@ -292,6 +593,10 @@ final class ModelTests: XCTestCase {
             return
         }
         XCTAssertEqual("urn:schemas-upnp-org:service:SwitchPower:1#SetTarget", request.soapaction)
+        XCTAssertEqual("SetTarget", request.actionName)
+        XCTAssertEqual(["newTargetValue"], request.keys)
+        XCTAssertNotNil(request["newTargetValue"])
+        XCTAssertEqual("10", request["newTargetValue"])
 
         // --
 
@@ -380,6 +685,8 @@ final class ModelTests: XCTestCase {
 
         let device = UPnPDevice()
         device.baseUrl = URL(string: "http://example.com")
+        XCTAssertTrue(device.isRootDevice)
+        XCTAssertTrue(device === device.rootDevice)
 
         device.addService(service: service)
         

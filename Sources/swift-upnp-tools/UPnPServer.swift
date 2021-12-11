@@ -197,9 +197,10 @@ public class UPnPServer : HttpRequestHandler {
             }
             
             do {
-                self.httpServer = HttpServer(hostname: self.hostname, port: self.port)
-                try self.httpServer!.route(pattern: "/**", handler: self)
-                try self.httpServer!.run()
+                let server = HttpServer(hostname: self.hostname, port: self.port)
+                self.httpServer = server
+                try server.route(pattern: "/**", handler: self)
+                try server.run()
             } catch let error{
                 print("HttpServer::startHttpServer() error -- \(error)")
             }
@@ -330,6 +331,12 @@ public class UPnPServer : HttpRequestHandler {
         }
         
         let urls = UPnPCallbackUrl.read(text: callbackUrls)
+
+        guard urls.isEmpty == false else {
+            response.status = .custom(400, "Incompatible Header Fields")
+            return
+        }
+        
         for (_, device) in self.devices {
             guard let service = device.getService(withEventSubUrl: request.path) else {
                 continue
@@ -379,11 +386,12 @@ public class UPnPServer : HttpRequestHandler {
                 return
             }
             do {
-                self.ssdpReceiver = try SSDPReceiver() {
+                let receiver = try SSDPReceiver() {
                     (address, ssdpHeader) in
                     return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
                 }
-                try self.ssdpReceiver!.run()
+                self.ssdpReceiver = receiver
+                try receiver.run()
             } catch let error {
                 print("UPnPServer::startSsdpReceiver() error - \(error)")
             }

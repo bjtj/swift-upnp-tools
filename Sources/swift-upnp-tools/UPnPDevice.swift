@@ -9,39 +9,47 @@ import SwiftXml
  UPnP Device Model
  */
 public class UPnPDevice : UPnPTimeBasedModel {
-    
+
+    /**
+     Device Status
+     */
     public enum Status {
         case unknown, recognized, building, incompleted, completed
     }
     
     /**
-     status
+     Status
      */
     public var status: Status = .unknown
     
     /**
-     parent device
+     Parent Device
      */
     public var parent: UPnPDevice?
     /**
-     base url
+     Base Url
      */
     public var baseUrl: URL?
     /**
-     services
+     Services
      */
     public var services = [UPnPService]()
     /**
-     embedded devices
+     Embedded Devices
      */
     public var embeddedDevices = [UPnPDevice]()
+    /**
+     Icons
+     */
+    public var icons = [UPnPIcon]()
+    
 
     override public init(timeout: UInt64 = 1800) {
         super.init(timeout: timeout)
     }
 
     /**
-     udn
+     UDN
      */
     public var udn: String? {
         get { return self["UDN"] }
@@ -49,7 +57,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     friendly name
+     Friendly Name
      */
     public var friendlyName: String? {
         get { return self["friendlyName"] }
@@ -57,7 +65,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     device type
+     Device Type
      */
     public var deviceType: String? {
         get { return self["deviceType"] }
@@ -65,24 +73,25 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     get root device
+     Get Root Device
      */
     public var rootDevice: UPnPDevice {
-        if parent == nil {
+
+        guard let parent = parent else {
             return self
         }
-        return parent!.rootDevice
+        return parent.rootDevice
     }
 
     /**
-     test if it is root device
+     Test if it is root device
      */
     public var isRootDevice: Bool {
         return parent == nil
     }
 
     /**
-     get all service types
+     Get all service types
      */
     public var allServiceTypes: [UPnPUsn]? {
         var types = [UPnPUsn]()
@@ -106,7 +115,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     all services
+     All services
      */
     public var allServices: [UPnPService] {
         var services = [UPnPService]()
@@ -118,17 +127,17 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
     
     /**
-     building service count
+     Building service count
      */
     public var buildingServiceCount: Int = 0
     
     /**
-     building service error count
+     Building service error count
      */
     public var buildingServiceErrorCount: Int = 0
 
     /**
-     get device with type
+     Get device with type
      */
     public func getDevice(type: String) -> UPnPDevice? {
         if let deviceType = deviceType {
@@ -146,7 +155,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     get service with type
+     Get service with type
      */
     public func getService(type: String) -> UPnPService? {
         for service in services {
@@ -168,7 +177,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     get service with scpd url
+     Get service with scpd url
      */
     public func getService(withScpdUrl scpdUrl: String) -> UPnPService? {
         for service in services {
@@ -190,7 +199,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     get service with control url
+     Get service with control url
      */
     public func getService(withControlUrl controlUrl: String) -> UPnPService? {
         for service in services {
@@ -212,7 +221,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     get service with event sub url
+     Get service with event sub url
      */
     public func getService(withEventSubUrl eventSubUrl: String) -> UPnPService? {
         for service in services {
@@ -234,7 +243,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     add embedded device
+     Add embedded device
      */
     public func addEmbeddedDevice(device: UPnPDevice) {
         device.parent = self
@@ -243,14 +252,14 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     remove embedded device with index
+     Remove embedded device with index
      */
     public func removeEmbeddedDevice(at: Int) {
         embeddedDevices.remove(at: at)
     }
 
     /**
-     add service
+     Add service
      */
     public func addService(service: UPnPService) {
         service.device = self
@@ -258,21 +267,21 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     remove service with index
+     Remove service with index
      */
     public func removeService(at: Int) {
         services.remove(at: at)
     }
 
     /**
-     remove service with type
+     Remove service with type
      */
     public func removeService(serviceType: String) {
         services = services.filter { $0.serviceType != serviceType }
     }
 
     /**
-     read from xml string
+     Read from xml string
      */
     public static func read(xmlString: String) -> UPnPDevice? {
         let document = parseXml(xmlString: xmlString)
@@ -296,7 +305,7 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
-     read from xml element
+     Read from xml element
      */
     public static func read(xmlElement: XmlElement) -> UPnPDevice {
         let device = UPnPDevice()
@@ -320,17 +329,27 @@ public class UPnPDevice : UPnPTimeBasedModel {
                         }
                     }
                 }
-            } else if let firstText = element.firstText {
-                if element.elements!.isEmpty {
-                    device[element.name!] = firstText.text
+            } else if element.name == "iconList" {
+                if let iconElements = element.elements {
+                    for iconElement in iconElements {
+                        if iconElement.name == "icon", let icon = UPnPIcon.read(xmlElement: iconElement) {
+                            device.icons.append(icon)
+                        }
+                    }
                 }
+            } else {
+                let (_name, value) = readNameValue(element: element)
+                guard let name = _name else {
+                    continue
+                }
+                device[name] = value ?? ""
             }
         }
         return device
     }
 
     /**
-     get xml document
+     Get xml document
      */
     public var xmlDocument: String {
         let root = XmlTag(name: "root", ext: "xmlns=\"urn:schemas-upnp-org:device-1-0\"", content: description)

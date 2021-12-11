@@ -121,6 +121,21 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
         }
     }
 
+    /**
+     Location
+     */
+    public var location: String? {
+        get {
+            return self["LOCATION"]
+        }
+        set (value) {
+            self["LOCATION"] = value
+        }
+    }
+
+    /**
+     Description
+     */
     public var description: String {
         let headerFields = fields.map {"\($0.key): \($0.value)"}.joined(separator: "\r\n")
         return "\(_firstLine)\r\n\(headerFields)\r\n\r\n"

@@ -136,7 +136,7 @@ public class UPnPEventSubscriber : TimeBase {
 
     
     func getValueCaseInsensitive(response: HTTPURLResponse, key: String) -> String? {
-        // TODO: fix it as elengant
+        // TODO: fix it elengant
         // #if compiler(>=5.3)
         // return response.value(forHTTPHeaderField: key)
         // #else

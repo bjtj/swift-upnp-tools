@@ -7,7 +7,7 @@ import SwiftXml
 /**
  UPnP Soap Request
  */
-public class UPnPSoapRequest : OrderedProperties {
+public class UPnPSoapRequest : UPnPModel {
 
     /**
      service type
@@ -34,48 +34,50 @@ public class UPnPSoapRequest : OrderedProperties {
     public static func read(xmlString: String) -> UPnPSoapRequest? {
         let document = parseXml(xmlString: xmlString)
         guard let root = document.rootElement else {
-            print("SOAP -- NO ROOT ELEMENT")
+            print("UPnPSoapRequest::read() error -- NO ROOT ELEMENT")
             return nil
         }
-        guard let elements = root.elements else {
-            print("SOAP -- NO ELEMENTS")
+        guard let elements = root.elements, elements.isEmpty == false else {
+            print("UPnPSoapRequest::read() error -- NO ELEMENTS")
             return nil
         }
-        for element in elements {
-            guard element.name == "Body" else {
-                print("NO BODY TAG")
-                continue
-            }
-            guard let actionElements = element.elements else {
-                print("NO ACTION ELEMENTS")
-                continue
-            }
-            guard actionElements.isEmpty == false else {
-                print("ELEMENTS HAS NO ELEMENTS -- \(actionElements.count)")
-                continue
-            }
 
-            let request = UPnPSoapRequest()
-            let actionElement = actionElements[0]
-            if let attributes = actionElement.attributes {
-                if attributes.isEmpty == false {
-                    request.serviceType = "\(attributes[0].value ?? "")"
-                }
-            }
-            request.actionName = actionElement.name!
-            if let propElements = actionElement.elements {
-                for propElement in propElements {
-                    if let firstText = propElement.firstText {
-                        request[propElement.name!] = firstText.text
-                    }
-                }
-            }
-            return request
-
+        guard let name = elements[0].name, name == "Body" else {
+            print("UPnPSoapRequest::read() error -- NO BODY TAG")
+            return nil
         }
-        print("SOAP -- READ FAILED")
-        print("\(xmlString)")
-        return nil
+
+        guard let bodyElements = elements[0].elements, bodyElements.isEmpty == false else {
+            print("UPnPSoapRequest::read() error -- empty actionElements")
+            return nil
+        }
+
+        let actionElement = bodyElements[0]
+
+        guard let actionName = actionElement.name else {
+            print("UPnPSoapRequest::read() error -- no action name")
+            return nil
+        }
+
+        let request = UPnPSoapRequest(actionName: actionName)
+        guard let attributes = actionElement.attributes, attributes.isEmpty == false else {
+            print("UPnPSoapRequest::read() error -- no service type")
+            return nil
+        }
+
+        request.serviceType = "\(attributes[0].value ?? "")"
+
+        if let propElements = actionElement.elements {
+            for propElement in propElements {
+                let (_name, value) = readNameValue(element: propElement)
+                guard let name = _name else {
+                    continue
+                }
+                request[name] = value ?? ""
+            }
+        }
+
+        return request
     }
 
     /**
@@ -91,9 +93,7 @@ public class UPnPSoapRequest : OrderedProperties {
         let root = XmlTag(namespace: "s", name: "Envelope", ext: ext, content: "")
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: actionName, ext: "xmlns:u=\"\(serviceType)\"", content: "")
-        for field in fields {
-            action.content += XmlTag(name: field.key, text: field.value).description
-        }
+        action.content = propertyXml
         body.content = action.description
         root.content = body.description
         return root.description

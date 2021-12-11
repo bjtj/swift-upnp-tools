@@ -12,7 +12,7 @@ import FoundationNetworking
 /**
  UPnP Event Properties
  */
-public class UPnPEventProperties: OrderedProperties {
+public class UPnPEventProperties: UPnPModel {
 
     override public init() {
     }
@@ -37,9 +37,16 @@ public class UPnPEventProperties: OrderedProperties {
         }
         let property = UPnPEventProperties()
         for element in elements {
-            if element.name == "property" && element.elements != nil && element.elements!.isEmpty == false {
-                let propertyElement = element.elements![0]
-                property[propertyElement.name!] = propertyElement.firstText == nil ? "" : propertyElement.firstText!.text!
+            if element.name == "property" {
+                guard let child = element.elements, child.count == 1 else {
+                    continue
+                }
+                
+                let (_name, value) = readNameValue(element: child[0])
+                guard let name = _name else {
+                    continue
+                }
+                property[name] = value ?? ""
             }
         }
         return property

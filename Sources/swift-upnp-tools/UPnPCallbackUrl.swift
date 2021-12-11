@@ -14,8 +14,9 @@ class UPnPCallbackUrl {
      */
     public class func read(text: String) -> [URL] {
         let tokens = text.split(separator: " ")
-        let urls = tokens.map { URL(string: unwrap(text: String($0), prefix: "<", suffix: ">"))! }
-        return urls
+        return tokens.compactMap {
+            URL(string: unwrap(text: String($0), prefix: "<", suffix: ">")) ?? nil
+        }
     }
 
     /**

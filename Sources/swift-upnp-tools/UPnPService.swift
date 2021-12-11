@@ -124,9 +124,12 @@ public class UPnPService : UPnPModel {
             return service
         }
         for element in elements {
-            if element.firstText != nil && element.elements!.isEmpty {
-                service[element.name!] = element.firstText!.text
+
+            let (_name, value) = readNameValue(element: element)
+            guard let name = _name else {
+                continue
             }
+            service[name] = value ?? ""
         }
         return service
     }

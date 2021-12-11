@@ -364,14 +364,16 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
         DispatchQueue.global(qos: .default).async {
             do {
-                self.ssdpReceiver = try SSDPReceiver() {
+                
+                let receiver = try SSDPReceiver() {
                     (address, ssdpHeader) in
                     guard let ssdpHeader = ssdpHeader else {
                         return nil
                     }
                     return self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
                 }
-                try self.ssdpReceiver?.run()
+                self.ssdpReceiver = receiver
+                try receiver.run()
             } catch let error {
                 print("UPnPControlPoint::startSsdpReceiver() error - error - \(error)")
             }

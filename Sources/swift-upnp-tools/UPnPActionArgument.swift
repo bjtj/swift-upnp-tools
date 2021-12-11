@@ -45,6 +45,17 @@ public class UPnPActionArgument : UPnPModel {
     }
 
     /**
+     read from xml string
+     */
+    public static func read(xmlString: String) -> UPnPActionArgument? {
+        let doc = parseXml(xmlString: xmlString)
+        guard let rootElement = doc.rootElement else {
+            return nil
+        }
+        return read(xmlElement: rootElement)
+    }
+
+    /**
      read from xml element
      */
     public static func read(xmlElement: XmlElement) -> UPnPActionArgument? {
@@ -54,23 +65,11 @@ public class UPnPActionArgument : UPnPModel {
             return nil
         }
         for element in elements {
-            guard let firstText = element.firstText else {
-                // ignore -- no first text
+            let (_name, value) = readNameValue(element: element)
+            guard let name = _name else {
                 continue
             }
-            guard element.elements!.isEmpty else {
-                // ignore -- has elements
-                continue
-            }
-            guard let name = element.name else {
-                print("UPnPActionArgument::read() warning - no name in element")
-                continue
-            }
-            guard let value = firstText.text else {
-                print("UPnPActionArgument::read() warning - no text in element")
-                continue
-            }
-            argument[name] = value
+            argument[name] = value ?? ""
         }
         return argument
     }

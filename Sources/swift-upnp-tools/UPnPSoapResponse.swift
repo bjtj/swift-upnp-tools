@@ -7,7 +7,7 @@ import SwiftXml
 /**
  UPnP Soap Response
  */
-public class UPnPSoapResponse : OrderedProperties {
+public class UPnPSoapResponse : UPnPModel {
 
     /**
      service type
@@ -31,43 +31,55 @@ public class UPnPSoapResponse : OrderedProperties {
         guard let root = document.rootElement else {
             return nil
         }
-        guard let elements = root.elements else {
+        guard let elements = root.elements, elements.isEmpty == false else {
             return nil
         }
-        for element in elements {
-            if element.name! == "Body" {
-                if let actionElements = element.elements {
-                    if actionElements.isEmpty == false {
-                        let response = UPnPSoapResponse()
-                        let actionElement = actionElements[0]
-                        if let attributes = actionElement.attributes {
-                            if attributes.isEmpty == false {
-                                if attributes[0].value != nil {
-                                    response.serviceType = attributes[0].value!
-                                }
-                            }
-                        }
-                        response.actionName = actionElement.name!
-                        let actionName = response.actionName
-                        if actionName.hasSuffix("Response") {
-                            let start = actionName.startIndex
-                            let offset = -"Response".count
-                            let end = actionName.index(actionName.endIndex, offsetBy: offset)
-                            response.actionName = String(actionName[start..<end])
-                        }
-                        if let propElements = actionElement.elements {
-                            for propElement in propElements {
-                                if let firstText = propElement.firstText {
-                                    response[propElement.name!] = firstText.text
-                                }
-                            }
-                        }
-                        return response
-                    }
+
+        guard let name = elements[0].name, name == "Body" else {
+            print("UPnPSoapResponse::read() error -- NO BODY TAG")
+            return nil
+        }
+
+        guard let bodyElements = elements[0].elements, bodyElements.isEmpty == false else {
+            print("UPnPSoapResponse::read() error -- empty actionElements")
+            return nil
+        }
+
+        let actionElement = bodyElements[0]
+
+        guard let actionName = actionElement.name else {
+            print("UPnPSoapResponse::read() error -- no action name")
+            return nil
+        }
+
+        guard actionName.hasSuffix("Response") else {
+            print("UPnPSoapResponse::read() error -- action name' suffix is not Response")
+            return nil
+        }
+
+        let response = UPnPSoapResponse()
+        
+        let end = actionName.index(actionName.endIndex, offsetBy: -"Response".count)
+        response.actionName = String(actionName[actionName.startIndex..<end])
+        
+        guard let attributes = actionElement.attributes, attributes.isEmpty == false else {
+            print("UPnPSoapRequest::read() error -- no service type")
+            return nil
+        }
+
+        response.serviceType = "\(attributes[0].value ?? "")"
+
+        if let resultElements = actionElement.elements {
+            for resultElement in resultElements {
+                let (_name, value) = readNameValue(element: resultElement)
+                guard let name = _name else {
+                    continue
                 }
+                response[name] = value ?? ""
             }
         }
-        return nil
+
+        return response
     }
 
     /**
@@ -83,9 +95,7 @@ public class UPnPSoapResponse : OrderedProperties {
         let root = XmlTag(namespace: "s", name: "Envelope", ext: ext, content: "")
         let body = XmlTag(namespace: "s", name: "Body", content: "")
         let action = XmlTag(namespace: "u", name: "\(actionName)Response", ext: "xmlns:u=\"\(serviceType)\"", content: "")
-        for field in fields {
-            action.content += XmlTag(name: field.key, text: field.value).description
-        }
+        action.content = propertyXml
         body.content = action.description
         root.content = body.description
         return root.description

@@ -30,6 +30,10 @@ final class SsdpTests: XCTestCase {
         let location = "http://example.com"
         header["Location"] = location
         XCTAssertEqual(header.description, "\r\nLocation: http://example.com\r\n\r\n")
+        XCTAssertEqual(location, header.location)
+        XCTAssertEqual(location, header["LOCATION"])
+        header["Location"] = nil
+        XCTAssertNil(header.location)
     }
 
     func testSsdpHeaderFromString() {

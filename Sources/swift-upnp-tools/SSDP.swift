@@ -55,8 +55,13 @@ public class SSDP {
             let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
             try socket.setReadTimeout(value: UInt(100))
             try socket.setWriteTimeout(value: UInt(100))
-            let ssdp_addr = Socket.createAddress(for: SSDP.MCAST_HOST, on: Int32(SSDP.MCAST_PORT))
-            try socket.write(from: text.data(using: .utf8)!, to: ssdp_addr!)
+            guard let ssdp_addr = Socket.createAddress(for: SSDP.MCAST_HOST, on: Int32(SSDP.MCAST_PORT)) else {
+                throw UPnPError.custom(string: "Socket.createAddress failed")
+            }
+            guard let data = text.data(using: .utf8) else {
+                throw UPnPError.custom(string: "text.data(using: .utf8) failed")
+            }
+            try socket.write(from: data, to: ssdp_addr)
 
             let tick = DispatchTime.now()
 
@@ -107,8 +112,14 @@ public class SSDP {
         do {
             let socket = try Socket.create(family: .inet, type: .datagram, proto: .udp)
             try socket.setWriteTimeout(value: UInt(100))
-            let ssdp_addr = Socket.createAddress(for: SSDP.MCAST_HOST, on: Int32(SSDP.MCAST_PORT))
-            try socket.write(from: text.data(using: .utf8)!, to: ssdp_addr!)
+            guard let ssdp_addr = Socket.createAddress(for: SSDP.MCAST_HOST, on: Int32(SSDP.MCAST_PORT)) else {
+                throw UPnPError.custom(string: "Socket.createAddress failed")
+            }
+            guard let data = text.data(using: .utf8) else {
+                throw UPnPError.custom(string: "text.data(using: .utf8) failed")
+            }
+            
+            try socket.write(from: data, to: ssdp_addr)
             socket.close()
         } catch let error {
             print(error)

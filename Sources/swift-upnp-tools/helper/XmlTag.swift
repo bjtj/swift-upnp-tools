@@ -40,12 +40,21 @@ public class XmlTag {
         self.content = escapeXml(text: text)
     }
 
+    var tag: String {
+        guard let name = name else {
+            return ""
+        }
+        if let namespace = namespace, namespace.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return "\(namespace):\(name)"
+        }
+        return name
+    }
+
     public var description: String {
         var str = "<"
-        let tag = (namespace == nil ? "\(name!)" : "\(namespace!):\(name!)")
         str += tag
-        if ext != nil {
-            str += " \(ext!)"
+        if let ext = ext {
+            str += " \(ext)"
         }
         if content.isEmpty == false {
             str += ">\(content)</\(tag)>"
