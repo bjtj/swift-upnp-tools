@@ -4,6 +4,7 @@
 
 import Foundation
 import Socket
+import SwiftHttpServer
 
 /**
  SSDP Receiver
@@ -11,9 +12,24 @@ import Socket
 public class SSDPReceiver {
 
     /**
+     status
+     */
+    public enum Status {
+        case started, stopped
+    }
+
+    /**
+     monitoring handler
+     */
+    public typealias monitoringHandler = ((String?, Status) -> Void)
+
+    var monitorName: String?
+    var monitoringHandler: monitoringHandler?
+
+    /**
      SSDP handler
-     - Parameter address (hostname, port)
-     - Parameter ssdp header
+     - Parameter hostname: address (hostname, port)
+     - Parameter port: ssdp header
 
      - Return ssdp headers to reponse
      */
@@ -44,6 +60,14 @@ public class SSDPReceiver {
     }
 
     /**
+     set monitor
+     */
+    public func monitor(name: String?, handler: monitoringHandler?) {
+        monitorName = name
+        self.monitoringHandler = handler
+    }
+
+    /**
      Run
      */
     public func run() throws {
@@ -63,6 +87,13 @@ public class SSDPReceiver {
         var mreq = ip_mreq(imr_multiaddr: group, imr_interface: interface)
         setsockopt(listenSocket.socketfd, Int32(IPPROTO_IP), IP_ADD_MEMBERSHIP,
                    &mreq, socklen_t(MemoryLayout<ip_mreq>.size))
+
+        self.monitoringHandler?(monitorName, .started)
+
+        defer {
+            self.monitoringHandler?(monitorName, .stopped)
+        }
+        
         while finishing == false {
             var readData = Data(capacity: 4096)
             let ret = try listenSocket.listen(forMessage: &readData, on: SSDP.MCAST_PORT)

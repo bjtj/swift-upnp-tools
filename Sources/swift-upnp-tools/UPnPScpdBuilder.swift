@@ -45,19 +45,19 @@ public class UPnPScpdBuilder {
     public func build() {
 
         guard let device = service.device else {
-            handleError(string: "service has no device")
+            handleError(string: "UPnPScpdBuilder::build() error - service has no device")
             return
         }
         guard let baseUrl = device.rootDevice.baseUrl else {
-            handleError(string: "no base url")
+            handleError(string: "UPnPScpdBuilder::build() error - no base url")
             return
         }
         guard let scpdUrl = service.scpdUrl else {
-            handleError(string: "no scpd url")
+            handleError(string: "UPnPScpdBuilder::build() error - no scpd url")
             return
         }
         guard let url = URL(string: scpdUrl, relativeTo: baseUrl) else {
-            handleError(string: "url failed")
+            handleError(string: "UPnPScpdBuilder::build() error - url failed")
             return
         }
         
@@ -67,22 +67,22 @@ public class UPnPScpdBuilder {
             (data, response, error) in
 
             guard error == nil else {
-                self.handleError(string: "HttpClient - error: '\(error!)'")
+                self.handleError(string: "UPnPScpdBuilder::build() error - '\(error!)'")
                 return
             }
             
             guard let data = data else {
-                self.handleError(string: "HttpClient - error: no data")
+                self.handleError(string: "UPnPScpdBuilder::build() error - no data")
                 return
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else {
-                self.handleError(string: "HttpClient - error: xml string failed")
+                self.handleError(string: "UPnPScpdBuilder::build() error - xml string failed")
                 return
             }
 
             guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
-                self.handleError(string: "HttpClient - read scpd failed - URL: '\(url)'")
+                self.handleError(string: "UPnPScpdBuilder::build() error - read scpd failed")
                 return
             }
             

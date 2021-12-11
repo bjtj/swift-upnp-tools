@@ -17,6 +17,22 @@ final class ServerTests: XCTestCase {
     static var upnpServer: UPnPServer?
     static var receiver: SSDPReceiver?
 
+    var controlpointMonitoringHandler: UPnPControlPoint.monitoringHandler? = {
+        (cp, name, component, status) in
+        print(" ****** [\(name ?? "")] component: \(component) -- status: \(status)")
+        if component == .httpserver && status == .started {
+            print("Http Server is bound to \(cp.httpServer?.serverAddress?.description ?? "")")
+        }
+    }
+
+    static var serverMonitoringHandler: UPnPServer.monitoringHandler? = {
+        (server, name, component, status) in
+        print(" ****** [\(name ?? "")] component: \(component) -- status: \(status)")
+        if component == .httpserver && status == .started {
+            print("Http Server is bound to \(server.httpServer?.serverAddress?.description ?? "")")
+        }
+    }
+
     /**
      set up
      */
@@ -41,6 +57,7 @@ final class ServerTests: XCTestCase {
      */
     class func startServer() -> UPnPServer {
         let server = UPnPServer(httpServerBindPort: 0)
+        server.monitor(name: "server-monitor", handler: serverMonitoringHandler)
         server.run()
 
         registerDevice(server: server)
@@ -185,6 +202,7 @@ final class ServerTests: XCTestCase {
                                         handler: (UPnPActionInvoke.invokeCompletionHandler)?)
     {
         let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
         var handledService = [UPnPService]()
 
@@ -255,6 +273,7 @@ final class ServerTests: XCTestCase {
      */
     func helperEventSubscribe(st: String, serviceType: String, server: UPnPServer, udn: String, service: UPnPService, properties: [String:String]) -> Void {
         let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
         var handledService = [UPnPService]()
         var handledEvents = [UPnPEventSubscriber]()
@@ -397,6 +416,7 @@ final class ServerTests: XCTestCase {
      */
     func helperEventSubscribeAndUnsubscribe(st: String, serviceType: String, server: UPnPServer, udn: String, service: UPnPService, properties: [String:String]) -> Void {
         let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
         var handledService = [UPnPService]()
         var handledEvents = [UPnPEventSubscriber?]()
@@ -538,6 +558,7 @@ final class ServerTests: XCTestCase {
      */
     func helperControlPointDiscovery(st: String, serviceType: String) {
         let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
         var handledDevices = [UPnPDevice]()
         var handledScpds = [UPnPScpd]()
@@ -609,6 +630,7 @@ final class ServerTests: XCTestCase {
      */
     func helperControlPointSuspendResume(st: String, serviceType: String, server: UPnPServer, udn: String, service: UPnPService, properties: [String:String]) -> Void {
         let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
         var handledService = [UPnPService]()
         var handledEvents = [UPnPEventSubscriber]()

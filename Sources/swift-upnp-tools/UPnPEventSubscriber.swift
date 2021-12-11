@@ -41,7 +41,7 @@ public class UPnPEventSubscriber : TimeBase {
      - Parameter properties
      - Parameter error
      */
-    public typealias eventNotificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) -> Void
+    public typealias eventNotificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) throws -> Void
     
 
     /**
@@ -213,8 +213,8 @@ public class UPnPEventSubscriber : TimeBase {
     /**
      handle notification
      */
-    public func handleNotification(properties: UPnPEventProperties?, error: Error?) {
-        notificationHandler?(self, properties, error)
+    public func handleNotification(properties: UPnPEventProperties?, error: Error?) throws {
+        try notificationHandler?(self, properties, error)
     }
 }
 

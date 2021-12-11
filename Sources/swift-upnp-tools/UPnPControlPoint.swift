@@ -25,6 +25,28 @@ public protocol UPnPControlPointDelegate {
  */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
+    /*
+     Component
+     */
+    public enum Component {
+        case httpserver, ssdpreceiver
+    }
+
+    /**
+     Component Status
+     */
+    public enum ComponentStatus {
+        case started, stopped
+    }
+
+    /*
+     monitor handler
+     */
+    public typealias monitoringHandler = ((UPnPControlPoint, String?, Component, ComponentStatus) -> Void)
+
+    var monitorName: String?
+    var monitoringHandler: monitoringHandler?
+
     /**
      set dump body flag for http server
      */
@@ -157,6 +179,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     }
 
     /**
+     set monitoring handler
+     */
+    public func monitor(name: String, handler: monitoringHandler?) {
+        monitorName = name
+        self.monitoringHandler = handler
+    }
+
+    /**
      Start UPnP Control Point
      */
     public func run() throws {
@@ -281,9 +311,16 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         DispatchQueue.global(qos: .default).async {
 
             do {
-                self.httpServer = HttpServer(hostname: self.hostname, port: self.port)
-                guard let httpServer = self.httpServer else {
-                    throw UPnPError.custom(string: "UPnPControlPoint::startHttpServer() error - http server start failed")
+                let httpServer = HttpServer(hostname: self.hostname, port: self.port)
+                self.httpServer = httpServer
+                httpServer.monitor(monitorName: "cp-httpserver-monitor") {
+                    (name, status, error) in
+                    switch status {
+                    case .started:
+                        self.handleComponentStatus(.httpserver, .started)
+                    default:
+                        self.handleComponentStatus(.httpserver, .stopped)
+                    }
                 }
                 try httpServer.route(pattern: "/**", handler: self)
                 try httpServer.run(readyHandler: readyHandler)
@@ -307,49 +344,49 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
         guard request.method.caseInsensitiveCompare("NOTIFY") == .orderedSame else {
             let err = UPnPError.custom(string: "Not Supported Method - '\(request.method)'")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let data = body else {
             let err = HttpServerError.illegalArgument(string: "No Content")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let xmlString = String(data: data, encoding: .utf8) else {
             let err = HttpServerError.illegalArgument(string: "Wrong XML String")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
             let err = HttpServerError.custom(string: "Parse Failed Event Properties")
-            handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try handleEventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let sid = request.header["sid"] else {
             let err = HttpServerError.illegalArgument(string: "No SID")
-            handleEventProperties(subscriber: nil, properties: properties, error: err)
+            try handleEventProperties(subscriber: nil, properties: properties, error: err)
             throw err
         }
 
         guard let subscriber = getEventSubscriber(sid: sid) else {
             let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
-            handleEventProperties(subscriber: nil, properties: properties, error: err)
+            try handleEventProperties(subscriber: nil, properties: properties, error: err)
             throw err
         }
         
-        handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
+        try handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
         response.status = .ok
     }
 
-    func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) {
+    func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) throws {
         for notificationHandler in notificationHandlers {
-            notificationHandler(subscriber, properties, error)
+            try notificationHandler(subscriber, properties, error)
         }
-        subscriber?.handleNotification(properties: properties, error: error)
+       try  subscriber?.handleNotification(properties: properties, error: error)
     }
 
     /**
@@ -373,12 +410,26 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                     return self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
                 }
                 self.ssdpReceiver = receiver
+                receiver.monitor(name: "cp-ssdpreceiver") {
+                    (name, status) in
+                    switch status {
+                    case .started:
+                        self.handleComponentStatus(.ssdpreceiver, .started)
+                    default:
+                        self.handleComponentStatus(.ssdpreceiver, .stopped)
+                        break
+                    }
+                }
                 try receiver.run()
             } catch let error {
                 print("UPnPControlPoint::startSsdpReceiver() error - error - \(error)")
             }
             self.ssdpReceiver = nil
         }
+    }
+
+    func handleComponentStatus(_ component: Component, _ status: ComponentStatus) {
+        self.monitoringHandler?(self, monitorName, component, status)
     }
 
     func startTimer() throws {

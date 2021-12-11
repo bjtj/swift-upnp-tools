@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUpnpTools
+import SwiftHttpServer
 
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -25,6 +26,17 @@ func main() {
         exit(1)
     }
 
+    cp.monitor(name: "controlpoint-monitor") {
+        (cp, name, component, status) in
+        if component == .httpserver && status == .started {
+            guard let httpServerAddress = cp.httpServer?.serverAddress else {
+                print("no server address")
+                return
+            }
+
+            print("LISTEN PORT: \(httpServerAddress.description)")
+        }
+    }
 
     cp.onDeviceAdded {
         (device) in
@@ -37,9 +49,10 @@ func main() {
     }
 
     cp.addNotificationHandler {
-        (subscription, properties, error) in
+        (subscription, properties, error) throws in
         guard error == nil else {
-            print("Error - \(error!)")
+            print("notification error - \(error!)")
+            // throw HttpStatusCode.ok
             return
         }
         guard let subscription = subscription, let properties = properties else {

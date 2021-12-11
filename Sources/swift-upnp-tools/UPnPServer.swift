@@ -10,6 +10,33 @@ import SwiftHttpServer
  */
 public class UPnPServer : HttpRequestHandler {
 
+    /**
+     Component
+     */
+    public enum Component {
+        case httpserver, ssdpreceiver
+    }
+
+    /**
+     Component Status
+     */
+    public enum ComponentStatus {
+        case started, stopped
+    }
+
+    /**
+     Monitoring Handler Type
+     */
+    public typealias monitoringHandler = ((UPnPServer, String?, Component, ComponentStatus) -> Void)
+
+    /**
+     Action Request Handler
+     */
+    public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties?)
+
+    /**
+     Dump http request body
+     */
     public var dumpBody: Bool {
         return true
     }
@@ -42,11 +69,14 @@ public class UPnPServer : HttpRequestHandler {
     /**
      on action request handler
      */
-    var onActionRequestHandler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?
+    var actionRequestHandler: actionHandler?
     /**
      lock queue
      */
     let lockQueue = DispatchQueue(label: "com.tjapp.swiftUPnPServer.lockQueue")
+
+    var monitorName: String?
+    var monitoringHandler: monitoringHandler?
 
     public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
         if httpServerBindHostname == nil {
@@ -59,6 +89,18 @@ public class UPnPServer : HttpRequestHandler {
 
     deinit {
         finish()
+    }
+
+    /**
+     Set Monitor
+     */
+    public func monitor(name: String?, handler: monitoringHandler?) {
+        monitorName = name
+        self.monitoringHandler = handler
+    }
+
+    func handleComponentStatus(_ component: Component, _ status: ComponentStatus) {
+        self.monitoringHandler?(self, monitorName, component, status)
     }
 
     /**
@@ -172,8 +214,8 @@ public class UPnPServer : HttpRequestHandler {
     /**
      On Action Request
      */
-    public func onActionRequest(handler: ((UPnPService, UPnPSoapRequest) -> OrderedProperties?)?) {
-        onActionRequestHandler = handler
+    public func onActionRequest(handler: actionHandler?) {
+        actionRequestHandler = handler
     }
 
     /**
@@ -199,6 +241,15 @@ public class UPnPServer : HttpRequestHandler {
             do {
                 let server = HttpServer(hostname: self.hostname, port: self.port)
                 self.httpServer = server
+                server.monitor(monitorName: "server-monitor") {
+                    (name, status, error) in
+                    switch status {
+                    case .started:
+                        self.handleComponentStatus(.httpserver, .started)
+                    default:
+                        self.handleComponentStatus(.httpserver, .stopped)
+                    }
+                }
                 try server.route(pattern: "/**", handler: self)
                 try server.run()
             } catch let error{
@@ -292,7 +343,7 @@ public class UPnPServer : HttpRequestHandler {
             throw HttpServerError.custom(string: "parse failed soap request")
         }
 
-        guard let handler = self.onActionRequestHandler else {
+        guard let handler = actionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
             response.status = .notFound
             return
@@ -300,14 +351,14 @@ public class UPnPServer : HttpRequestHandler {
         
         for (_, device) in self.devices {
             if let service = device.getService(withControlUrl: request.path) {
-                guard let properties = handler(service, soapRequest) else {
+                guard let properties = try handler(service, soapRequest) else {
                     continue
                 }
                 let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
                                                     actionName: soapRequest.actionName)
-                for field in properties.fields {
-                    soapResponse[field.key] = field.value
-                }
+
+                properties.fields.forEach { soapResponse[$0.key] = $0.value }
+                
                 response.status = .ok
                 response.data = soapResponse.xmlDocument.data(using: .utf8)
                 return
@@ -391,6 +442,15 @@ public class UPnPServer : HttpRequestHandler {
                     return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
                 }
                 self.ssdpReceiver = receiver
+                receiver.monitor(name: "server-monitor") {
+                    (name, status) in
+                    switch status {
+                    case .started:
+                        self.handleComponentStatus(.ssdpreceiver, .started)
+                    default:
+                        self.handleComponentStatus(.ssdpreceiver, .stopped)
+                    }
+                }
                 try receiver.run()
             } catch let error {
                 print("UPnPServer::startSsdpReceiver() error - \(error)")
@@ -408,7 +468,7 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             devices.removeAll()
             subscriptions.removeAll()
-            onActionRequestHandler = nil
+            actionRequestHandler = nil
         }
     }
 
