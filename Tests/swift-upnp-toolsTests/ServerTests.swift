@@ -251,10 +251,9 @@ final class ServerTests: XCTestCase {
 
         cp.sendMsearch(st: st, mx: 3) {
             (address, header) in
-            guard let header = header else {
+            guard let _ = header else {
                 return
             }
-            print(header.description)
         }
 
         sleep(3)
