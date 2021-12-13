@@ -214,7 +214,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         _devices.removeAll()
         delegate = nil
         for subscriber in eventSubscribers {
-            unsubscribe(subscriber: subscriber)
+            subscriber.unsubscribe()
         }
         eventSubscribers.removeAll()
         notificationHandlers.removeAll()
@@ -444,6 +444,12 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 self.removeExpiredSubscriber()
                 self.removeExpiredDevices()
 
+                self.eventSubscribers.forEach {
+                    if $0.duration > 30 {
+                        $0.renewSubscribe()
+                    }
+                }
+                
                 // TODO: renew subscribers
             }
         }
@@ -452,12 +458,25 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     
     func removeExpiredDevices() {
         // TODO: on device removed
-        _devices = _devices.filter { $1.isExpired == false }
+        var list = [UPnPDevice]()
+        _devices = _devices.filter {
+            if $1.isExpired {
+                list.append($1)
+            }
+            return $1.isExpired == false
+        }
+        list.forEach {
+            self.unsubscribe(forDevice: $0).forEach {
+                let sid = $0
+                self.eventSubscribers.removeAll(where: { $0.sid == sid })
+            }
+            self.device(removed: $0)
+        }
     }
 
     func removeExpiredSubscriber() {
         // TODO: on event subscription removed
-        eventSubscribers = eventSubscribers.filter { $0.isExpired == false && $0.error == nil }
+        eventSubscribers = eventSubscribers.filter { $0.isExpired == false }
     }
 
     /**
@@ -501,7 +520,9 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 break
             case .byebye:
                 if let usn = ssdpHeader.usn {
-                    self.removeDevice(udn: usn.uuid)
+                    lockQueue.sync {
+                        self.removeDevice(udn: usn.uuid)
+                    }
                 }
                 break
             case .update:
@@ -605,10 +626,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
         lockQueue.sync {
             self._devices[udn] = device
-            self.delegate?.onDeviceAdded(device: device)
-            for handler in self.onDeviceAddedHandlers {
-                handler(device)
-            }
+            self.device(added: device)
+        }
+    }
+
+    func device(added device: UPnPDevice)  {
+        delegate?.onDeviceAdded(device: device)
+        for handler in onDeviceAddedHandlers {
+            handler(device)
         }
     }
 
@@ -619,19 +644,37 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let device = _devices[udn] else {
             return
         }
-        delegate?.onDeviceRemoved(device: device)
-        for handler in onDeviceRemovedHandlers {
-            handler(device)
-        }
-        if let udn = device.udn {
-            for subscriber in getEventSubscribers(forUdn: udn) {
-                unsubscribe(subscriber: subscriber)
+        self.unsubscribe(forDevice: device).forEach {
+            let sid = $0
+            lockQueue.sync {
+                self.eventSubscribers.removeAll(where: { $0.sid == sid })
             }
         }
+        self.device(removed: device)
 
         lockQueue.sync {
             _devices[udn] = nil
         }
+    }
+
+    func device(removed device: UPnPDevice) {
+        delegate?.onDeviceRemoved(device: device)
+        for handler in onDeviceRemovedHandlers {
+            handler(device)
+        }
+    }
+
+    @discardableResult func unsubscribe(forDevice device: UPnPDevice) -> [String] {
+        var sids = [String]()
+        if let udn = device.udn {
+            getEventSubscribers(forUdn: udn).forEach {
+                if let sid = $0.sid {
+                    sids.append(sid)
+                }
+                $0.unsubscribe()
+            }
+        }
+        return sids
     }
 
     /**
@@ -712,7 +755,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     public func unsubscribe(subscriber: UPnPEventSubscriber, completionHandler: UPnPEventSubscriber.unsubscribeCompletionHandler? = nil) {
         subscriber.unsubscribe(completionHandler: completionHandler)
         lockQueue.sync {
-            eventSubscribers.removeAll(where: { $0.sid == subscriber.sid })
+            self.eventSubscribers.removeAll(where: { $0.sid == subscriber.sid })
         }
     }
 

@@ -9,7 +9,10 @@ import SwiftXml
  UPnP Service (Model)
  */
 public class UPnPService : UPnPModel {
-    
+
+    /**
+     Service Building Status
+     */
     public enum Status {
         case idle, progress, failed, completed
     }

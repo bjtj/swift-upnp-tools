@@ -15,6 +15,13 @@ import FoundationNetworking
 public class UPnPEventSubscriber : TimeBase {
 
     /**
+     Event Subscriber Status
+     */
+    public enum Status {
+        case idle, subscribing, subscribed, unsubscribing, unsubscribed, failed
+    }
+
+    /**
      Subscribe Completion Handler
      - Parameter subscriber
      - Parameter error
@@ -42,7 +49,11 @@ public class UPnPEventSubscriber : TimeBase {
      - Parameter error
      */
     public typealias eventNotificationHandler = (UPnPEventSubscriber?, UPnPEventProperties?, Error?) throws -> Void
-    
+
+    /**
+     Event Subscribe Status
+     */
+    public var status: Status = .idle
 
     /**
      error
@@ -95,6 +106,9 @@ public class UPnPEventSubscriber : TimeBase {
      Subscribe
      */
     public func subscribe(completionHandler: (subscribeCompletionHandler)? = nil) {
+
+        status = .subscribing
+        
         var fields = [KeyValuePair]()
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
         fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
@@ -103,26 +117,39 @@ public class UPnPEventSubscriber : TimeBase {
             (data, response, error) in
 
             guard error == nil else {
-                self.error = error
-                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - '\(error!)'"))
+                self.subscribeComplete(UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - '\(error!)'"),
+                                       completionHandler: completionHandler)
                 return
             }
             
             guard let response = response as? HTTPURLResponse else {
-                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
+                self.subscribeComplete(UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"),
+                                       completionHandler: completionHandler)
                 return
             }
 
             guard let sid = self.getValueCaseInsensitive(response: response, key: "SID") else {
-                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
+                self.subscribeComplete(UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"),
+                                       completionHandler: completionHandler)
                 return
             }
 
             self.timeout = self.extractSecond(fromTimeout: self.getValueCaseInsensitive(response: response, key: "TIMEOUT"))
 
             self.sid = sid
-            completionHandler?(self, nil)
+            self.status = .subscribed
+            self.subscribeComplete(nil, completionHandler: completionHandler)
         }.start()
+    }
+
+    func subscribeComplete(_ error: Error?, completionHandler: (subscribeCompletionHandler)? = nil) {
+        guard error == nil else {
+            status = .failed
+            self.error = error
+            completionHandler?(self, error)
+            return
+        }
+        completionHandler?(self, nil)
     }
 
     func extractSecond(fromTimeout timeout: String?, minTimeoutSecond: UInt64 = 1800) -> UInt64 {
@@ -187,6 +214,9 @@ public class UPnPEventSubscriber : TimeBase {
      Unsubscribe
      */
     public func unsubscribe(completionHandler: unsubscribeCompletionHandler? = nil) {
+
+        status = .unsubscribing
+        
         guard let sid = sid else {
             print("UPnPEventSubscriber::unsubscribe() error - no sid")
             return
@@ -195,6 +225,9 @@ public class UPnPEventSubscriber : TimeBase {
         fields.append(KeyValuePair(key: "SID", value: sid))
         HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
             (data, response, error) in
+
+            self.status = .unsubscribed
+            
             guard error == nil else {
                 completionHandler?(self, error)
                 return

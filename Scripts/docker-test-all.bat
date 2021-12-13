@@ -12,6 +12,7 @@ if not [%1] == [] (
 
 rem -== START ==-
 set TEST_RESULTS=
+set ALL_RETCODES=
 for	%%x in (%TEST_IMAGES%) do call :TASK %%x
 rem call :TASK swift:4.2
 call :SUMMARY
@@ -30,6 +31,7 @@ if exist %BASEPATH%\.build (
 docker run --rm -t -v %BASEPATH%:/workspace -w /workspace %IMAGE% /bin/bash -c %COMMAND%
 set RET=%ERRORLEVEL%
 set TEST_RESULTS=%TEST_RESULTS% "%IMAGE% = %RET%"
+set ALL_RETCODES=%ALL_RETCODES% %RET%
 echo - ERRORLEVEL: %RET%
 echo ====================================================== END =
 goto :eof
@@ -51,3 +53,4 @@ goto :eof
 
 
 :END
+for %%x in (%ALL_RETCODES%) do if %%x neq 0 exit 1
