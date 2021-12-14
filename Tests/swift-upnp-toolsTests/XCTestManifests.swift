@@ -1,6 +1,6 @@
 import XCTest
 
-#if !os(macOS)
+#if !os(macOS) && !targetEnvironment(macCatalyst) && !os(iOS)
 public func allTests() -> [XCTestCaseEntry] {
     return [
       testCase(SsdpTests.allTests),
