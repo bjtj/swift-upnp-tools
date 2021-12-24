@@ -482,7 +482,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Send M-SEARCH with ST (Service Type) and MX (Max)
      */
-    public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDP.ssdpHandler? = nil) {
+    public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDP.ssdpHandler? = nil, completionHandler: (() -> Void)? = nil) {
 
         DispatchQueue.global(qos: .default).async {
 
@@ -494,6 +494,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
                 ssdpHandler?(address, ssdpHeader)
             }
+            
+            completionHandler?()
         }
     }
 
