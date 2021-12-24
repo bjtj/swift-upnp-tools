@@ -83,6 +83,7 @@ final class ServerTests: XCTestCase {
         XCTAssertNotNil(service.scpd)
         
         server.registerDevice(device: device)
+        server.activate(device: device)
     }
 
     /**
@@ -130,8 +131,8 @@ final class ServerTests: XCTestCase {
             XCTAssert(false)
             return
         }
-        UPnPServer.activate(device: device, location: "http://\(addr.hostname)/dummy")
-        UPnPServer.deactivate(device: device)
+        UPnPServer.announceDeviceAlive(device: device, location: "http://\(addr.hostname)/dummy")
+        UPnPServer.announceDeviceByeBye(device: device)
     }
 
     /**
@@ -144,7 +145,8 @@ final class ServerTests: XCTestCase {
             return
         }
 
-        let device = server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000")
+        let udn = "e399855c-7ecb-1fff-8000-000000000000"
+        let device = server.getDevice(udn: udn)
         XCTAssertNotNil(device)
 
         // -------------------------------------------
@@ -161,6 +163,7 @@ final class ServerTests: XCTestCase {
         let actionRequest = UPnPActionRequest(actionName: "GetLoadLevelTarget")
         helperControlPointInvokeAction(st: "ssdp:all",
                                        serviceType: "urn:schemas-upnp-org:service:SwitchPower:1",
+                                       expectedUdn: udn,
                                        actionRequest: actionRequest)
         {
             (soapResponse, error) in
@@ -198,6 +201,7 @@ final class ServerTests: XCTestCase {
      */
     func helperControlPointInvokeAction(st: String,
                                         serviceType: String,
+                                        expectedUdn udn: String,
                                         actionRequest: UPnPActionRequest,
                                         handler: (UPnPActionInvoke.invokeCompletionHandler)?)
     {
@@ -208,9 +212,15 @@ final class ServerTests: XCTestCase {
 
         cp.onScpd {
             (device, service, scpd, error) in
+            
+            guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+//                not expected udn
+                return
+            }
 
             guard error == nil else {
                 // error
+                XCTFail("error - \(error!)")
                 return
             }
 
@@ -281,9 +291,15 @@ final class ServerTests: XCTestCase {
 
         cp.onScpd {
             (device, service, scpd, error) in
+            
+            guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+//                not expected device
+                return
+            }
 
             guard error == nil else {
                 // error
+                XCTFail("error - \(error!)")
                 return
             }
 
@@ -424,9 +440,15 @@ final class ServerTests: XCTestCase {
 
         cp.onScpd {
             (device, service, scpd, error) in
+            
+            guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+//                not expected device
+                return
+            }
 
             guard error == nil else {
                 // error
+                XCTFail("error - \(error!)")
                 return
             }
 
@@ -532,7 +554,8 @@ final class ServerTests: XCTestCase {
             return
         }
 
-        guard let device = server.getDevice(udn: "e399855c-7ecb-1fff-8000-000000000000") else {
+        let udn = "e399855c-7ecb-1fff-8000-000000000000"
+        guard let device = server.getDevice(udn: udn) else {
             XCTFail("server.getDevice failed")
             return
         }
@@ -546,16 +569,17 @@ final class ServerTests: XCTestCase {
             return properties
         }
 
-        helperControlPointDiscovery(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
+        helperControlPointDiscovery(st: "ssdp:all", expectedUdn: udn, serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
+        helperControlPointDiscovery(st: "upnp:rootdevice", expectedUdn: udn, serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
 
-        helperControlPointSuspendResume(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: "e399855c-7ecb-1fff-8000-000000000000", service: service, properties: ["GetLoadlevelTarget" : "14"])
+        helperControlPointSuspendResume(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: udn, service: service, properties: ["GetLoadlevelTarget" : "14"])
     }
 
     
     /**
      helper control point discovery
      */
-    func helperControlPointDiscovery(st: String, serviceType: String) {
+    func helperControlPointDiscovery(st: String, expectedUdn udn: String, serviceType: String) {
         let cp = UPnPControlPoint()
         cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
@@ -564,7 +588,13 @@ final class ServerTests: XCTestCase {
 
         cp.onDeviceAdded {
             (device) in
-            print("DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
+            
+            guard let x = device.udn, x == udn else {
+//                unexpected device
+                return
+            }
+            
+            print(">>>>>>>>>>>>>> DEVICE ADDED -- \(device.udn ?? "nil") \(device.deviceType ?? "nil")")
 
             guard let _ = device.getService(type: serviceType) else {
                 // no expected service found
@@ -575,6 +605,11 @@ final class ServerTests: XCTestCase {
 
         cp.onScpd {
             (device, service, scpd, error) in
+            
+            guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+//                unexpected device
+                return
+            }
 
             if let error = error {
                 print("ERROR - \(error)")
@@ -595,9 +630,12 @@ final class ServerTests: XCTestCase {
             XCTAssertNotNil(service.scpd)
             XCTAssertEqual(service.status, .completed)
 
-            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget"))
-            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget")!.arguments)
-            XCTAssertNotNil(scpd.getAction(name: "SetLoadLevelTarget")!.arguments[0])
+            guard let action = scpd.getAction(name: "SetLoadLevelTarget") else {
+                XCTFail("get action failed - \"SetLoadLevelTarget\"")
+                return
+            }
+            XCTAssertNotNil(action.arguments)
+            XCTAssertNotNil(action.arguments[0])
             XCTAssertEqual("newLoadlevelTarget", scpd.getAction(name: "SetLoadLevelTarget")!.arguments[0].name)
             
             handledScpds.append(scpd)
@@ -638,9 +676,15 @@ final class ServerTests: XCTestCase {
 
         cp.onScpd {
             (device, service, scpd, error) in
+            
+            guard let x = device?.udn, x == udn, service?.serviceType == serviceType else {
+//                unexpected device
+                return
+            }
 
             guard error == nil else {
                 // error
+                XCTFail("error - \(error!)")
                 return
             }
 

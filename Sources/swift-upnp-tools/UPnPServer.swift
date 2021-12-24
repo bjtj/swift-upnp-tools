@@ -58,10 +58,28 @@ public class UPnPServer : HttpRequestHandler {
      ssdp receiver
      */
     public var ssdpReceiver: SSDPReceiver?
+  
+    var _activeDevices = [String:UPnPDevice]()
+    var _devices = [String:UPnPDevice]()
+    
     /**
-     upnp devices
+     active device list
      */
-    public var devices = [String:UPnPDevice]()
+    public var activeDevices: [UPnPDevice] {
+        return _activeDevices.map {
+            $1
+        }
+    }
+    
+    /**
+     all devices
+     */
+    public var allDevices: [UPnPDevice] {
+        return _devices.map {
+            $1
+        }
+    }
+    
     /**
      subscriptions
      */
@@ -111,8 +129,9 @@ public class UPnPServer : HttpRequestHandler {
             return
         }
         lockQueue.sync {
-            devices[udn] = device
+            _devices[udn] = device
         }
+//        activate(device: device)
     }
 
     /**
@@ -123,37 +142,65 @@ public class UPnPServer : HttpRequestHandler {
             return
         }
         lockQueue.sync {
-            devices[udn] = nil
+            _devices[udn] = nil
         }
+//        deactivate(device: device)
     }
 
     /**
      Get Device with udn
      */
     public func getDevice(udn: String) -> UPnPDevice? {
-        return devices[udn]
+        return _devices[udn]
     }
 
     /**
      Activate device with UDN
      */
     public func activate(udn: String) {
-        guard let device = devices[udn] else {
+        guard let device = _devices[udn] else {
             return
         }
+        activate(device: device)
+    }
+    
+    /**
+     Activate device
+     */
+    public func activate(device: UPnPDevice) {
+        guard let udn = device.udn else {
+            return
+        }
+        
+        lockQueue.sync {
+            self._activeDevices[udn] = device
+        }
+        
+        announceDeviceAlive(device: device)
+    }
+    
+    /**
+     Announce device alive
+     */
+    public func announceDeviceAlive(device: UPnPDevice) {
         guard let location = getLocation(of: device) else {
             return
         }
-        UPnPServer.activate(device: device, location: location)
+        
+        UPnPServer.announceDeviceAlive(device: device, location: location)
     }
 
-    public class func activate(device: UPnPDevice, location: String) {
+    /**
+     Announce deivce alive
+     */
+    public class func announceDeviceAlive(device: UPnPDevice, location: String) {
         guard let usn_list = device.allServiceTypes else {
             return
         }
         guard let udn = device.udn else {
             return
         }
+        
         notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
         for usn in usn_list {
             notifyAlive(usn: usn, location: location)
@@ -161,7 +208,10 @@ public class UPnPServer : HttpRequestHandler {
         notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
     }
 
-    class func notifyAlive(usn: UPnPUsn, location: String) {
+    /**
+     Notify alive
+     */
+    public class func notifyAlive(usn: UPnPUsn, location: String) {
         let properties = OrderedProperties()
         properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
         properties["CACHE-CONTROL"] = "max-age=1800"
@@ -176,22 +226,47 @@ public class UPnPServer : HttpRequestHandler {
      Deactivate device with UDN
      */
     public func deactivate(udn: String) {
-        guard let device = devices[udn] else {
+        guard let device = _devices[udn] else {
             return
         }
-        UPnPServer.deactivate(device: device)
+        
+        deactivate(device: device)
+    }
+    
+    /**
+     Deactivate device
+     */
+    public func deactivate(device: UPnPDevice) {
+        
+        guard let udn = device.udn else {
+            return
+        }
+        
+        lockQueue.sync {
+            self._activeDevices[udn] = nil
+        }
+        
+        announceDeviceByeBye(device: device)
+    }
+    
+    /**
+     Announce device byebye
+     */
+    public func announceDeviceByeBye(device: UPnPDevice) {
+        UPnPServer.announceDeviceByeBye(device: device)
     }
 
     /**
-     Deactivate device with device
+     Announce device byebye
      */
-    public class func deactivate(device: UPnPDevice) {
+    public class func announceDeviceByeBye(device: UPnPDevice) {
         guard let usn_list = device.allServiceTypes else {
             return
         }
         guard let udn = device.udn else {
             return
         }
+        
         notifyByebye(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"))
         for usn in usn_list {
             notifyByebye(usn: usn)
@@ -304,30 +379,35 @@ public class UPnPServer : HttpRequestHandler {
     }
 
     func handleDeviceQuery(request: HttpRequest, response: HttpResponse) throws {
-        let tokens = request.path.split(separator: "/")
-        guard tokens.isEmpty == false else {
-            throw HttpServerError.custom(string: "tokens.isEmpty == false failed")
+        try lockQueue.sync {
+            
+            let tokens = request.path.split(separator: "/")
+            guard tokens.isEmpty == false else {
+                throw HttpServerError.custom(string: "tokens.isEmpty == false failed")
+            }
+            let udn = String(tokens[0])
+            guard let device = _activeDevices[udn] else {
+                throw HttpServerError.custom(string: "no device")
+            }
+            response.status = .ok
+            response.data = device.xmlDocument.data(using: .utf8)
         }
-        let udn = String(tokens[0])
-        guard let device = self.devices[udn] else {
-            throw HttpServerError.custom(string: "no device")
-        }
-        response.status = .ok
-        response.data = device.xmlDocument.data(using: .utf8)
     }
 
     func handleScpdQuery(request: HttpRequest, response: HttpResponse) throws {
-        for (_, device) in self.devices {
-            if let service = device.getService(withScpdUrl: request.path) {
-                guard let scpd = service.scpd else {
-                    continue
+        try lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                if let service = device.getService(withScpdUrl: request.path) {
+                    guard let scpd = service.scpd else {
+                        continue
+                    }
+                    response.status = .ok
+                    response.data = scpd.xmlDocument.data(using: .utf8)
+                    return
                 }
-                response.status = .ok
-                response.data = scpd.xmlDocument.data(using: .utf8)
-                return
             }
+            throw HttpServerError.custom(string: "No service with '\(request.path)'")
         }
-        throw HttpServerError.custom(string: "no service")
     }
 
     func handleControlQuery(data: Data?, request: HttpRequest, response: HttpResponse) throws {
@@ -349,23 +429,25 @@ public class UPnPServer : HttpRequestHandler {
             return
         }
         
-        for (_, device) in self.devices {
-            if let service = device.getService(withControlUrl: request.path) {
-                guard let properties = try handler(service, soapRequest) else {
-                    continue
+        try lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                if let service = device.getService(withControlUrl: request.path) {
+                    guard let properties = try handler(service, soapRequest) else {
+                        continue
+                    }
+                    let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
+                                                        actionName: soapRequest.actionName)
+                    
+                    properties.fields.forEach { soapResponse[$0.key] = $0.value }
+                    
+                    response.status = .ok
+                    response.data = soapResponse.xmlDocument.data(using: .utf8)
+                    return
                 }
-                let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
-                                                    actionName: soapRequest.actionName)
-
-                properties.fields.forEach { soapResponse[$0.key] = $0.value }
-                
-                response.status = .ok
-                response.data = soapResponse.xmlDocument.data(using: .utf8)
-                return
             }
+            
+            throw HttpServerError.custom(string: "no matching device")
         }
-
-        throw HttpServerError.custom(string: "no matching device")
     }
 
     func handleEventSubQuery(request: HttpRequest, response: HttpResponse) throws {
@@ -388,24 +470,25 @@ public class UPnPServer : HttpRequestHandler {
             return
         }
         
-        for (_, device) in self.devices {
-            guard let service = device.getService(withEventSubUrl: request.path) else {
-                continue
-            }
-            guard let udn = device.udn else {
-                continue
-            }
-            let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
-            lockQueue.sync {
+        try lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                guard let service = device.getService(withEventSubUrl: request.path) else {
+                    continue
+                }
+                guard let udn = device.udn else {
+                    continue
+                }
+                let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
+                
                 subscriptions[subscription.sid] = subscription
+                
+                response.status = .ok
+                response.header["SID"] = subscription.sid
+                response.header["TIMEOUT"] = "Second-1800"
+                return
             }
-
-            response.status = .ok
-            response.header["SID"] = subscription.sid
-            response.header["TIMEOUT"] = "Second-1800"
-            return
+            throw HttpServerError.custom(string: "no matching device")
         }
-        throw HttpServerError.custom(string: "no matching device")
     }
 
     func _subscription_safe(_ sid: String) -> UPnPEventSubscription? {
@@ -466,7 +549,8 @@ public class UPnPServer : HttpRequestHandler {
         httpServer?.finish()
         ssdpReceiver?.finish()
         lockQueue.sync {
-            devices.removeAll()
+            _activeDevices.removeAll()
+            _devices.removeAll()
             subscriptions.removeAll()
             actionRequestHandler = nil
         }
@@ -484,40 +568,48 @@ public class UPnPServer : HttpRequestHandler {
                 var responses = [SSDPHeader]()
                 switch st {
                 case "ssdp:all":
-                    for (udn, device) in devices {
-                        guard let location = getLocation(of: device) else {
-                            continue
+                    lockQueue.sync {
+                        for (udn, device) in self._activeDevices {
+                            guard let location = getLocation(of: device) else {
+                                continue
+                            }
+                            let rootDevice = UPnPUsn(uuid: udn, type: "upnp:rootdevice")
+                            responses.append(makeMsearchResponse(from: rootDevice, location: location))
+                            guard let usn_list = device.allServiceTypes else {
+                                continue
+                            }
+                            for usn in usn_list {
+                                responses.append(makeMsearchResponse(from: usn, location: location))
+                            }
+                            responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                         }
-                        let rootDevice = UPnPUsn(uuid: udn, type: "upnp:rootDevice")
-                        responses.append(makeMsearchResponse(from: rootDevice, location: location))
-                        guard let usn_list = device.allServiceTypes else {
-                            continue
-                        }
-                        for usn in usn_list {
+                    }
+                    break
+                case "upnp:rootdevice":
+                    lockQueue.sync {
+                        for (udn, device) in self._activeDevices {
+                            guard let location = getLocation(of: device) else {
+                                continue
+                            }
+                            let usn = UPnPUsn(uuid: udn, type: st)
                             responses.append(makeMsearchResponse(from: usn, location: location))
                         }
-                        responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                     }
-                case "upnp:rootDevice":
-                    for (udn, device) in devices {
-                        guard let location = getLocation(of: device) else {
-                            continue
-                        }
-                        let usn = UPnPUsn(uuid: udn, type: st)
-                        responses.append(makeMsearchResponse(from: usn, location: location))
-                    }
+                    break
                 default:
-                    for (udn, device) in devices {
-                        guard let location = getLocation(of: device) else {
-                            continue
-                        }
-                        if let _ = device.getDevice(type: st) {
-                            let usn = UPnPUsn(uuid: udn, type: st)
-                            responses.append(makeMsearchResponse(from: usn, location: location))
-                        }
-                        if let _ = device.getService(type: st) {
-                            let usn = UPnPUsn(uuid: udn, type: st)
-                            responses.append(makeMsearchResponse(from: usn, location: location))
+                    lockQueue.sync {
+                        for (udn, device) in self._activeDevices {
+                            guard let location = getLocation(of: device) else {
+                                continue
+                            }
+                            if let _ = device.getDevice(type: st) {
+                                let usn = UPnPUsn(uuid: udn, type: st)
+                                responses.append(makeMsearchResponse(from: usn, location: location))
+                            }
+                            if let _ = device.getService(type: st) {
+                                let usn = UPnPUsn(uuid: udn, type: st)
+                                responses.append(makeMsearchResponse(from: usn, location: location))
+                            }
                         }
                     }
                     break

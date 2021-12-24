@@ -71,6 +71,18 @@ public class UPnPScpdBuilder {
                 return
             }
             
+            guard let urlresponse = response as? HTTPURLResponse else {
+                return
+            }
+            
+            guard (200..<300).contains(urlresponse.statusCode) else {
+                
+                let x = data == nil ? "" : String(data: data!, encoding: .utf8)
+                
+                self.handleError(string: "UPnPScpdBuilder::build() error - status code: \(urlresponse.statusCode) / \(x ?? "")")
+                return
+            }
+            
             guard let data = data else {
                 self.handleError(string: "UPnPScpdBuilder::build() error - no data")
                 return

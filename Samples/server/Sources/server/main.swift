@@ -134,7 +134,7 @@ func main() {
             done = true
             break
         case "prop":
-            guard let device = server.devices.first?.value, let udn = device.udn else {
+            guard let device = server.activeDevices.first, let udn = device.udn else {
                 print("No Device Found...")
                 continue
             }
@@ -144,6 +144,20 @@ func main() {
             }
             loadLevelStatus += 1
             server.setProperty(udn: udn, serviceId: serviceId, properties: ["GetLoadLevelStatus":"\(loadLevelStatus % 2)"])
+            break
+        case "activate":
+            guard let device = server.allDevices.first else {
+                print("No Device Found...")
+                continue
+            }
+            server.activate(device: device)
+            break
+        case "deactivate":
+            guard let device = server.activeDevices.first else {
+                print("No Active Device Found...")
+                continue
+            }
+            server.deactivate(device: device)
             break
         default:
             break

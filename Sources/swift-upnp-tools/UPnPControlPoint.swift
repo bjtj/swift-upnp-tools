@@ -652,9 +652,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
         self.device(removed: device)
 
-        lockQueue.sync {
-            _devices[udn] = nil
-        }
+        _devices[udn] = nil
     }
 
     func device(removed device: UPnPDevice) {
