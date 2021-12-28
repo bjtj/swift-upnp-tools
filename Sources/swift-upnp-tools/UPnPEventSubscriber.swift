@@ -122,8 +122,8 @@ public class UPnPEventSubscriber : TimeBase {
                 return
             }
             
-            guard let response = response as? HTTPURLResponse else {
-                self.subscribeComplete(UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"),
+            guard getStatusCodeRange(response: response) == .success else {
+                self.subscribeComplete(UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - status code - \(getStatusCode(response: response, defaultValue: 0))"),
                                        completionHandler: completionHandler)
                 return
             }
@@ -162,12 +162,21 @@ public class UPnPEventSubscriber : TimeBase {
     }
 
     
-    func getValueCaseInsensitive(response: HTTPURLResponse, key: String) -> String? {
+    func getValueCaseInsensitive(response: URLResponse?, key: String) -> String? {
+
+        guard let resp = response else {
+            return nil
+        }
+
+        guard let httpurlresponse = resp as? HTTPURLResponse else {
+            return nil
+        }
+        
         // TODO: fix it elengant
         // #if compiler(>=5.3)
         // return response.value(forHTTPHeaderField: key)
         // #else
-        return response.allHeaderFields.first(where: { ($0.key as! String).description.caseInsensitiveCompare(key) == .orderedSame })?.value as? String
+        return httpurlresponse.allHeaderFields.first(where: { ($0.key as! String).description.caseInsensitiveCompare(key) == .orderedSame })?.value as? String
         // #endif
     }
     
@@ -192,13 +201,13 @@ public class UPnPEventSubscriber : TimeBase {
                 return
             }
 
-            guard let response = response as? HTTPURLResponse else {
-                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - not http url response"))
+            guard getStatusCodeRange(response: response) == .success else {
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::renewSubscribe() error - not http url response"))
                 return
             }
 
             guard let sid = self.getValueCaseInsensitive(response: response, key: "SID") else {
-                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::subscribe() error - no SID found"))
+                completionHandler?(self, UPnPError.custom(string: "UPnPEventSubscriber::renewSubscribe() error - no SID found"))
                 return
             }
 
@@ -232,6 +241,12 @@ public class UPnPEventSubscriber : TimeBase {
                 completionHandler?(self, error)
                 return
             }
+
+            guard getStatusCodeRange(response: response) == .success else {
+                completionHandler?(self, HttpError.notSuccess)
+                return
+            }
+            
             completionHandler?(self, nil)
         }.start()
     }

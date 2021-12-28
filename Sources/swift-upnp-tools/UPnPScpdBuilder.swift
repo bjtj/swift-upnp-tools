@@ -75,15 +75,9 @@ public class UPnPScpdBuilder {
                 return
             }
             
-            guard let urlresponse = response as? HTTPURLResponse else {
-                return
-            }
-            
-            guard (200..<300).contains(urlresponse.statusCode) else {
-                
+            guard getStatusCodeRange(response: response) == .success else {
                 let x = data == nil ? "" : String(data: data!, encoding: .utf8)
-                
-                self.handleError(string: "UPnPScpdBuilder::build() error - status code: \(urlresponse.statusCode) / \(x ?? "")")
+                self.handleError(string: "UPnPScpdBuilder::build() error - status code: \(getStatusCode(response: response, defaultValue: 0)) / \(x ?? "")")
                 return
             }
             

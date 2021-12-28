@@ -686,6 +686,10 @@ public class UPnPServer : HttpRequestHandler {
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in
+                guard getStatusCodeRange(response: response) == .success else {
+                    print("UPnPServer::sendEventProperties() error - status code \(getStatusCode(response: response, defaultValue: 0))")
+                    return
+                }
                 guard error == nil else {
                     print("UPnPServer::sendEventProperties() error - \(error!)")
                     return

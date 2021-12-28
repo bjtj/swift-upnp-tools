@@ -89,11 +89,11 @@ let scpd_SwitchPower = "<?xml version=\"1.0\"?>" +
   "</scpd>"
 
 
-func main() {
+func main() throws {
 
     print(" --=== UPnP Server ===--")
 
-    let server = startServer(port: 9999)
+    let server = try startServer(port: 9999)
 
     var loadLevelTarget = 0
     var loadLevelStatus = 0
@@ -170,15 +170,15 @@ func main() {
 }
 
 
-func startServer(port: Int) -> UPnPServer {
+func startServer(port: Int) throws -> UPnPServer {
     let server = UPnPServer(httpServerBindPort: port)
     server.run()
-    registerDevice(server: server)
+    try registerDevice(server: server)
     return server
 }
 
-func registerDevice(server: UPnPServer) {
-    guard let device = UPnPDevice.read(xmlString: deviceDescription_DimmableLight) else {
+func registerDevice(server: UPnPServer) throws {
+    guard let device = try UPnPDevice.read(xmlString: deviceDescription_DimmableLight) else {
         print("UPnPDevice read failed")
         return
     }
@@ -187,11 +187,11 @@ func registerDevice(server: UPnPServer) {
         print("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
         return
     }
-    service.scpd = UPnPScpd.read(xmlString: scpd_SwitchPower)
+    service.scpd = try UPnPScpd.read(xmlString: scpd_SwitchPower)
     
     server.registerDevice(device: device)
 }
 
 
-main()
+try main()
 

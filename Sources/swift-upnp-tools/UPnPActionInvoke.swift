@@ -50,6 +50,10 @@ public class UPnPActionInvoke {
                 self.completionHandler?(nil, UPnPError.custom(string: "error - \(error!)"))
                 return
             }
+            guard getStatusCodeRange(response: response) == .success else {
+                self.completionHandler?(nil, HttpError.notSuccess)
+                return
+            }
             guard let data = data else {
                 self.completionHandler?(nil, UPnPError.custom(string: "no data"))
                 return

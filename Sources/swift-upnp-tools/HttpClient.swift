@@ -8,6 +8,79 @@ import Foundation
 import FoundationNetworking
 #endif
 
+enum HttpStatusRange {
+    case unknown
+    case information
+    case success
+    case redirection
+    case clientError
+    case serverError
+}
+
+enum HttpError: Error {
+    case notSuccess
+}
+
+func getStatusCodeRange(response: URLResponse?) -> HttpStatusRange {
+    guard let code = getStatusCode(response: response) else {
+        return .unknown
+    }
+    return getStatusCodeRange(code: code)
+}
+
+func getStatusCodeRange(code: Int) -> HttpStatusRange {
+    switch code {
+    case 100..<200:
+        return .information
+    case 200..<300:
+        return .success
+    case 300..<400:
+        return .clientError
+    case 400..<500:
+        return .serverError
+    default:
+        return .unknown
+    }
+}
+
+func getStatusCode(response: URLResponse?, defaultValue: Int) -> Int {
+    guard let code = getStatusCode(response: response) else {
+        return defaultValue
+    }
+    return code
+}
+
+func getStatusCode(response: URLResponse?) -> Int? {
+
+    guard response != nil else {
+        return nil
+    }
+    
+    guard let httpurlresponse = response as? HTTPURLResponse else {
+        return nil
+    }
+
+    return httpurlresponse.statusCode
+}
+
+func getValueCaseInsensitive(response: URLResponse?, key: String) -> String? {
+
+    guard let resp = response else {
+        return nil
+    }
+
+    guard let httpurlresponse = resp as? HTTPURLResponse else {
+        return nil
+    }
+    
+    // TODO: fix it elengant
+    // #if compiler(>=5.3)
+    // return response.value(forHTTPHeaderField: key)
+    // #else
+    return httpurlresponse.allHeaderFields.first(where: { ($0.key as! String).description.caseInsensitiveCompare(key) == .orderedSame })?.value as? String
+    // #endif
+}
+
 /**
  Simple Http Client
  */

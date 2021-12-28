@@ -43,6 +43,10 @@ public class UPnPDeviceBuilder {
                 self.delegate?.onDeviceBuildError(error: "error - \(error!)")
                 return
             }
+            guard getStatusCodeRange(response: response) == .success else {
+                self.delegate?.onDeviceBuildError(error: "status code - \(getStatusCode(response: response, defaultValue: 0))")
+                return
+            }
             guard let data = data else {
                 self.delegate?.onDeviceBuildError(error: "no data")
                 return
