@@ -15,7 +15,7 @@ final class ModelTests: XCTestCase {
     /**
      test property
      */
-    func testProperty() {
+    func testProperty() throws {
         let propertyXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
           "<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">" +
           "  <e:property>" +
@@ -26,7 +26,7 @@ final class ModelTests: XCTestCase {
           "  </e:property>" +
           "</e:propertyset>"
         
-        guard let props = UPnPEventProperties.read(xmlString: propertyXml) else {
+        guard let props = try UPnPEventProperties.read(xmlString: propertyXml) else {
             XCTAssert(false)
             return
         }
@@ -34,7 +34,7 @@ final class ModelTests: XCTestCase {
 
         // --
         
-        guard let props2 = UPnPEventProperties.read(xmlString: props.xmlDocument) else {
+        guard let props2 = try UPnPEventProperties.read(xmlString: props.xmlDocument) else {
             XCTAssert(false)
             return
         }
@@ -95,7 +95,7 @@ final class ModelTests: XCTestCase {
     /**
      test device description
      */
-    func testDeviceDescription() {
+    func testDeviceDescription() throws {
 
         do {
             let deviceDescription = "<?xml version=\"1.0\"?>" +
@@ -134,7 +134,7 @@ final class ModelTests: XCTestCase {
               "  </device>" +
               "</root>"
             
-            guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            guard let device = try UPnPDevice.read(xmlString: deviceDescription) else {
                 XCTAssert(false)
                 return
             }
@@ -210,7 +210,7 @@ final class ModelTests: XCTestCase {
               "  </device>" +
               "</root>"
             
-            guard let device = UPnPDevice.read(xmlString: deviceDescription) else {
+            guard let device = try UPnPDevice.read(xmlString: deviceDescription) else {
                 XCTAssert(false)
                 return
             }
@@ -249,7 +249,7 @@ final class ModelTests: XCTestCase {
     /**
      test action argument 
      */
-    func testActionArgument() {
+    func testActionArgument() throws {
 
         do {
             let argumentXml = "  <argument>" +
@@ -258,7 +258,7 @@ final class ModelTests: XCTestCase {
               "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
               "  </argument>"
 
-            let doc = parseXml(xmlString: argumentXml)
+            let doc = try XmlParser.parse(xmlString: argumentXml)
             guard let root = doc.rootElement else {
                 XCTFail("parsing xml error")
                 return
@@ -282,7 +282,7 @@ final class ModelTests: XCTestCase {
               "    <relatedStateVariable>LoadLevelTarget</relatedStateVariable>" +
               "  </argument>"
 
-            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+            guard let argument = try UPnPActionArgument.read(xmlString: argumentXml) else {
                 XCTFail("UPnPActionArgument.read failed")
                 return
             }
@@ -298,7 +298,7 @@ final class ModelTests: XCTestCase {
               "    <name>GetLoadlevelTarget</name>" +
               "  </argument>"
 
-            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+            guard let argument = try UPnPActionArgument.read(xmlString: argumentXml) else {
                 XCTFail("UPnPActionArgument.read failed")
                 return
             }
@@ -314,7 +314,7 @@ final class ModelTests: XCTestCase {
               "    <name></name>" +
               "  </argument>"
 
-            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+            guard let argument = try UPnPActionArgument.read(xmlString: argumentXml) else {
                 XCTFail("UPnPActionArgument.read failed")
                 return
             }
@@ -330,7 +330,7 @@ final class ModelTests: XCTestCase {
               "    <x-ext2 />" +
               "  </argument>"
 
-            guard let argument = UPnPActionArgument.read(xmlString: argumentXml) else {
+            guard let argument = try UPnPActionArgument.read(xmlString: argumentXml) else {
                 XCTFail("UPnPActionArgument.read failed")
                 return
             }
@@ -348,7 +348,7 @@ final class ModelTests: XCTestCase {
     /**
      test action
      */
-    func testAction() {
+    func testAction() throws {
         let actionRequest = UPnPActionRequest(actionName: "aBc")
         XCTAssertEqual(actionRequest.actionName, "aBc")
 
@@ -365,7 +365,7 @@ final class ModelTests: XCTestCase {
               "   </argumentList>" +
               " </action>"
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -391,7 +391,7 @@ final class ModelTests: XCTestCase {
                </action>
               """
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -409,7 +409,7 @@ final class ModelTests: XCTestCase {
                </action>
               """
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -427,7 +427,7 @@ final class ModelTests: XCTestCase {
                </action>
               """
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -446,7 +446,7 @@ final class ModelTests: XCTestCase {
                </action>
               """
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -467,7 +467,7 @@ final class ModelTests: XCTestCase {
                </action>
               """
 
-            guard let action = UPnPAction.read(xmlString: actionXml) else {
+            guard let action = try UPnPAction.read(xmlString: actionXml) else {
                 XCTFail("upnpaction read failed")
                 return
             }
@@ -484,7 +484,7 @@ final class ModelTests: XCTestCase {
     /**
      test scpd
      */
-    func testScpd() {
+    func testScpd() throws {
 
         let scpd_xml = "<?xml version=\"1.0\"?>" +
           "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
@@ -536,7 +536,7 @@ final class ModelTests: XCTestCase {
           "  </serviceStateTable>" +
           "</scpd>"
         
-        guard let scpd = UPnPScpd.read(xmlString: scpd_xml) else {
+        guard let scpd = try UPnPScpd.read(xmlString: scpd_xml) else {
             XCTAssert(false)
             return
         }
@@ -556,7 +556,7 @@ final class ModelTests: XCTestCase {
     /**
      test soap
      */
-    func testSoap() {
+    func testSoap() throws {
 
         do {
             let soapRequest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
@@ -568,7 +568,7 @@ final class ModelTests: XCTestCase {
               "  </s:Body>" +
               "</s:Envelope>"
             
-            guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
+            guard let request = try UPnPSoapRequest.read(xmlString: soapRequest) else {
                 XCTAssert(false)
                 return
             }
@@ -588,7 +588,7 @@ final class ModelTests: XCTestCase {
           "  </s:Body>" +
           "</s:Envelope>"
         
-        guard let request = UPnPSoapRequest.read(xmlString: soapRequest) else {
+        guard let request = try UPnPSoapRequest.read(xmlString: soapRequest) else {
             XCTAssert(false)
             return
         }
@@ -609,20 +609,19 @@ final class ModelTests: XCTestCase {
           "  </s:Body>" +
           "</s:Envelope>"
         
-        guard let response = UPnPSoapResponse.read(xmlString: soapResponse) else {
+        guard let response = try UPnPSoapResponse.read(xmlString: soapResponse) else {
             XCTAssert(false)
             return
         }
         XCTAssertEqual("urn:schemas-upnp-org:service:ContentDirectory:1", response.serviceType)
         XCTAssertEqual("Browse", response.actionName)
     }
-
     
 
     /**
      test servcie
      */
-    func testService() {
+    func testService() throws {
 
         let scpd_xml = "<?xml version=\"1.0\"?>" +
           "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">" +
@@ -674,7 +673,7 @@ final class ModelTests: XCTestCase {
           "  </serviceStateTable>" +
           "</scpd>"
         
-        guard let scpd = UPnPScpd.read(xmlString: scpd_xml) else {
+        guard let scpd = try UPnPScpd.read(xmlString: scpd_xml) else {
             XCTAssert(false)
             return
         }

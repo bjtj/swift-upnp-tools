@@ -37,7 +37,7 @@ public class XmlTag {
         self.namespace = namespace
         self.name = name
         self.ext = ext
-        self.content = escapeXml(text: text)
+        self.content = XmlParser.escapeXml(text: text)
     }
 
     var tag: String {

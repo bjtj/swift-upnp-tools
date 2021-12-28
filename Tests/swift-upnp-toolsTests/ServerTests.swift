@@ -44,8 +44,12 @@ final class ServerTests: XCTestCase {
         DispatchQueue.global(qos: .background).async {
             startReceiver()
         }
-        
-        upnpServer = startServer()
+
+        do {
+            upnpServer = try startServer()
+        } catch {
+            XCTFail("startServer()")
+        }
         
         sleep(1)
 
@@ -55,12 +59,12 @@ final class ServerTests: XCTestCase {
     /**
      start server
      */
-    class func startServer() -> UPnPServer {
+    class func startServer() throws -> UPnPServer {
         let server = UPnPServer(httpServerBindPort: 0)
         server.monitor(name: "server-monitor", handler: serverMonitoringHandler)
         server.run()
 
-        registerDevice(server: server)
+        try registerDevice(server: server)
         
         return server
     }
@@ -68,8 +72,8 @@ final class ServerTests: XCTestCase {
     /**
      register device
      */
-    class func registerDevice(server: UPnPServer) {
-        guard let device = UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
+    class func registerDevice(server: UPnPServer) throws {
+        guard let device = try UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
             XCTFail("UPnPDevice read failed")
             return
         }
@@ -78,7 +82,7 @@ final class ServerTests: XCTestCase {
             XCTFail("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
             return
         }
-        service.scpd = UPnPScpd.read(xmlString: ServerTests.scpd_SwitchPower)
+        service.scpd = try UPnPScpd.read(xmlString: ServerTests.scpd_SwitchPower)
 
         XCTAssertNotNil(service.scpd)
         
@@ -123,8 +127,8 @@ final class ServerTests: XCTestCase {
     /**
      test notify
      */
-    func testNotify() {
-        guard let device = UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
+    func testNotify() throws {
+        guard let device = try UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
             return
         }
         guard let addr = Network.getInetAddress() else {
@@ -259,12 +263,12 @@ final class ServerTests: XCTestCase {
         }
         XCTAssertTrue(ssdpReceiver.running)
 
-        cp.sendMsearch(st: st, mx: 3) {
-            (address, header) in
-            guard let _ = header else {
-                return
-            }
-        }
+        cp.sendMsearch(st: st, mx: 3, ssdpHandler: {
+                                          (address, header) in
+                                          guard let _ = header else {
+                                              return
+                                          }
+                                      })
 
         sleep(3)
 

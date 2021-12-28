@@ -283,8 +283,8 @@ public class UPnPDevice : UPnPTimeBasedModel {
     /**
      Read from xml string
      */
-    public static func read(xmlString: String) -> UPnPDevice? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPDevice? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             print("error -- no root element")
             return nil

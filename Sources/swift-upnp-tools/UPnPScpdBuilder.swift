@@ -4,6 +4,10 @@
 
 import Foundation
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 /**
  UPnP Scpd Builder
  */
@@ -93,12 +97,17 @@ public class UPnPScpdBuilder {
                 return
             }
 
-            guard let scpd = UPnPScpd.read(xmlString: xmlString) else {
-                self.handleError(string: "UPnPScpdBuilder::build() error - read scpd failed")
-                return
+            do {
+                guard let scpd = try UPnPScpd.read(xmlString: xmlString) else {
+                    self.handleError(string: "UPnPScpdBuilder::build() error - read scpd failed")
+                    return
+                }
+                
+                self.handleCompleted(scpd: scpd)
+
+            } catch {
+                self.handleError(string: "UPnPScpdBuilder::build() error - \(error)")
             }
-            
-            self.handleCompleted(scpd: scpd)
         }.start()
     }
     

@@ -97,8 +97,8 @@ public class UPnPIcon : UPnPModel {
     /**
      read from xml string
      */
-    public static func read(xmlString: String) -> UPnPIcon? {
-        let doc = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPIcon? {
+        let doc = try XmlParser.parse(xmlString: xmlString)
         guard let rootElement = doc.rootElement else {
             return nil
         }

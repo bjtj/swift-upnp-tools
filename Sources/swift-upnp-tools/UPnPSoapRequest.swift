@@ -31,8 +31,8 @@ public class UPnPSoapRequest : UPnPModel {
     /**
      read from xml string
      */
-    public static func read(xmlString: String) -> UPnPSoapRequest? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPSoapRequest? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             print("UPnPSoapRequest::read() error -- NO ROOT ELEMENT")
             return nil
@@ -60,12 +60,12 @@ public class UPnPSoapRequest : UPnPModel {
         }
 
         let request = UPnPSoapRequest(actionName: actionName)
-        guard let attributes = actionElement.attributes, attributes.isEmpty == false else {
+        guard actionElement.attributes.isEmpty == false else {
             print("UPnPSoapRequest::read() error -- no service type")
             return nil
         }
 
-        request.serviceType = "\(attributes[0].value ?? "")"
+        request.serviceType = "\(actionElement.attributes[0].value ?? "")"
 
         if let propElements = actionElement.elements {
             for propElement in propElements {

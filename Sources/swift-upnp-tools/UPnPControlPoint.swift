@@ -360,26 +360,33 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             throw err
         }
 
-        guard let properties = UPnPEventProperties.read(xmlString: xmlString) else {
-            let err = HttpServerError.custom(string: "Parse Failed Event Properties")
-            try handleEventProperties(subscriber: nil, properties: nil, error: err)
-            throw err
-        }
+        do {
 
-        guard let sid = request.header["sid"] else {
-            let err = HttpServerError.illegalArgument(string: "No SID")
-            try handleEventProperties(subscriber: nil, properties: properties, error: err)
-            throw err
-        }
+            guard let properties = try UPnPEventProperties.read(xmlString: xmlString) else {
+                let err = HttpServerError.custom(string: "Parse Failed Event Properties")
+                try handleEventProperties(subscriber: nil, properties: nil, error: err)
+                throw err
+            }
 
-        guard let subscriber = getEventSubscriber(sid: sid) else {
-            let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
-            try handleEventProperties(subscriber: nil, properties: properties, error: err)
-            throw err
+            guard let sid = request.header["sid"] else {
+                let err = HttpServerError.illegalArgument(string: "No SID")
+                try handleEventProperties(subscriber: nil, properties: properties, error: err)
+                throw err
+            }
+
+            guard let subscriber = getEventSubscriber(sid: sid) else {
+                let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
+                try handleEventProperties(subscriber: nil, properties: properties, error: err)
+                throw err
+            }
+            
+            try handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
+            response.status = .ok
+
+        } catch {
+            try handleEventProperties(subscriber: nil, properties: nil, error: error)
+            throw error
         }
-        
-        try handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
-        response.status = .ok
     }
 
     func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) throws {

@@ -56,8 +56,8 @@ public class UPnPScpd : UPnPModel {
     /**
      Read scpd from xml string
      */
-    public static func read(xmlString: String) -> UPnPScpd? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPScpd? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             print("UPnPScpd::read() - error no root xml element")
             return nil

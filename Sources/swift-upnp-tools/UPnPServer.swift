@@ -419,7 +419,7 @@ public class UPnPServer : HttpRequestHandler {
             throw HttpServerError.illegalArgument(string: "wrong xml string")
         }
 
-        guard let soapRequest = UPnPSoapRequest.read(xmlString: xmlString) else {
+        guard let soapRequest = try UPnPSoapRequest.read(xmlString: xmlString) else {
             throw HttpServerError.custom(string: "parse failed soap request")
         }
 

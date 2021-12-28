@@ -51,28 +51,34 @@ public class UPnPDeviceBuilder {
                 self.delegate?.onDeviceBuildError(error: "no xml string")
                 return
             }
-            guard let device = UPnPDevice.read(xmlString: xmlString) else {
-                self.delegate?.onDeviceBuildError(error: "UPnPDevice.read() failed")
-                return
-            }
-
-            device.status = .building
-            device.baseUrl = url
-            
-            let services = device.allServices
-            if services.isEmpty {
-                device.status = .completed
-            } else {
-                device.buildingServiceCount = services.count
-                for service in services {
-                    UPnPScpdBuilder(device: device, service: service, completionHandler: self.scpdCompletionHandler)
-                        .build()
+            do {
+                guard let device = try UPnPDevice.read(xmlString: xmlString) else {
+                    self.delegate?.onDeviceBuildError(error: "UPnPDevice.read() failed")
+                    return
                 }
+
+                device.status = .building
+                device.baseUrl = url
+                
+                let services = device.allServices
+                if services.isEmpty {
+                    device.status = .completed
+                } else {
+                    device.buildingServiceCount = services.count
+                    for service in services {
+                        UPnPScpdBuilder(device: device, service: service, completionHandler: self.scpdCompletionHandler)
+                          .build()
+                    }
+                }
+                
+                if let delegate = self.delegate {
+                    delegate.onDeviceBuild(url: url, device: device)
+                }
+                
+            } catch {
+                self.delegate?.onDeviceBuildError(error: "\(error)")
             }
             
-            if let delegate = self.delegate {
-                delegate.onDeviceBuild(url: url, device: device)
-            }
         }.start()
     }
 }

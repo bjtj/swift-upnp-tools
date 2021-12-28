@@ -47,8 +47,8 @@ public class UPnPActionArgument : UPnPModel {
     /**
      read from xml string
      */
-    public static func read(xmlString: String) -> UPnPActionArgument? {
-        let doc = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPActionArgument? {
+        let doc = try XmlParser.parse(xmlString: xmlString)
         guard let rootElement = doc.rootElement else {
             return nil
         }

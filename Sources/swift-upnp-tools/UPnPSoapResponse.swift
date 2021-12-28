@@ -26,8 +26,8 @@ public class UPnPSoapResponse : UPnPModel {
     /**
      read from xml string
      */
-    public static func read(xmlString: String) -> UPnPSoapResponse? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPSoapResponse? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             return nil
         }
@@ -62,12 +62,12 @@ public class UPnPSoapResponse : UPnPModel {
         let end = actionName.index(actionName.endIndex, offsetBy: -"Response".count)
         response.actionName = String(actionName[actionName.startIndex..<end])
         
-        guard let attributes = actionElement.attributes, attributes.isEmpty == false else {
+        guard actionElement.attributes.isEmpty == false else {
             print("UPnPSoapRequest::read() error -- no service type")
             return nil
         }
 
-        response.serviceType = "\(attributes[0].value ?? "")"
+        response.serviceType = "\(actionElement.attributes[0].value ?? "")"
 
         if let resultElements = actionElement.elements {
             for resultElement in resultElements {

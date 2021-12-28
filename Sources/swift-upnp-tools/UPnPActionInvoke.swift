@@ -58,11 +58,15 @@ public class UPnPActionInvoke {
                 self.completionHandler?(nil, UPnPError.custom(string: "not string"))
                 return
             }
-            guard let soapResponse = UPnPSoapResponse.read(xmlString: text) else {
-                self.completionHandler?(nil, UPnPError.custom(string: "not soap response -- \(text)"))
-                return
+            do {
+                guard let soapResponse = try UPnPSoapResponse.read(xmlString: text) else {
+                    self.completionHandler?(nil, UPnPError.custom(string: "not soap response -- \(text)"))
+                    return
+                }
+                self.completionHandler?(soapResponse, nil)
+            } catch {
+                self.completionHandler?(nil, UPnPError.custom(string: "\(error)"))
             }
-            self.completionHandler?(soapResponse, nil)
 
         }.start()
     }

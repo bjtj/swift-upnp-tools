@@ -38,8 +38,8 @@ public class UPnPAction : UPnPModel {
         return nil
     }
 
-    public static func read(xmlString: String) -> UPnPAction? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPAction? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             print("UPnPAction::read() error - no root xml element")
             return nil

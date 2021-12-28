@@ -27,8 +27,8 @@ public class UPnPEventProperties: UPnPModel {
     /**
      read from xml string
      */
-    public static func read(xmlString: String) -> UPnPEventProperties? {
-        let document = parseXml(xmlString: xmlString)
+    public static func read(xmlString: String) throws -> UPnPEventProperties? {
+        let document = try XmlParser.parse(xmlString: xmlString)
         guard let root = document.rootElement else {
             return nil
         }
