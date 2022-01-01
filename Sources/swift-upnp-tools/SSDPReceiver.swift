@@ -30,10 +30,11 @@ public class SSDPReceiver {
      SSDP handler
      - Parameter hostname: address (hostname, port)
      - Parameter port: ssdp header
+     - Parameter error: error
 
      - Return ssdp headers to reponse
      */
-    public typealias ssdpHandler = (((hostname:String, port: Int32)?, SSDPHeader?) -> [SSDPHeader]?)
+    public typealias ssdpHandler = (((hostname:String, port: Int32)?, SSDPHeader?, Error?) -> [SSDPHeader]?)
 
     var finishing: Bool = false
 
@@ -100,13 +101,17 @@ public class SSDPReceiver {
 
             guard ret.bytesRead > 0 else {
                 if finishing == false {
-                    throw UPnPError.custom(string: "SSDPReceiver::run() unexpectedly socket closed")
+                    let err = UPnPError.custom(string: "SSDPReceiver::run() unexpectedly socket closed")
+                    let _ = handler?(nil, nil, err)
+                    throw err
                 }
                 return
             }
 
             guard let remoteAddress = ret.address else {
-                throw UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
+                let err = UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
+                let _ = handler?(nil, nil, err)
+                throw err
             }
 
             guard let text = String(data: readData, encoding: .utf8) else {
@@ -119,7 +124,7 @@ public class SSDPReceiver {
                 continue
             }
 
-            guard let responseHeaders = handler(Socket.hostnameAndPort(from: remoteAddress), header) else {
+            guard let responseHeaders = handler(Socket.hostnameAndPort(from: remoteAddress), header, nil) else {
                 continue
             }
             

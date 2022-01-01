@@ -135,26 +135,31 @@ func main() throws {
             break
         case "prop":
             guard let device = server.activeDevices.first, let udn = device.udn else {
-                print("No Device Found...")
+                print("[ERR] No Device Found...")
                 continue
             }
             guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1"), let serviceId = service.serviceId else {
-                print("No Service Found...")
+                print("[ERR] No Service Found...")
                 continue
             }
             loadLevelStatus += 1
-            server.setProperty(udn: udn, serviceId: serviceId, properties: ["GetLoadLevelStatus":"\(loadLevelStatus % 2)"])
+            server.setProperty(udn: udn, serviceId: serviceId, properties: ["GetLoadLevelStatus":"\(loadLevelStatus % 2)"]) {
+                subscription, error in
+                if let err = error {
+                    print("[ERR] send property error - \(err)")
+                }
+            }
             break
         case "activate":
             guard let device = server.allDevices.first else {
-                print("No Device Found...")
+                print("[ERR] No Device Found...")
                 continue
             }
             server.activate(device: device)
             break
         case "deactivate":
             guard let device = server.activeDevices.first else {
-                print("No Active Device Found...")
+                print("[ERR] No Active Device Found...")
                 continue
             }
             server.deactivate(device: device)
@@ -179,12 +184,12 @@ func startServer(port: Int) throws -> UPnPServer {
 
 func registerDevice(server: UPnPServer) throws {
     guard let device = try UPnPDevice.read(xmlString: deviceDescription_DimmableLight) else {
-        print("UPnPDevice read failed")
+        print("[ERR] UPnPDevice read failed")
         return
     }
 
     guard let service = device.getService(type: "urn:schemas-upnp-org:service:SwitchPower:1") else {
-        print("No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
+        print("[ERR] No Service (urn:schemas-upnp-org:service:SwitchPower:1)")
         return
     }
     service.scpd = try UPnPScpd.read(xmlString: scpd_SwitchPower)

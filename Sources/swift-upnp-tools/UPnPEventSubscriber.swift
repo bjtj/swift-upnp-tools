@@ -243,7 +243,7 @@ public class UPnPEventSubscriber : TimeBase {
             }
 
             guard getStatusCodeRange(response: response) == .success else {
-                completionHandler?(self, HttpError.notSuccess)
+                completionHandler?(self, HttpError.notSuccess(code: getStatusCode(response: response, defaultValue: 0)))
                 return
             }
             

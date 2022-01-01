@@ -33,6 +33,11 @@ public class UPnPServer : HttpRequestHandler {
      Action Request Handler
      */
     public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties?)
+    
+    /**
+     Send Event Property Handler
+     */
+    public typealias sendPropertyHandler = ((UPnPEventSubscription, Error?) -> Void)
 
     /**
      Dump http request body
@@ -390,6 +395,7 @@ public class UPnPServer : HttpRequestHandler {
                 throw HttpServerError.custom(string: "no device")
             }
             response.status = .ok
+            response.contentType = "text/xml"
             response.data = device.xmlDocument.data(using: .utf8)
         }
     }
@@ -402,6 +408,7 @@ public class UPnPServer : HttpRequestHandler {
                         continue
                     }
                     response.status = .ok
+                    response.contentType = "text/xml"
                     response.data = scpd.xmlDocument.data(using: .utf8)
                     return
                 }
@@ -441,6 +448,7 @@ public class UPnPServer : HttpRequestHandler {
                     properties.fields.forEach { soapResponse[$0.key] = $0.value }
                     
                     response.status = .ok
+                    response.contentType = "text/xml"
                     response.data = soapResponse.xmlDocument.data(using: .utf8)
                     return
                 }
@@ -521,8 +529,8 @@ public class UPnPServer : HttpRequestHandler {
             }
             do {
                 let receiver = try SSDPReceiver() {
-                    (address, ssdpHeader) in
-                    return self.onSSDPHeader(address: address, ssdpHeader: ssdpHeader)
+                    (address, ssdpHeader, error) in
+                    return self.onSSDPHeader(address, ssdpHeader, error)
                 }
                 self.ssdpReceiver = receiver
                 receiver.monitor(name: "server-monitor") {
@@ -559,12 +567,17 @@ public class UPnPServer : HttpRequestHandler {
     /**
      On SSDP Header with address, SSDP Header
      */
-    public func onSSDPHeader(address: (hostname: String, port: Int32)?, ssdpHeader: SSDPHeader?) -> [SSDPHeader]? {
-        guard let ssdpHeader = ssdpHeader else {
+    public func onSSDPHeader(_ address: (hostname: String, port: Int32)?, _ ssdpHeader: SSDPHeader?, _ error: Error?) -> [SSDPHeader]? {
+        guard error == nil else {
+//            error
             return nil
         }
-        if ssdpHeader.isMsearch {
-            if let st = ssdpHeader["ST"] {
+        guard let header = ssdpHeader else {
+//            something wrong
+            return nil
+        }
+        if header.isMsearch {
+            if let st = header["ST"] {
                 var responses = [SSDPHeader]()
                 switch st {
                 case "ssdp:all":
@@ -653,11 +666,11 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Set Property with Service and properties
      */
-    public func setProperty(udn: String, serviceId: String, properties: [String:String]) {
+    public func setProperty(udn: String, serviceId: String, properties: [String:String], completionHandler: sendPropertyHandler? = nil) {
         let subscriptions = getEventSubscriptions(udn: udn, serviceId: serviceId)
         for subscription in subscriptions {
             let properties = UPnPEventProperties(fromDict: properties)
-            sendEventProperties(subscription: subscription, properties: properties)
+            sendEventProperties(subscription: subscription, properties: properties, completionHandler: completionHandler)
         }
     }
 
@@ -679,22 +692,34 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Send Event Properties with Subscription and properties
      */
-    public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties) {
+    public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties, completionHandler: sendPropertyHandler? = nil) {
         for url in subscription.callbackUrls {
             let data = properties.xmlDocument.data(using: .utf8)
             var fields = [KeyValuePair]()
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in
-                guard getStatusCodeRange(response: response) == .success else {
-                    print("UPnPServer::sendEventProperties() error - status code \(getStatusCode(response: response, defaultValue: 0))")
+                guard error == nil else {
+                    completionHandler?(subscription, error)
+                    self.handleSendEvent(subscription, error)
                     return
                 }
-                guard error == nil else {
-                    print("UPnPServer::sendEventProperties() error - \(error!)")
+                guard getStatusCodeRange(response: response) == .success else {
+                    let err = HttpError.notSuccess(code: getStatusCode(response: response, defaultValue: 0))
+                    completionHandler?(subscription, err)
+                    self.handleSendEvent(subscription, err)
                     return
                 }
             }.start()
+        }
+    }
+    
+    func handleSendEvent(_ subscription: UPnPEventSubscription, _ error: Error?) {
+        guard error == nil else {
+            lockQueue.sync {
+                self.subscriptions[subscription.sid] = nil
+            }
+            return
         }
     }
 

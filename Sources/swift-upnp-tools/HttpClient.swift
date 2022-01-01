@@ -18,7 +18,7 @@ enum HttpStatusRange {
 }
 
 enum HttpError: Error {
-    case notSuccess
+    case notSuccess(code: Int)
 }
 
 func getStatusCodeRange(response: URLResponse?) -> HttpStatusRange {

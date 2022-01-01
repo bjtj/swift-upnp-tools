@@ -22,11 +22,6 @@ extension DispatchTime {
 public class SSDP {
 
     /**
-     ssdp ssdp handler
-     */
-    public typealias ssdpHandler = (((String, Int32)?, SSDPHeader?) -> Void)
-
-    /**
      Multicast hostname
      */
     public static var MCAST_HOST = "239.255.255.250"
@@ -42,7 +37,7 @@ public class SSDP {
      - Parameter mx: max timeout
      - Parameter handler: ssdp handler
      */
-    public static func sendMsearch(st: String, mx: Int, bufferSize: Int = 4096, handler: (SSDP.ssdpHandler)? = nil) {
+    public static func sendMsearch(st: String, mx: Int, bufferSize: Int = 4096, handler: (SSDPReceiver.ssdpHandler)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
           "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
@@ -84,7 +79,7 @@ public class SSDP {
                 }
                 if let handler = handler {
                     let address = Socket.hostnameAndPort(from: remote_address)
-                    handler(address, header)
+                    let _ = handler(address, header, nil)
                 }
             }
 

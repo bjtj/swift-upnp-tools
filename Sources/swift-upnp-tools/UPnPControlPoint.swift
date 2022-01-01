@@ -9,6 +9,12 @@ import SwiftHttpServer
  UPnP ControlPoint Delegate
  */
 public protocol UPnPControlPointDelegate {
+    
+    /**
+     Handle ssdp header
+     */
+    @discardableResult func ssdpHeader(_ address: (String, Int32)?, _ ssdpHeader: SSDPHeader?, _ error: Error?) -> [SSDPHeader]?
+    
     /**
      On Device Added
      */
@@ -17,6 +23,11 @@ public protocol UPnPControlPointDelegate {
      On Device Removed
      */
     func onDeviceRemoved(device: UPnPDevice)
+    
+    /**
+     Handle event property
+     */
+    func eventPropperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) throws
 }
 
 
@@ -165,13 +176,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      */
     let lockQueue = DispatchQueue(label: "com.tjapp.swiftUPnPControlPoint.lockQueue")
     
-    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
+    public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0, delegate: UPnPControlPointDelegate? = nil) {
         if httpServerBindHostname == nil {
             self.hostname = Network.getInetAddress()?.hostname
         } else {
             self.hostname = httpServerBindHostname
         }
         self.port = httpServerBindPort
+        self.delegate = delegate
     }
 
     deinit {
@@ -344,52 +356,51 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
         guard request.method.caseInsensitiveCompare("NOTIFY") == .orderedSame else {
             let err = UPnPError.custom(string: "Not Supported Method - '\(request.method)'")
-            try handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try eventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let data = body else {
             let err = HttpServerError.illegalArgument(string: "No Content")
-            try handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try eventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
         guard let xmlString = String(data: data, encoding: .utf8) else {
             let err = HttpServerError.illegalArgument(string: "Wrong XML String")
-            try handleEventProperties(subscriber: nil, properties: nil, error: err)
+            try eventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
 
+        
+        
+        guard let properties = try UPnPEventProperties.read(xmlString: xmlString) else {
+            let err = HttpServerError.custom(string: "Parse Failed Event Properties")
+            try eventProperties(subscriber: nil, properties: nil, error: err)
+            throw err
+        }
         do {
-
-            guard let properties = try UPnPEventProperties.read(xmlString: xmlString) else {
-                let err = HttpServerError.custom(string: "Parse Failed Event Properties")
-                try handleEventProperties(subscriber: nil, properties: nil, error: err)
-                throw err
-            }
-
             guard let sid = request.header["sid"] else {
-                let err = HttpServerError.illegalArgument(string: "No SID")
-                try handleEventProperties(subscriber: nil, properties: properties, error: err)
-                throw err
-            }
-
-            guard let subscriber = getEventSubscriber(sid: sid) else {
-                let err = HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
-                try handleEventProperties(subscriber: nil, properties: properties, error: err)
-                throw err
+                throw HttpServerError.illegalArgument(string: "No SID")
             }
             
-            try handleEventProperties(subscriber: subscriber, properties: properties, error: nil)
+            guard let subscriber = getEventSubscriber(sid: sid) else {
+                throw HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
+            }
+            
+            try eventProperties(subscriber: subscriber, properties: properties, error: nil)
             response.status = .ok
-
+            
         } catch {
-            try handleEventProperties(subscriber: nil, properties: nil, error: error)
+            try eventProperties(subscriber: nil, properties: properties, error: error)
             throw error
         }
     }
-
-    func handleEventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) throws {
+    
+    func eventProperties(subscriber: UPnPEventSubscriber?, properties: UPnPEventProperties?, error: Error?) throws {
+        
+        try delegate?.eventPropperties(subscriber: subscriber, properties: properties, error: error)
+        
         for notificationHandler in notificationHandlers {
             try notificationHandler(subscriber, properties, error)
         }
@@ -409,13 +420,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         DispatchQueue.global(qos: .default).async {
             do {
                 
-                let receiver = try SSDPReceiver() {
-                    (address, ssdpHeader) in
-                    guard let ssdpHeader = ssdpHeader else {
-                        return nil
-                    }
-                    return self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
-                }
+                let receiver = try SSDPReceiver(handler: self.ssdpHeader)
+                
                 self.ssdpReceiver = receiver
                 receiver.monitor(name: "cp-ssdpreceiver") {
                     (name, status) in
@@ -489,66 +495,81 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Send M-SEARCH with ST (Service Type) and MX (Max)
      */
-    public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDP.ssdpHandler? = nil, completionHandler: (() -> Void)? = nil) {
+    public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDPReceiver.ssdpHandler? = nil, completionHandler: (() -> Void)? = nil) {
 
         DispatchQueue.global(qos: .default).async {
 
             SSDP.sendMsearch(st: st, mx: mx) {
-                (address, ssdpHeader) in
-                guard let ssdpHeader = ssdpHeader else {
-                    return
-                }
-                self.ssdpHeader(address: address, ssdpHeader: ssdpHeader)
-                ssdpHandler?(address, ssdpHeader)
+                (address, ssdpHeader, error) in
+                self.ssdpHeader(address, ssdpHeader, error)
+                let _ = ssdpHandler?(address, ssdpHeader, error)
+                return nil
             }
             
             completionHandler?()
         }
     }
 
-    @discardableResult func ssdpHeader(address: (String, Int32)?, ssdpHeader: SSDPHeader) -> [SSDPHeader]? {
-        if ssdpHeader.isNotify {
-            guard let nts = ssdpHeader.nts else {
+    @discardableResult func ssdpHeader(_ address: (String, Int32)?, _ ssdpHeader: SSDPHeader?, _ error: Error?) -> [SSDPHeader]? {
+        
+        defer {
+            delegate?.ssdpHeader(address, ssdpHeader, error)
+        }
+        
+        guard error == nil else {
+//            error
+            return nil
+        }
+        
+        guard let header = ssdpHeader else {
+//            something wrong
+            return nil
+        }
+        
+        if header.isNotify {
+            guard let nts = header.nts else {
                 return nil
             }
             switch nts {
             case .alive:
-                guard let usn = ssdpHeader.usn else {
+                guard let usn = header.usn else {
                     break
                 }
                 if let device = self._devices[usn.uuid] {
                     device.renewTimeout()
-                } else if let location = ssdpHeader["LOCATION"] {
+                } else if let location = header["LOCATION"] {
                     if let url = URL(string: location) {
                         let device = UPnPDevice(timeout: 15)
                         device.status = .recognized
-                        _devices[usn.uuid] = device
+                        lockQueue.sync {
+                            _devices[usn.uuid] = device
+                        }
                         buildDevice(url: url)
                     }
                 }
                 break
             case .byebye:
-                if let usn = ssdpHeader.usn {
+                if let usn = header.usn {
                     lockQueue.sync {
                         self.removeDevice(udn: usn.uuid)
                     }
                 }
                 break
             case .update:
-                if let usn = ssdpHeader.usn {
+                if let usn = header.usn {
                     if let device = self._devices[usn.uuid] {
                         device.renewTimeout()
                     }
                 }
                 break
             }
-        } else if ssdpHeader.isHttpResponse {
-            guard let usn = ssdpHeader.usn else {
+        } else if header.isHttpResponse {
+            guard let usn = header.usn else {
                 return nil
             }
             if let device = self._devices[usn.uuid] {
                 device.renewTimeout()
-            } else if let location = ssdpHeader["LOCATION"] {
+            } else if let location = header["LOCATION"] {
                 if let url = URL(string: location) {
                     _devices[usn.uuid] = UPnPDevice(timeout: 15)
                     buildDevice(url: url)
