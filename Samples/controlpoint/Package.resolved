@@ -18,6 +18,15 @@
           "revision": "1f17a3ad4f0e326b40fda5a82543bf64f2378e22",
           "version": "0.1.23"
         }
+      },
+      {
+        "package": "SwiftXml",
+        "repositoryURL": "https://github.com/bjtj/swift-xml.git",
+        "state": {
+          "branch": null,
+          "revision": "9efbaf6b7be26800026c070a15ccc50421102c89",
+          "version": "0.1.13"
+        }
       }
     ]
   },

@@ -108,7 +108,7 @@ final class ServerTests: XCTestCase {
     class func startReceiver() {
         do {
             receiver = try SSDPReceiver() {
-                (address, ssdpHeader) in
+                (address, ssdpHeader, error) in
                 if let ssdpHeader = ssdpHeader {
                     if let address = address {
                         print("[SSDP] from -- \(address.hostname):\(address.port) / " +
@@ -264,10 +264,11 @@ final class ServerTests: XCTestCase {
         XCTAssertTrue(ssdpReceiver.running)
 
         cp.sendMsearch(st: st, mx: 3, ssdpHandler: {
-                                          (address, header) in
+                                          (address, header, error) in
                                           guard let _ = header else {
-                                              return
+                                              return nil
                                           }
+                                          return nil
                                       })
 
         sleep(3)
