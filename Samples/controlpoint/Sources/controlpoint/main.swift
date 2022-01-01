@@ -137,24 +137,28 @@ func main() {
                 print("[ERR] Device has no udn field <-- weird")
                 continue
             }
-            cp.subscribe(udn: udn, service: service) {
-                (subscriber, error) in
-                if let e = error {
-                    print("[EVENT] Subscribe failed -- \(e)")
-                }
+            do {
+                try cp.subscribe(udn: udn, service: service) {
+                    (subscriber, error) in
+                    if let e = error {
+                        print("[EVENT] Subscribe failed -- \(e)")
+                    }
 
-                guard let subscriber = subscriber else {
-                    print("[EVENT] Subscribe failed -- no subscriber")
-                    return
-                }
+                    guard let subscriber = subscriber else {
+                        print("[EVENT] Subscribe failed -- no subscriber")
+                        return
+                    }
 
-                guard let sid = subscriber.sid else {
-                    print("[EVENT] Subscribe failed -- no sid")
-                    return
-                }
-                
-                print("[EVENT] Subscribe is done -- \(sid)")
+                    guard let sid = subscriber.sid else {
+                        print("[EVENT] Subscribe failed -- no sid")
+                        return
+                    }
+                    
+                    print("[EVENT] Subscribe is done -- \(sid)")
 
+                }
+            } catch {
+                print("[ERR] \(error)")
             }
         default:
             print("[ERR] Unknown Command -- '\(tokens[0])'")

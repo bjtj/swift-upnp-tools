@@ -325,34 +325,40 @@ final class ServerTests: XCTestCase {
                 return
             }
 
-            cp.subscribe(udn: udn, service: service) {
-                (subscriber, error) in
-                XCTAssertNil(error)
-                guard let subscriber = subscriber else {
-                    XCTFail("No Subscriber")
-                    return
-                }
-                XCTAssertNotNil(subscriber.sid)
-                print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
-                
-            }?.onNotification {
-                (subscriber, properties, error) in
-                guard error == nil else {
-                    XCTFail("notification error - \(error!)")
-                    return
-                }
-                guard let subscriber = subscriber else {
-                    XCTFail("no subscriber")
-                    return
-                }
-                guard let sid = subscriber.sid else {
-                    XCTFail("no sid")
-                    return
-                }
-                XCTAssertNotNil(properties)
-                print(" >>> \(sid) <<<\n- \(properties?.description ?? "nil")")
+            do {
+                try cp.subscribe(udn: udn, service: service) {
+                    (subscriber, error) in
+                    XCTAssertNil(error)
+                    guard let subscriber = subscriber else {
+                        XCTFail("No Subscriber")
+                        return
+                    }
+                    XCTAssertNotNil(subscriber.sid)
+                    print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
+                    
+                }?.onNotification {
+                    (subscriber, properties, error) in
+                    guard error == nil else {
+                        XCTFail("notification error - \(error!)")
+                        return
+                    }
+                    guard let subscriber = subscriber else {
+                        XCTFail("no subscriber")
+                        return
+                    }
+                    guard let sid = subscriber.sid else {
+                        XCTFail("no sid")
+                        return
+                    }
+                    XCTAssertNotNil(properties)
+                    print(" >>> \(sid) <<<\n- \(properties?.description ?? "nil")")
 
-                handledEvents.append(subscriber)
+                    handledEvents.append(subscriber)
+                }
+
+            } catch {
+                XCTFail("failed - \(error)")
+                return
             }
 
             handledService.append(service)
@@ -474,39 +480,45 @@ final class ServerTests: XCTestCase {
                 return
             }
 
-            cp.subscribe(udn: udn, service: service) {
-                (subscriber, error) in
-                XCTAssertNil(error)
-                guard let sub = subscriber else {
-                    XCTFail("No Subscriber")
-                    return
-                }
-                XCTAssertNotNil(sub.sid)
-                print("[SUBSCRIBE] result (SID: '\(sub.sid!)')")
-
-                DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.1) {
-
-                    XCTAssertNotNil(serviceId)
-                    if let serviceId = serviceId {
-                        XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+            do {
+                try cp.subscribe(udn: udn, service: service) {
+                    (subscriber, error) in
+                    XCTAssertNil(error)
+                    guard let sub = subscriber else {
+                        XCTFail("No Subscriber")
+                        return
                     }
-
                     XCTAssertNotNil(sub.sid)
-                    cp.unsubscribe(sid: sub.sid!) {
-                        (subscriber, error) in
-                        guard error == nil else {
-                            XCTFail("unsubscribe - error: \(error!)")
-                            return
+                    print("[SUBSCRIBE] result (SID: '\(sub.sid!)')")
+
+                    DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 0.1) {
+
+                        XCTAssertNotNil(serviceId)
+                        if let serviceId = serviceId {
+                            XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
                         }
-                        guard let sid = subscriber?.sid else {
-                            XCTFail("unsubscribe - no sid")
-                            return
+
+                        XCTAssertNotNil(sub.sid)
+                        cp.unsubscribe(sid: sub.sid!) {
+                            (subscriber, error) in
+                            guard error == nil else {
+                                XCTFail("unsubscribe - error: \(error!)")
+                                return
+                            }
+                            guard let sid = subscriber?.sid else {
+                                XCTFail("unsubscribe - no sid")
+                                return
+                            }
+                            print("\(Date()) - unsubscribed")
+                            XCTAssertEqual(sid, sub.sid)
+                            unsubscribeCalled = true
                         }
-                        print("\(Date()) - unsubscribed")
-                        XCTAssertEqual(sid, sub.sid)
-                        unsubscribeCalled = true
                     }
                 }
+
+            } catch {
+                XCTFail("failed - \(error)")
+                return
             }
 
             handledService.append(service)
@@ -711,25 +723,30 @@ final class ServerTests: XCTestCase {
             }
 
             if cp.getEventSubscribers(forUdn: udn).isEmpty {
-                cp.subscribe(udn: udn, service: service) {
-                    (subscriber, error) in
-                    XCTAssertNil(error)
-                    guard let subscriber = subscriber else {
-                        XCTFail("No Subscriber")
-                        return
-                    }
-                    XCTAssertNotNil(subscriber.sid)
-                    print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
-
-                    subscriber.onNotification {
-                        (subscriber, properties, error) in
+                do {
+                    try cp.subscribe(udn: udn, service: service) {
+                        (subscriber, error) in
+                        XCTAssertNil(error)
                         guard let subscriber = subscriber else {
-                            XCTFail("subscriber is nil")
+                            XCTFail("No Subscriber")
                             return
                         }
-                        print("SID - '\(subscriber.sid ?? "nil")'\n\(properties?.description ?? "nil")")
-                        handledEvents.append(subscriber)
+                        XCTAssertNotNil(subscriber.sid)
+                        print("[SUBSCRIBE] result (SID: '\(subscriber.sid!)')")
+
+                        subscriber.onNotification {
+                            (subscriber, properties, error) in
+                            guard let subscriber = subscriber else {
+                                XCTFail("subscriber is nil")
+                                return
+                            }
+                            print("SID - '\(subscriber.sid ?? "nil")'\n\(properties?.description ?? "nil")")
+                            handledEvents.append(subscriber)
+                        }
                     }
+                } catch {
+                    XCTFail("failed - \(error)")
+                    return
                 }
             }
 
