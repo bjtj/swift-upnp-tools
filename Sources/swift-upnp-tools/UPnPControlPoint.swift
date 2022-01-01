@@ -824,15 +824,15 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 completionHandler?(subscriber, error)
                 return
             }
-            guard let subscriber = subscriber else {
+            guard let subs = subscriber else {
                 completionHandler?(subscriber, UPnPError.custom(string: "no subscriber"))
                 return
             }
             
-            completionHandler?(subscriber, error)
+            completionHandler?(subs, error)
             
             self.lockQueue.sync {
-                self.eventSubscribers.append(subscriber, handler: self.subscription(added:))
+                self.eventSubscribers.append(subs, handler: self.subscription(added:))
             }
         }
         return subscriber
