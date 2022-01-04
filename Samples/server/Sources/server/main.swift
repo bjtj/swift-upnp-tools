@@ -177,7 +177,7 @@ func main() throws {
 
 func startServer(port: Int) throws -> UPnPServer {
     let server = UPnPServer(httpServerBindPort: port)
-    server.run()
+    try server.run()
     try registerDevice(server: server)
     return server
 }

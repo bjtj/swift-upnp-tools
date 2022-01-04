@@ -9,7 +9,7 @@ import SwiftXml
 /**
  UPnP Event Subscription Model
  */
-public class UPnPEventSubscription : TimeBase{
+public class UPnPEventSubscription : TimeBase {
 
     /**
      SID (Subscription ID)

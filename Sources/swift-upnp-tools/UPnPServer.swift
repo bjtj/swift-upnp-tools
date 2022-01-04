@@ -100,6 +100,8 @@ public class UPnPServer : HttpRequestHandler {
 
     var monitorName: String?
     var monitoringHandler: monitoringHandler?
+    
+    var timer: DispatchSourceTimer?
 
     public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
         if httpServerBindHostname == nil {
@@ -136,7 +138,6 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             _devices[udn] = device
         }
-//        activate(device: device)
     }
 
     /**
@@ -149,7 +150,6 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             _devices[udn] = nil
         }
-//        deactivate(device: device)
     }
 
     /**
@@ -183,6 +183,9 @@ public class UPnPServer : HttpRequestHandler {
         
         announceDeviceAlive(device: device)
     }
+    
+    
+    // MARK: notify alive
     
     /**
      Announce device alive
@@ -226,6 +229,46 @@ public class UPnPServer : HttpRequestHandler {
         properties["LOCATION"] = location
         SSDP.notify(properties: properties)
     }
+    
+    
+    // MARK: notify update
+    
+    /**
+     Announce device update
+     */
+    public func announceDeviceUpdate(device: UPnPDevice) {
+        guard let location = getLocation(of: device) else {
+            return
+        }
+        
+        UPnPServer.announceDeviceUpdate(device: device, location: location)
+    }
+
+    /**
+     Announce deivce update
+     */
+    public class func announceDeviceUpdate(device: UPnPDevice, location: String) {
+        
+        guard let udn = device.udn else {
+            return
+        }
+        
+        notifyUpdate(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
+    }
+
+    /**
+     Notify update
+     */
+    public class func notifyUpdate(usn: UPnPUsn, location: String) {
+        let properties = OrderedProperties()
+        properties["HOST"] = "\(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)"
+        properties["NTS"] = "ssdp:update"
+        properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
+        properties["USN"] = usn.description
+        properties["LOCATION"] = location
+        SSDP.notify(properties: properties)
+    }
+    
 
     /**
      Deactivate device with UDN
@@ -253,6 +296,8 @@ public class UPnPServer : HttpRequestHandler {
         
         announceDeviceByeBye(device: device)
     }
+    
+    // MARK: notify byebye
     
     /**
      Announce device byebye
@@ -301,9 +346,10 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Start UPnP Server
      */
-    public func run() {
+    public func run() throws {
         startHttpServer()
         startSsdpReceiver()
+        try startTimer()
     }
 
     /**
@@ -549,11 +595,40 @@ public class UPnPServer : HttpRequestHandler {
             self.ssdpReceiver = nil
         }
     }
+    
+    func startTimer() throws {
+        let queue = DispatchQueue(label: "com.tjapp.upnp.server.timer")
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        guard let timer = timer else {
+            throw UPnPError.custom(string: "Failed DispatchSource.makeTimerSource")
+        }
+        timer.schedule(deadline: .now(), repeating: 15.0, leeway: .seconds(0))
+        timer.setEventHandler { () in
+            self.lockQueue.sync {
+                self.removeExpiredSubscribers()
+                self.sendNotifyUpdates()
+            }
+        }
+        timer.resume()
+    }
+    
+    func removeExpiredSubscribers() {
+        subscriptions = subscriptions.filter {
+            $1.isExpired == false
+        }
+    }
+    
+    func sendNotifyUpdates() {
+        allDevices.forEach {
+            announceDeviceUpdate(device: $0)
+        }
+    }
 
     /**
      Stop UPnP Server
      */
     public func finish() {
+        timer?.cancel()
         httpServer?.finish()
         ssdpReceiver?.finish()
         lockQueue.sync {

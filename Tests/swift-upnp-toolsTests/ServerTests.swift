@@ -62,7 +62,7 @@ final class ServerTests: XCTestCase {
     class func startServer() throws -> UPnPServer {
         let server = UPnPServer(httpServerBindPort: 0)
         server.monitor(name: "server-monitor", handler: serverMonitoringHandler)
-        server.run()
+        try server.run()
 
         try registerDevice(server: server)
         
