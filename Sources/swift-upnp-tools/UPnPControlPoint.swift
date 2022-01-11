@@ -46,8 +46,26 @@ public protocol UPnPControlPointDelegate {
  */
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
-    /*
-     Component
+    /**
+     
+     */
+    public enum SuspendBehavior {
+        case noop
+        case unsubscribe
+        case unsubscribeAndRemove
+    }
+
+    /**
+     
+     */
+    public enum ResumeBehavior {
+        case noop
+        case removeExpired
+        case resubscribe
+    }
+
+    /**
+     ControlPoint Components
      */
     public enum Component {
         case httpserver, ssdpreceiver
@@ -146,10 +164,14 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         return _devices
     }
 
+    var subscribeHandler: UPnPEventSubscriber.subscribeCompletionHandler?
+    var renewSubscribeHandler: UPnPEventSubscriber.renewSubscribeCompletionHandler?
+    var unsubscribeHandler: UPnPEventSubscriber.unsubscribeCompletionHandler?
+
     /**
      delegate
      */
-    var delegate: UPnPControlPointDelegate?
+    public var delegate: UPnPControlPointDelegate?
     
     class Subscribers {
         var list = [UPnPEventSubscriber]()
@@ -159,37 +181,25 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             handler(subscriber)
         }
         
-        func remove(sid: String, handler: ((UPnPEventSubscriber) -> Void)) {
-            list.removeAll(where: { if $0.sid == sid { handler($0); return true} else { return false } })
+        func remove(sid: String, handler: ((UPnPEventSubscriber) -> Void)? = nil) {
+            list.removeAll(where: { if $0.sid == sid { handler?($0); return true} else { return false } })
         }
         
-        func removeAll(handler: ((UPnPEventSubscriber) -> Void)) {
-            list.removeAll(where: { handler($0); return true })
+        func removeAll(_ handler: ((UPnPEventSubscriber) -> Void)? = nil) {
+            list.removeAll(where: { handler?($0); return true })
         }
         
         func removeExpired(handler: ((UPnPEventSubscriber) -> Void)) {
             list = list.filter { if $0.isExpired { handler($0); return false } else { return true } }
         }
-        
-        func unsubscribeAll() {
-            list.forEach {
-                $0.unsubscribe()
-            }
+
+        func forEach(_ handler: ((UPnPEventSubscriber) -> Void)) {
+            list.forEach(handler)
         }
         
-        func resume(callbackUrlMaker makeCallbackUrl: ((_ udn: String, _ service: UPnPService) -> URL?)) {
+        func unsubscribeAll(completionHandler: UPnPEventSubscriber.unsubscribeCompletionHandler? = nil) {
             list.forEach {
-                guard let callbackUrls = makeCallbackUrl($0.udn, $0.service) else {
-                    print("UPnPControlPoint::subscribe() error - makeCallbackUrl failed")
-                    return
-                }
-                $0.callbackUrls = [callbackUrls]
-                $0.subscribe {
-                    (subscriber, error) in
-                    guard error == nil else {
-                        return
-                    }
-                }
+                $0.unsubscribe(completionHandler: completionHandler)
             }
         }
         
@@ -274,6 +284,67 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     }
 
     /**
+     on subscribe
+     */
+    public func on(subscribe handler: UPnPEventSubscriber.subscribeCompletionHandler?) {
+        subscribeHandler = handler
+    }
+
+    /**
+     on renew subscribe
+     */
+    public func on(renewSubscribe handler: UPnPEventSubscriber.renewSubscribeCompletionHandler?) {
+        renewSubscribeHandler = handler
+    }
+
+    /**
+     on unsubscribe
+     */
+    public func on(unsubscribe handler: UPnPEventSubscriber.unsubscribeCompletionHandler?) {
+        unsubscribeHandler = handler
+    }
+
+    /**
+     on scpd
+     */
+    public func on(scpd handler: scpdHandler?) {
+        guard let handler = handler else {
+            return
+        }
+        onScpdHandlers.append(handler)
+    }
+
+    /**
+     on event properties
+     */
+    public func on(eventProperties handler: UPnPEventSubscriber.eventNotificationHandler?) {
+        guard let handler = handler else {
+            return
+        }
+        notificationHandlers.append(handler)
+    }
+
+    /**
+     on add device
+     */
+    public func on(addDevice handler: ((UPnPDevice) -> Void)?) {
+        guard let handler = handler else {
+            return
+        }
+        onDeviceAddedHandlers.append(handler)
+    }
+
+    /**
+     on remove device
+     */
+    public func on(removeDevice handler: ((UPnPDevice) -> Void)?) {
+        guard let handler = handler else {
+            return
+        }
+        onDeviceRemovedHandlers.append(handler)
+    }
+
+    /**
      set monitoring handler
      */
     public func monitor(name: String, handler: monitoringHandler?) {
@@ -308,8 +379,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
         _devices.removeAll()
         delegate = nil
-        eventSubscribers.unsubscribeAll()
-        eventSubscribers.removeAll(handler: subscription(removed:))
+        eventSubscribers.unsubscribeAll(completionHandler: unsubscribeHandler)
+        eventSubscribers.removeAll(subscription(removed:))
         notificationHandlers.removeAll()
         onDeviceAddedHandlers.removeAll()
         onDeviceRemovedHandlers.removeAll()
@@ -321,7 +392,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      suspend
      */
-    public func suspend() {
+    public func suspend(_ behavior: SuspendBehavior = .unsubscribe) {
 
         if _suspended {
             // already suspended
@@ -331,28 +402,50 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         timer?.cancel()
         httpServer?.finish()
         ssdpReceiver?.finish()
-        eventSubscribers.unsubscribeAll()
+
+        switch behavior {
+        case .unsubscribe:
+            eventSubscribers.unsubscribeAll(completionHandler: unsubscribeHandler)
+            break
+        case .unsubscribeAndRemove:
+            eventSubscribers.unsubscribeAll(completionHandler: unsubscribeHandler)
+            eventSubscribers.removeAll()
+            break
+        default:
+            break
+        }
     }
 
     /**
      resume
      */
-    public func resume() throws {
+    public func resume(_ behavior: ResumeBehavior = .resubscribe) throws {
 
         if !_suspended || !_running {
             // already suspended or not running
             return
         }
 
-        lockQueue.sync {
-            removeExpiredSubscriber()
-            removeExpiredDevices()
+        if behavior == .removeExpired {
+            lockQueue.sync {
+                removeExpiredSubscriber()
+                removeExpiredDevices()
+            }
         }
         
         _suspended = false
         startHttpServer {
             (httpServer, error) in
-            self.eventSubscribers.resume(callbackUrlMaker: self.makeCallbackUrl)
+
+            if behavior == .resubscribe {
+                self.eventSubscribers.forEach {
+                    do {
+                        try self.subscribe(udn: $0.udn, service: $0.service, notificationHandler: $0.notificationHandler)
+                    } catch {
+                        // 
+                    }
+                }
+            }
         }
         startSsdpReceiver()
         try startTimer()
@@ -368,6 +461,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      add notification handler
      */
+    @available(*, deprecated, renamed: "on(eventProperties:)")
     public func addNotificationHandler(notificationHandler: UPnPEventSubscriber.eventNotificationHandler?) {
         guard let notificationHandler = notificationHandler else {
             return
@@ -517,9 +611,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let timer = timer else {
             throw UPnPError.custom(string: "Failed DispatchSource.makeTimerSource")
         }
-        timer.schedule(deadline: .now(), repeating: 10.0, leeway: .seconds(0))
+        let interval = 10.0
+        timer.schedule(deadline: (.now() + .seconds(Int(interval))), repeating: interval, leeway: .seconds(0))
         timer.setEventHandler { () in
             self.lockQueue.sync {
+
                 self.removeExpiredSubscriber()
                 self.removeExpiredDevices()
 
@@ -528,6 +624,8 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                     return subscriber.duration > 30
                 }) {
                     subscriber, error in
+
+                    self.renewSubscribeHandler?(subscriber, error)
                     
                     guard error == nil else {
                         if let sid = subscriber?.sid {
@@ -585,7 +683,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     @discardableResult func ssdpHeader(_ address: (String, Int32)?, _ ssdpHeader: SSDPHeader?, _ error: Error?) -> [SSDPHeader]? {
         
         defer {
-            delegate?.ssdpHeader(address, ssdpHeader, error)
+            let _ = delegate?.ssdpHeader(address, ssdpHeader, error)
         }
         
         guard error == nil else {
@@ -692,6 +790,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Add Handler: On Device Added
      */
+    @available(*, deprecated, renamed: "on(addDevice:)")
     public func onDeviceAdded(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
@@ -702,6 +801,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Add Handler: On Device Removed
      */
+    @available(*, deprecated, renamed: "on(removeDevice:)")
     public func onDeviceRemoved(handler: ((UPnPDevice) -> Void)?) {
         guard let handler = handler else {
             return
@@ -712,6 +812,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Add Handler: On Scpd
      */
+    @available(*, deprecated, renamed: "on(scpd:)")
     func onScpd(handler: (scpdHandler)?) {
         guard let handler = handler else {
             return
@@ -771,7 +872,10 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
                 if let sid = $0.sid {
                     sids.append(sid)
                 }
-                $0.unsubscribe()
+                $0.unsubscribe {
+                    subscriber, error in
+                    self.unsubscribeHandler?(subscriber, error)
+                }
             }
         }
         return sids
@@ -810,11 +914,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     /**
      Subscribe with service
      */
-    @discardableResult public func subscribe(udn: String, service: UPnPService, completionHandler: (UPnPEventSubscriber.subscribeCompletionHandler)? = nil) throws -> UPnPEventSubscriber? {
+    @discardableResult public func subscribe(udn: String, service: UPnPService, notificationHandler: UPnPEventSubscriber.eventNotificationHandler? = nil, completionHandler: UPnPEventSubscriber.subscribeCompletionHandler? = nil) throws -> UPnPEventSubscriber? {
         guard let callbackUrls = makeCallbackUrl(udn: udn, service: service) else {
             throw UPnPError.custom(string: "UPnPControlPoint::subscribe() error - makeCallbackUrl failed")
         }
-        guard let subscriber = UPnPEventSubscriber(udn: udn, service: service, callbackUrls: [callbackUrls]) else {
+        guard let subscriber = UPnPEventSubscriber(udn: udn, service: service, callbackUrls: [callbackUrls], notificationHandler: notificationHandler) else {
             throw UPnPError.custom(string: "UPnPControlPoint::subscribe() error - UPnPEventSubscriber initializer failed")
         }
         subscriber.subscribe {
@@ -822,14 +926,18 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
             guard error == nil else {
                 completionHandler?(subscriber, error)
+                self.subscribeHandler?(subscriber, error)
                 return
             }
             guard let subs = subscriber else {
-                completionHandler?(subscriber, UPnPError.custom(string: "no subscriber"))
+                let err = UPnPError.custom(string: "no subscriber")
+                completionHandler?(subscriber, err)
+                self.subscribeHandler?(subscriber, err)
                 return
             }
             
-            completionHandler?(subs, error)
+            completionHandler?(subs, nil)
+            self.subscribeHandler?(subs, nil)
             
             self.lockQueue.sync {
                 self.eventSubscribers.append(subs, handler: self.subscription(added:))
@@ -846,7 +954,11 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             print("UPnPControlPoint::unsubscribe() error - event subscriber not found (sid: '\(sid)')")
             return
         }
-        unsubscribe(subscriber: subscriber, completionHandler: completionHandler)
+        unsubscribe(subscriber: subscriber) {
+            subscriber, error in
+            completionHandler?(subscriber, error)
+            self.unsubscribeHandler?(subscriber, error)
+        }
     }
 
     /**

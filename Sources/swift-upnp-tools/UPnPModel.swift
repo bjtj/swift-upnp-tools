@@ -37,18 +37,21 @@ public class UPnPModel : OrderedProperties {
  UPnP Time Based Model (Base class)
  */
 public class UPnPTimeBasedModel : UPnPModel {
-    var timeBase: TimeBase
+    var _timeBase: TimeBase
+    var timeBase: TimeBase {
+        return _timeBase
+    }
 
     public init(timeout: UInt64 = 1800) {
-        timeBase = TimeBase(timeout: timeout)
+        _timeBase = TimeBase(timeout: timeout)
     }
     
     public func renewTimeout() {
-        timeBase.renewTimeout()
+        _timeBase.renewTimeout()
     }
     
     public var isExpired: Bool {
-        return timeBase.isExpired
+        return _timeBase.isExpired
     }
 }
 
