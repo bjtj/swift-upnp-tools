@@ -97,6 +97,25 @@ public class HttpClient {
     var contentType: String?
     var fields: [KeyValuePair]?
     var delegate: httpClientHandler?
+    /**
+     user agent
+     */
+    public static var USER_AGENT: String = "OS/\(OSVER) UPnP/1.1 SwiftUpnpTool/1.0"
+    
+    static var OSVER: String {
+        let ver = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(ver.majorVersion).\(ver.minorVersion).\(ver.patchVersion)"
+    }
+    
+    /**
+     user agent
+     */
+    public var userAgent: String? = nil
+
+    /**
+     Set request header field `Connection` to `close`
+     */
+    public var closeConn: Bool = true
 
     public init(url: URL) {
         self.url = url
@@ -137,7 +156,14 @@ public class HttpClient {
     public func start() {
         let session = URLSession(configuration: URLSessionConfiguration.default)
         var request = URLRequest(url: url)
-        request.addValue("close", forHTTPHeaderField: "Connection")
+        if let ua = userAgent {
+            request.addValue(ua, forHTTPHeaderField: "User-Agent")
+        } else {
+            request.addValue(HttpClient.USER_AGENT, forHTTPHeaderField: "User-Agent")
+        }
+        if closeConn {
+            request.addValue("close", forHTTPHeaderField: "Connection")
+        }
         if let method = self.method {
             request.httpMethod = method
         }
