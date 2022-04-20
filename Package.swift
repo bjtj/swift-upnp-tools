@@ -16,7 +16,7 @@ let package = Package(
     // .package(url: /* package url */, from: "1.0.0"),
     .package(url: "https://github.com/IBM-Swift/BlueSocket.git", from: "1.0.200"),
     .package(url: "https://github.com/bjtj/swift-http-server.git", from: "0.1.23"),
-    .package(url: "https://github.com/bjtj/swift-xml.git", from: "0.1.13")
+    .package(url: "https://github.com/bjtj/swift-xml.git", from: "0.1.14")
 //    .package(path: "swift-xml"),
   ],
   targets: [
