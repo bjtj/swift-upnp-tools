@@ -418,15 +418,42 @@ public class UPnPServer : HttpRequestHandler {
     }
 
     func isScpdQuery(request: HttpRequest) -> Bool {
-        return request.path.hasSuffix("scpd.xml")
+        var result = false
+        lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                if let _ = device.getService(withScpdUrl: request.path) {
+                    result = true
+                    break
+                }
+            }
+        }
+        return result
     }
 
     func isControlQuery(request: HttpRequest) -> Bool {
-        return request.path.hasSuffix("control.xml")
+        var result = false
+        lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                if let _ = device.getService(withControlUrl: request.path) {
+                    result = true
+                    break
+                }
+            }
+        }
+        return result
     }
 
     func isEventSubQuery(request: HttpRequest) -> Bool {
-        return request.path.hasSuffix("event.xml")
+        var result = false
+        lockQueue.sync {
+            for (_, device) in self._activeDevices {
+                if let _ = device.getService(withEventSubUrl: request.path) {
+                    result = true
+                    break
+                }
+            }
+        }
+        return result
     }
 
     func handleDeviceQuery(request: HttpRequest, response: HttpResponse) throws {
