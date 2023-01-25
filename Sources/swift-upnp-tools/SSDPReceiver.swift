@@ -12,6 +12,28 @@ import SwiftHttpServer
 public class SSDPReceiver {
 
     /**
+     Listener
+     */
+    public class Listener: Equatable {
+        private var _id = NSUUID().uuidString.lowercased()
+        var listener: ssdpListener
+        var listeners: [Listener]
+
+        init(_ listeners: [Listener], _ listener: @escaping ssdpListener) {
+            self.listeners = listeners
+            self.listener = listener
+        }
+
+        public static func ==(_ lhs: Listener, _ rhs: Listener) -> Bool {
+            return lhs._id == rhs._id
+        }
+
+        func remove() {
+            self.listeners.removeAll(where: {$0 == self})
+        }
+    }
+
+    /**
      status
      */
     public enum Status {
@@ -36,6 +58,8 @@ public class SSDPReceiver {
      */
     public typealias ssdpHandler = (((hostname:String, port: Int32)?, SSDPHeader?, Error?) -> [SSDPHeader]?)
 
+    public typealias ssdpListener = (((hostname:String, port: Int32)?, SSDPHeader?, Error?) -> Void)
+
     var finishing: Bool = false
 
     /**
@@ -50,6 +74,7 @@ public class SSDPReceiver {
     
     var handler: ssdpHandler?
     var listenSocket: Socket
+    var listeners: [Listener] = []
 
     public init(handler: SSDPReceiver.ssdpHandler? = nil) throws {
         self.handler = handler
@@ -66,6 +91,15 @@ public class SSDPReceiver {
     public func monitor(name: String?, handler: monitoringHandler?) {
         monitorName = name
         self.monitoringHandler = handler
+    }
+
+    /**
+     add listener
+     */
+    public func listener(add listener: @escaping ssdpListener) -> Listener{
+        let l = Listener(self.listeners, listener)
+        self.listeners.append(l)
+        return l
     }
 
     /**
@@ -102,7 +136,7 @@ public class SSDPReceiver {
             guard ret.bytesRead > 0 else {
                 if finishing == false {
                     let err = UPnPError.custom(string: "SSDPReceiver::run() unexpectedly socket closed")
-                    let _ = handler?(nil, nil, err)
+                    let _ = self.handler?(nil, nil, err)
                     throw err
                 }
                 return
@@ -110,7 +144,7 @@ public class SSDPReceiver {
 
             guard let remoteAddress = ret.address else {
                 let err = UPnPError.custom(string: "SSDPReceiver::run() remote address is nil")
-                let _ = handler?(nil, nil, err)
+                let _ = self.handler?(nil, nil, err)
                 throw err
             }
 
@@ -120,11 +154,17 @@ public class SSDPReceiver {
             
             let header = SSDPHeader.read(text: text)
             
-            guard let handler = handler else {
+            guard let handler = self.handler else {
                 continue
             }
 
-            guard let responseHeaders = handler(Socket.hostnameAndPort(from: remoteAddress), header, nil) else {
+            let addr = Socket.hostnameAndPort(from: remoteAddress)
+
+            self.listeners.forEach {
+                $0.listener(addr, header, nil)
+            }
+
+            guard let responseHeaders = handler(addr, header, nil) else {
                 continue
             }
             

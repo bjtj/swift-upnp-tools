@@ -10,6 +10,43 @@ import SwiftHttpServer
  */
 public class UPnPServer : HttpRequestHandler {
 
+    public static var META_OS_NAME: String = "\(OS_NAME)"
+    public static var META_UPNP_VER: String = "UPnP/1.1"
+    public static var META_APP_NAME: String = "SwiftUPnPServer/1.0"
+
+    public static var OS_NAME: String {
+        get {
+            let versionString: String
+            
+            if #available(OSX 10.10, *) {
+                let version = ProcessInfo.processInfo.operatingSystemVersion
+                versionString = "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+            } else {
+                versionString = "10.9"
+            }
+            
+            let osName: String = {
+                #if os(iOS)
+                return "iOS"
+                #elseif os(watchOS)
+                return "watchOS"
+                #elseif os(tvOS)
+                return "tvOS"
+                #elseif os(OSX)
+                return "OS X"
+                #elseif os(macOS)
+                return "MacOS"
+                #elseif os(Linux)
+                return "Linux"
+                #else
+                return "Unknown"
+                #endif
+            }()
+            
+            return "\(osName)/\(versionString)"
+        }
+    }
+    
     /**
      Component
      */
@@ -227,6 +264,7 @@ public class UPnPServer : HttpRequestHandler {
         properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
         properties["USN"] = usn.description
         properties["LOCATION"] = location
+        properties["SERVER"] = "\(self.META_OS_NAME) \(self.META_UPNP_VER) \(self.META_APP_NAME)"
         SSDP.notify(properties: properties)
     }
     
