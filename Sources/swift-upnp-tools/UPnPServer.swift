@@ -851,6 +851,8 @@ public class UPnPServer : HttpRequestHandler {
         for url in subscription.callbackUrls {
             let data = properties.xmlDocument.data(using: .utf8)
             var fields = [KeyValuePair]()
+            fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
+            fields.append(KeyValuePair(key: "NTS", value: "upnp:propchange"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in
