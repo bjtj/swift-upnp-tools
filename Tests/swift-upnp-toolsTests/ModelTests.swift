@@ -114,7 +114,7 @@ final class ModelTests: XCTestCase {
               "  <modelNumber>1</modelNumber>" +
               "  <modelURL>www.example.com</modelURL>" +
               "  <serialNumber>12345678</serialNumber>" +
-              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+              "  <UDN>uuid:e399855c-7ecb-1fff-8000-000000000000</UDN>" +
               "  <serviceList>" +
               "    <service>" +
               "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +
@@ -163,7 +163,7 @@ final class ModelTests: XCTestCase {
               "  <modelNumber>1</modelNumber>" +
               "  <modelURL>www.example.com</modelURL>" +
               "  <serialNumber>12345678</serialNumber>" +
-              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+              "  <UDN>uuid:e399855c-7ecb-1fff-8000-000000000000</UDN>" +
 
               "<iconList>" +
               "<icon>" +
@@ -203,7 +203,7 @@ final class ModelTests: XCTestCase {
               "  <modelNumber>2</modelNumber>" +
               "  <modelURL>www.example.com</modelURL>" +
               "  <serialNumber>abcd12345678</serialNumber>" +
-              "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+              "  <UDN>uuid:e399855c-7ecb-1fff-8000-000000000000</UDN>" +
               "</device>" +
               "</deviceList>" +
               
@@ -243,6 +243,12 @@ final class ModelTests: XCTestCase {
             XCTAssertEqual("x-var", basicDevice["x-key"])
             basicDevice["x-key"] = nil
             XCTAssertNil(basicDevice["x-key"])
+
+            if let usnList = device.allUsnList {
+                usnList.forEach {
+                    print($0.description)
+                }
+            }
         }
     }
 

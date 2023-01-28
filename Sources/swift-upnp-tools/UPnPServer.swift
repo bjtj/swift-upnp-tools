@@ -92,10 +92,12 @@ public class UPnPServer : HttpRequestHandler {
      http server bind port
      */
     public var port: Int
+
     /**
      http server
      */
     public var httpServer: HttpServer?
+
     /**
      ssdp receiver
      */
@@ -126,10 +128,12 @@ public class UPnPServer : HttpRequestHandler {
      subscriptions
      */
     public var subscriptions = [String:UPnPEventSubscription]()
+
     /**
      on action request handler
      */
     var actionRequestHandler: actionHandler?
+
     /**
      lock queue
      */
@@ -218,7 +222,7 @@ public class UPnPServer : HttpRequestHandler {
             self._activeDevices[udn] = device
         }
         
-        announceDeviceAlive(device: device)
+        announceDeviceAlive(device: device, repeatCount: 2)
     }
     
     
@@ -227,30 +231,39 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Announce device alive
      */
-    public func announceDeviceAlive(device: UPnPDevice) {
+    public func announceDeviceAlive(device: UPnPDevice, repeatCount: Int = 1) {
         guard let location = getLocation(of: device) else {
             return
         }
         
-        UPnPServer.announceDeviceAlive(device: device, location: location)
+        UPnPServer.announceDeviceAlive(device: device, location: location, repeatCount: repeatCount)
     }
 
     /**
      Announce deivce alive
      */
-    public class func announceDeviceAlive(device: UPnPDevice, location: String) {
-        guard let usn_list = device.allServiceTypes else {
-            return
-        }
+    public class func announceDeviceAlive(device: UPnPDevice, location: String, repeatCount: Int = 1) {
+
         guard let udn = device.udn else {
             return
         }
         
-        notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
-        for usn in usn_list {
-            notifyAlive(usn: usn, location: location)
+        guard let usn_list = device.allUsnList else {
+            return
         }
-        notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
+
+        for _ in 0..<repeatCount {
+            notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
+        }
+
+        for _ in 0..<repeatCount {
+            notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
+        }
+        for usn in usn_list {
+            for _ in 0..<repeatCount {
+                notifyAlive(usn: usn, location: location)
+            }
+        }
     }
 
     /**
@@ -348,7 +361,7 @@ public class UPnPServer : HttpRequestHandler {
      Announce device byebye
      */
     public class func announceDeviceByeBye(device: UPnPDevice) {
-        guard let usn_list = device.allServiceTypes else {
+        guard let usn_list = device.allUsnList else {
             return
         }
         guard let udn = device.udn else {
@@ -356,10 +369,10 @@ public class UPnPServer : HttpRequestHandler {
         }
         
         notifyByebye(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"))
+        notifyByebye(usn: UPnPUsn(uuid: udn))
         for usn in usn_list {
             notifyByebye(usn: usn)
         }
-        notifyByebye(usn: UPnPUsn(uuid: udn))
     }
 
     /**
@@ -671,7 +684,7 @@ public class UPnPServer : HttpRequestHandler {
         timer.setEventHandler { () in
             self.lockQueue.sync {
                 self.removeExpiredSubscribers()
-                self.sendNotifyUpdates()
+                self.sendAllNotifyAlive()
             }
         }
         timer.resume()
@@ -682,8 +695,14 @@ public class UPnPServer : HttpRequestHandler {
             $1.isExpired == false
         }
     }
+
+    func sendAllNotifyAlive() {
+        allDevices.forEach {
+            announceDeviceAlive(device: $0)
+        }
+    }
     
-    func sendNotifyUpdates() {
+    func sendAllNotifyUpdates() {
         allDevices.forEach {
             announceDeviceUpdate(device: $0)
         }
@@ -728,13 +747,13 @@ public class UPnPServer : HttpRequestHandler {
                             }
                             let rootDevice = UPnPUsn(uuid: udn, type: "upnp:rootdevice")
                             responses.append(makeMsearchResponse(from: rootDevice, location: location))
-                            guard let usn_list = device.allServiceTypes else {
+                            guard let usn_list = device.allUsnList else {
                                 continue
                             }
+                            responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                             for usn in usn_list {
                                 responses.append(makeMsearchResponse(from: usn, location: location))
                             }
-                            responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                         }
                     }
                     break

@@ -17,10 +17,10 @@ public class SSDPReceiver {
     public class Listener: Equatable {
         private var _id = NSUUID().uuidString.lowercased()
         var listener: ssdpListener
-        var listeners: [Listener]
+        var receiver: SSDPReceiver
 
-        init(_ listeners: [Listener], _ listener: @escaping ssdpListener) {
-            self.listeners = listeners
+        init(_ receiver: SSDPReceiver, _ listener: @escaping ssdpListener) {
+            self.receiver = receiver
             self.listener = listener
         }
 
@@ -29,7 +29,7 @@ public class SSDPReceiver {
         }
 
         func remove() {
-            self.listeners.removeAll(where: {$0 == self})
+            self.receiver.listener(remove: self)
         }
     }
 
@@ -96,10 +96,17 @@ public class SSDPReceiver {
     /**
      add listener
      */
-    public func listener(add listener: @escaping ssdpListener) -> Listener{
-        let l = Listener(self.listeners, listener)
+    public func listener(add listener: @escaping ssdpListener) -> Listener {
+        let l = Listener(self, listener)
         self.listeners.append(l)
         return l
+    }
+
+    /**
+     remove listener
+     */
+    public func listener(remove listener: Listener) {
+        self.listeners.removeAll(where: { $0 == listener })
     }
 
     /**

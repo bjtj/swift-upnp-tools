@@ -111,8 +111,9 @@ final class ServerTests: XCTestCase {
                 (address, ssdpHeader, error) in
                 if let ssdpHeader = ssdpHeader {
                     if let address = address {
-                        print("[SSDP] from -- \(address.hostname):\(address.port) / " +
-                                "\(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
+                        print("[SSDP] from -- \(address.hostname):\(address.port)")
+                        print("\t- NTS: \(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
+                        print("\t- NT: \(ssdpHeader.nt ?? "(NO NT)")")
                         if ssdpHeader.nts == .alive || ssdpHeader.nts == .update {
                             print("\t- LOCATION: \(ssdpHeader.location ?? "(NO LOCATION)")")
                         }
@@ -147,6 +148,7 @@ final class ServerTests: XCTestCase {
           })
 
         defer {
+            print("== REMOVE LISTENER ==")
             listener.remove()
         }
         
@@ -169,6 +171,25 @@ final class ServerTests: XCTestCase {
         UPnPServer.announceDeviceByeBye(device: device)
 
         sleep(1)
+
+        let server = UPnPServer(httpServerBindPort: 0)
+        try server.run()
+
+        sleep(1)
+
+        print("========== TEST NOTIFY : ALIVE ==========")
+
+        server.activate(device: device)
+
+        sleep(1)
+
+        print("========== TEST NOTIFY : BYEBYE ==========")
+
+        server.deactivate(device: device)
+
+        sleep(1)
+
+        print("========== TEST NOTIFY : DONE ==========")
     }
 
     /**
@@ -181,7 +202,7 @@ final class ServerTests: XCTestCase {
             return
         }
 
-        let udn = "e399855c-7ecb-1fff-8000-000000000000"
+        let udn = "uuid:e399855c-7ecb-1fff-8000-000000000000"
         let device = server.getDevice(udn: udn)
         XCTAssertNotNil(device)
 
@@ -608,7 +629,7 @@ final class ServerTests: XCTestCase {
             return
         }
 
-        let udn = "e399855c-7ecb-1fff-8000-000000000000"
+        let udn = "uuid:e399855c-7ecb-1fff-8000-000000000000"
         guard let device = server.getDevice(udn: udn) else {
             XCTFail("server.getDevice failed")
             return
@@ -1079,7 +1100,7 @@ final class ServerTests: XCTestCase {
       "  <modelNumber>1</modelNumber>" +
       "  <modelURL>www.example.com</modelURL>" +
       "  <serialNumber>12345678</serialNumber>" +
-      "  <UDN>e399855c-7ecb-1fff-8000-000000000000</UDN>" +
+      "  <UDN>uuid:e399855c-7ecb-1fff-8000-000000000000</UDN>" +
       "  <serviceList>" +
       "    <service>" +
       "    <serviceType>urn:schemas-upnp-org:service:SwitchPower:1</serviceType>" +

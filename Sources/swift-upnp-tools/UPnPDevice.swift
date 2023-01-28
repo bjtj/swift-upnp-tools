@@ -91,22 +91,49 @@ public class UPnPDevice : UPnPTimeBasedModel {
     }
 
     /**
+     Get All USN List
+     */
+    public var allUsnList: [UPnPUsn]? {
+        var usnList: [UPnPUsn] = []
+
+        guard let udn = self.udn else {
+            return nil
+        }
+
+        if let deviceType = self.deviceType {
+            usnList.append(UPnPUsn(uuid: udn, type: deviceType))
+        }
+
+        for service in self.services {
+            if let serviceType = service.serviceType {
+                usnList.append(UPnPUsn(uuid: udn, type: serviceType))
+            }
+        }
+
+        for embeddedDevice in self.embeddedDevices {
+            if let list = embeddedDevice.allUsnList {
+                usnList += list
+            }
+        }
+        
+        return usnList
+    }
+
+    /**
      Get all service types
      */
     public var allServiceTypes: [UPnPUsn]? {
         var types = [UPnPUsn]()
-        guard let udn = udn else {
+        guard let udn = self.udn else {
             return nil
         }
-        if let deviceType = deviceType {
-            types.append(UPnPUsn(uuid: udn, type: deviceType))
-        }
-        for service in services {
+
+        for service in self.services {
             if let serviceType = service.serviceType {
                 types.append(UPnPUsn(uuid: udn, type: serviceType))
             }
         }
-        for embeddedDevice in embeddedDevices {
+        for embeddedDevice in self.embeddedDevices {
             if let serviceTypes = embeddedDevice.allServiceTypes {
                 types += serviceTypes
             }
