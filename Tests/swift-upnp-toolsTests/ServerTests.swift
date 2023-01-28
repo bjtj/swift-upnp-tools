@@ -206,6 +206,12 @@ final class ServerTests: XCTestCase {
         let device = server.getDevice(udn: udn)
         XCTAssertNotNil(device)
 
+        server.on(
+          eventSubscription: {
+              subscription in
+              print("event subscription - \(subscription.udn) \(subscription.callbackUrls)")
+          })
+
         // -------------------------------------------
 
         server.on(
