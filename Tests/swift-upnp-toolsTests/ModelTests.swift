@@ -622,6 +622,78 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual("urn:schemas-upnp-org:service:ContentDirectory:1", response.serviceType)
         XCTAssertEqual("Browse", response.actionName)
     }
+
+    func testSoapError() throws {
+
+        let soapErrorResponse = "<?xml version=\"1.0\"?>" +
+          "<s:Envelope " +
+          "xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
+          "s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">" +
+          "<s:Body>" +
+          "<s:Fault>" +
+          "<faultcode>s:Client</faultcode>" +
+          "<faultstring>UPnPError</faultstring>" +
+          "<detail>" +
+          "<UPnPError xmlns=\"urn:schemas-upnp-org:control-1-0\">" +
+          "<errorCode>401</errorCode>" +
+          "<errorDescription>Invalid Action</errorDescription>" +
+          "</UPnPError>" +
+          "</detail>" +
+          "</s:Fault>" +
+          "</s:Body>" +
+          "</s:Envelope>"
+
+        let response = try UPnPSoapErrorResponse.read(xmlString: soapErrorResponse)
+
+        XCTAssertEqual(401, response.errorCode)
+        XCTAssertEqual("Invalid Action", response.errorDescription)
+
+
+        let xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+          "<s:Envelope " +
+          "xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
+          "s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">" +
+          "<s:Body>" +
+          "<s:Fault>" +
+          "<faultcode>s:Client</faultcode>" +
+          "<faultstring>UPnPError</faultstring>" +
+          "<detail>" +
+          "<UPnPError xmlns=\"urn:schemas-upnp-org:control-1-0\">" +
+          "<errorCode>600</errorCode>" +
+          "<errorDescription>Argument Value Invalid</errorDescription>" +
+          "</UPnPError>" +
+          "</detail>" +
+          "</s:Fault>" +
+          "</s:Body>" +
+          "</s:Envelope>"
+
+        let description = "<s:Envelope " +
+          "xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
+          "s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">" +
+          "<s:Body>" +
+          "<s:Fault>" +
+          "<faultcode>s:Client</faultcode>" +
+          "<faultstring>UPnPError</faultstring>" +
+          "<detail>" +
+          "<UPnPError xmlns=\"urn:schemas-upnp-org:control-1-0\">" +
+          "<errorCode>600</errorCode>" +
+          "<errorDescription>Argument Value Invalid</errorDescription>" +
+          "</UPnPError>" +
+          "</detail>" +
+          "</s:Fault>" +
+          "</s:Body>" +
+          "</s:Envelope>"
+
+        let resp = try UPnPSoapErrorResponse.read(xmlString: xml)
+
+        XCTAssertEqual(600, resp.errorCode)
+        XCTAssertEqual("Argument Value Invalid", resp.errorDescription)
+
+        XCTAssertEqual(description.lowercased(), resp.description.lowercased())
+        XCTAssertEqual(description, resp.description)
+        XCTAssertEqual(xml.lowercased(), resp.xmlDocument.lowercased())
+        XCTAssertEqual(xml, resp.xmlDocument)
+    }
     
 
     /**
@@ -719,6 +791,7 @@ final class ModelTests: XCTestCase {
       ("testDeviceDescription", testDeviceDescription),
       ("testService", testService),
       ("testSoap", testSoap),
+      ("testSoapError", testSoapError),
       ("testActionArgument", testActionArgument),
       ("testAction", testAction),
       ("testScpd", testScpd),
