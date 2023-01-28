@@ -77,6 +77,11 @@ public class UPnPServer : HttpRequestHandler {
     public typealias sendPropertyHandler = ((UPnPEventSubscription, Error?) -> Void)
 
     /**
+     Subscription Handler
+     */
+    public typealias subscriptionHandler = ((UPnPEventSubscription) -> Void)
+
+    /**
      Dump http request body
      */
     public var dumpBody: Bool {
@@ -126,10 +131,17 @@ public class UPnPServer : HttpRequestHandler {
      subscriptions
      */
     public var subscriptions = [String:UPnPEventSubscription]()
+
+    /**
+     event subscription handler
+     */
+    var eventSubscriptionHandler: subscriptionHandler?
+
     /**
      on action request handler
      */
     var actionRequestHandler: actionHandler?
+
     /**
      lock queue
      */
@@ -598,6 +610,10 @@ public class UPnPServer : HttpRequestHandler {
                     continue
                 }
                 let subscription = UPnPEventSubscription.make(udn: udn, service: service, callbackUrls: urls)
+
+                if let handler = self.eventSubscriptionHandler {
+                    handler(subscription)
+                }
                 
                 subscriptions[subscription.sid] = subscription
                 
@@ -797,6 +813,10 @@ public class UPnPServer : HttpRequestHandler {
 
         let location = "http://\(httpServerAddress.hostname):\(httpServerAddress.port)/\(udn)/device.xml"
         return location
+    }
+
+    public func on(eventSubscription handler: subscriptionHandler?) {
+        self.eventSubscriptionHandler = handler
     }
 
     /**
