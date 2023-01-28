@@ -113,6 +113,9 @@ final class ServerTests: XCTestCase {
                     if let address = address {
                         print("[SSDP] from -- \(address.hostname):\(address.port) / " +
                                 "\(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
+                        if ssdpHeader.nts == .alive || ssdpHeader.nts == .update {
+                            print("\t- LOCATION: \(ssdpHeader.location ?? "(NO LOCATION)")")
+                        }
                     }
                 }
                 return nil
@@ -155,14 +158,14 @@ final class ServerTests: XCTestCase {
             XCTFail("no get inet address result");
             return
         }
-        UPnPServer.announceDeviceAlive(device: device, location: "http://\(addr.hostname)/dummy")
+        UPnPServer.announceDeviceAlive(device: device, location: "http://\(addr.hostname)/fakeurl")
         UPnPServer.announceDeviceByeBye(device: device)
 
         sleep(1)
 
         UPnPServer.META_APP_NAME = "UPnPServerTest/1.0"
 
-        UPnPServer.announceDeviceAlive(device: device, location: "http://\(addr.hostname)/dummy")
+        UPnPServer.announceDeviceAlive(device: device, location: "http://\(addr.hostname)/fakeurl")
         UPnPServer.announceDeviceByeBye(device: device)
 
         sleep(1)
