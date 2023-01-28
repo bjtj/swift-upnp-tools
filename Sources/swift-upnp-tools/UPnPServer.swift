@@ -69,7 +69,7 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Action Request Handler
      */
-    public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties?)
+    public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties)
     
     /**
      Send Event Property Handler
@@ -97,10 +97,12 @@ public class UPnPServer : HttpRequestHandler {
      http server bind port
      */
     public var port: Int
+
     /**
      http server
      */
     public var httpServer: HttpServer?
+
     /**
      ssdp receiver
      */
@@ -230,7 +232,7 @@ public class UPnPServer : HttpRequestHandler {
             self._activeDevices[udn] = device
         }
         
-        announceDeviceAlive(device: device)
+        announceDeviceAlive(device: device, repeatCount: 2)
     }
     
     
@@ -239,30 +241,39 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Announce device alive
      */
-    public func announceDeviceAlive(device: UPnPDevice) {
+    public func announceDeviceAlive(device: UPnPDevice, repeatCount: Int = 1) {
         guard let location = getLocation(of: device) else {
             return
         }
         
-        UPnPServer.announceDeviceAlive(device: device, location: location)
+        UPnPServer.announceDeviceAlive(device: device, location: location, repeatCount: repeatCount)
     }
 
     /**
      Announce deivce alive
      */
-    public class func announceDeviceAlive(device: UPnPDevice, location: String) {
-        guard let usn_list = device.allServiceTypes else {
-            return
-        }
+    public class func announceDeviceAlive(device: UPnPDevice, location: String, repeatCount: Int = 1) {
+
         guard let udn = device.udn else {
             return
         }
         
-        notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
-        for usn in usn_list {
-            notifyAlive(usn: usn, location: location)
+        guard let usn_list = device.allUsnList else {
+            return
         }
-        notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
+
+        for _ in 0..<repeatCount {
+            notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
+        }
+
+        for _ in 0..<repeatCount {
+            notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
+        }
+        for usn in usn_list {
+            for _ in 0..<repeatCount {
+                notifyAlive(usn: usn, location: location)
+            }
+        }
     }
 
     /**
@@ -276,7 +287,7 @@ public class UPnPServer : HttpRequestHandler {
         properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
         properties["USN"] = usn.description
         properties["LOCATION"] = location
-        properties["SERVER"] = "\(self.META_OS_NAME) \(self.META_UPNP_VER) \(self.META_APP_NAME)"
+        properties["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
         SSDP.notify(properties: properties)
     }
     
@@ -360,7 +371,7 @@ public class UPnPServer : HttpRequestHandler {
      Announce device byebye
      */
     public class func announceDeviceByeBye(device: UPnPDevice) {
-        guard let usn_list = device.allServiceTypes else {
+        guard let usn_list = device.allUsnList else {
             return
         }
         guard let udn = device.udn else {
@@ -368,10 +379,10 @@ public class UPnPServer : HttpRequestHandler {
         }
         
         notifyByebye(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"))
+        notifyByebye(usn: UPnPUsn(uuid: udn))
         for usn in usn_list {
             notifyByebye(usn: usn)
         }
-        notifyByebye(usn: UPnPUsn(uuid: udn))
     }
 
     /**
@@ -389,8 +400,16 @@ public class UPnPServer : HttpRequestHandler {
     /**
      On Action Request
      */
+    public func on(actionRequest handler: actionHandler?) {
+        self.actionRequestHandler = handler
+    }
+
+    /**
+     On Action Request
+     */
+    @available(*, deprecated, renamed: "on(actionRequest:)")
     public func onActionRequest(handler: actionHandler?) {
-        actionRequestHandler = handler
+        self.actionRequestHandler = handler
     }
 
     /**
@@ -441,6 +460,7 @@ public class UPnPServer : HttpRequestHandler {
 
     
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
+        response["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
         if isDeviceQuery(request: request) {
             try handleDeviceQuery(request: request, response: response)
             return
@@ -553,31 +573,50 @@ public class UPnPServer : HttpRequestHandler {
             throw HttpServerError.custom(string: "parse failed soap request")
         }
 
-        guard let handler = actionRequestHandler else {
+        guard let handler = self.actionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
-            response.status = .notFound
+            let errorResponse = UPnPSoapErrorResponse(error: .actionFailed)
+            response.status = .internalServerError
+            response.contentType = "text/xml; charset=\"utf-8\""
+            response.data = errorResponse.xmlDocument.data(using: .utf8)
             return
         }
         
-        try lockQueue.sync {
+        lockQueue.sync {
             for (_, device) in self._activeDevices {
                 if let service = device.getService(withControlUrl: request.path) {
-                    guard let properties = try handler(service, soapRequest) else {
-                        continue
+
+                    do {
+                        let properties = try handler(service, soapRequest)
+                        let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
+                                                            actionName: soapRequest.actionName)
+                        
+                        properties.fields.forEach { soapResponse[$0.key] = $0.value }
+                        
+                        response.status = .ok
+                        response.contentType = "text/xml"
+                        response.data = soapResponse.xmlDocument.data(using: .utf8)
+                        return
+                    } catch let error as UPnPActionError {
+                        let errorResponse = UPnPSoapErrorResponse(error: error)
+                        response.status = .internalServerError
+                        response.contentType = "text/xml; charset=\"utf-8\""
+                        response.data = errorResponse.xmlDocument.data(using: .utf8)
+                        return
+                    } catch {
+                        let errorResponse = UPnPSoapErrorResponse(error: .actionFailed)
+                        response.status = .internalServerError
+                        response.contentType = "text/xml; charset=\"utf-8\""
+                        response.data = errorResponse.xmlDocument.data(using: .utf8)
+                        return
                     }
-                    let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
-                                                        actionName: soapRequest.actionName)
-                    
-                    properties.fields.forEach { soapResponse[$0.key] = $0.value }
-                    
-                    response.status = .ok
-                    response.contentType = "text/xml"
-                    response.data = soapResponse.xmlDocument.data(using: .utf8)
-                    return
                 }
             }
-            
-            throw HttpServerError.custom(string: "no matching device")
+
+            let errorResponse = UPnPSoapErrorResponse(error: .invalidAction)
+            response.status = .internalServerError
+            response.contentType = "text/xml; charset=\"utf-8\""
+            response.data = errorResponse.xmlDocument.data(using: .utf8)
         }
     }
 
@@ -687,7 +726,7 @@ public class UPnPServer : HttpRequestHandler {
         timer.setEventHandler { () in
             self.lockQueue.sync {
                 self.removeExpiredSubscribers()
-                self.sendNotifyUpdates()
+                self.sendAllNotifyAlive()
             }
         }
         timer.resume()
@@ -698,8 +737,14 @@ public class UPnPServer : HttpRequestHandler {
             $1.isExpired == false
         }
     }
+
+    func sendAllNotifyAlive() {
+        allDevices.forEach {
+            announceDeviceAlive(device: $0)
+        }
+    }
     
-    func sendNotifyUpdates() {
+    func sendAllNotifyUpdates() {
         allDevices.forEach {
             announceDeviceUpdate(device: $0)
         }
@@ -716,7 +761,7 @@ public class UPnPServer : HttpRequestHandler {
             _activeDevices.removeAll()
             _devices.removeAll()
             subscriptions.removeAll()
-            actionRequestHandler = nil
+            self.actionRequestHandler = nil
         }
     }
 
@@ -744,13 +789,13 @@ public class UPnPServer : HttpRequestHandler {
                             }
                             let rootDevice = UPnPUsn(uuid: udn, type: "upnp:rootdevice")
                             responses.append(makeMsearchResponse(from: rootDevice, location: location))
-                            guard let usn_list = device.allServiceTypes else {
+                            guard let usn_list = device.allUsnList else {
                                 continue
                             }
+                            responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                             for usn in usn_list {
                                 responses.append(makeMsearchResponse(from: usn, location: location))
                             }
-                            responses.append(makeMsearchResponse(from: UPnPUsn(uuid: udn), location: location))
                         }
                     }
                     break
@@ -852,6 +897,8 @@ public class UPnPServer : HttpRequestHandler {
         for url in subscription.callbackUrls {
             let data = properties.xmlDocument.data(using: .utf8)
             var fields = [KeyValuePair]()
+            fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
+            fields.append(KeyValuePair(key: "NTS", value: "upnp:propchange"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in

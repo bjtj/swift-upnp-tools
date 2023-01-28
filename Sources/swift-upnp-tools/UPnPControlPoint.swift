@@ -321,7 +321,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let handler = handler else {
             return
         }
-        notificationHandlers.append(handler)
+        self.notificationHandlers.append(handler)
     }
 
     /**
@@ -381,7 +381,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         delegate = nil
         eventSubscribers.unsubscribeAll(completionHandler: unsubscribeHandler)
         eventSubscribers.removeAll(subscription(removed:))
-        notificationHandlers.removeAll()
+        self.notificationHandlers.removeAll()
         onDeviceAddedHandlers.removeAll()
         onDeviceRemovedHandlers.removeAll()
         onScpdHandlers.removeAll()
@@ -466,7 +466,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let notificationHandler = notificationHandler else {
             return
         }
-        notificationHandlers.append(notificationHandler)
+        self.notificationHandlers.append(notificationHandler)
     }
 
     /**
@@ -531,28 +531,27 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             try eventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
-
-        
         
         guard let properties = try UPnPEventProperties.read(xmlString: xmlString) else {
             let err = HttpServerError.custom(string: "Parse Failed Event Properties")
             try eventProperties(subscriber: nil, properties: nil, error: err)
             throw err
         }
+
         do {
             guard let sid = request.header["sid"] else {
                 throw HttpServerError.illegalArgument(string: "No SID")
             }
             
-            guard let subscriber = getEventSubscriber(sid: sid) else {
+            guard let subscriber = self.getEventSubscriber(sid: sid) else {
                 throw HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
             }
             
-            try eventProperties(subscriber: subscriber, properties: properties, error: nil)
+            try self.eventProperties(subscriber: subscriber, properties: properties, error: nil)
             response.status = .ok
             
         } catch {
-            try eventProperties(subscriber: nil, properties: properties, error: error)
+            try self.eventProperties(subscriber: nil, properties: properties, error: error)
             throw error
         }
     }
@@ -561,10 +560,10 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         
         try delegate?.eventPropperties(subscriber: subscriber, properties: properties, error: error)
         
-        for notificationHandler in notificationHandlers {
+        for notificationHandler in self.notificationHandlers {
             try notificationHandler(subscriber, properties, error)
         }
-       try  subscriber?.handleNotification(properties: properties, error: error)
+        try  subscriber?.handleNotification(properties: properties, error: error)
     }
 
     /**
@@ -868,7 +867,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     @discardableResult func unsubscribe(forDevice device: UPnPDevice) -> [String] {
         var sids = [String]()
         if let udn = device.udn {
-            getEventSubscribers(forUdn: udn).forEach {
+            self.getEventSubscribers(forUdn: udn).forEach {
                 if let sid = $0.sid {
                     sids.append(sid)
                 }
@@ -950,7 +949,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
      unsubscribe event with sid
      */
     public func unsubscribe(sid: String, completionHandler: UPnPEventSubscriber.unsubscribeCompletionHandler? = nil) -> Void {
-        guard let subscriber = getEventSubscriber(sid: sid) else {
+        guard let subscriber = self.getEventSubscriber(sid: sid) else {
             print("UPnPControlPoint::unsubscribe() error - event subscriber not found (sid: '\(sid)')")
             return
         }
