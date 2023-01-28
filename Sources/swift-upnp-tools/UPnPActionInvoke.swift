@@ -50,10 +50,6 @@ public class UPnPActionInvoke {
                 self.completionHandler?(nil, UPnPError.custom(string: "error - \(error!)"))
                 return
             }
-            guard getStatusCodeRange(response: response) == .success else {
-                self.completionHandler?(nil, HttpError.notSuccess(code: getStatusCode(response: response, defaultValue: 0)))
-                return
-            }
             guard let data = data else {
                 self.completionHandler?(nil, UPnPError.custom(string: "no data"))
                 return
@@ -62,6 +58,22 @@ public class UPnPActionInvoke {
                 self.completionHandler?(nil, UPnPError.custom(string: "not string"))
                 return
             }
+
+            guard getStatusCodeRange(response: response) == .success else {
+                guard let errorResponse = try? UPnPSoapErrorResponse.read(xmlString: text) else {
+                    self.completionHandler?(nil, HttpError.notSuccess(code: getStatusCode(response: response, defaultValue: 0)))
+                    return
+                }
+
+                guard let err = UPnPActionError(rawValue: errorResponse.errorCode), err.rawValue == UPnPActionError.custom(errorResponse.errorCode, errorResponse.errorDescription).rawValue else {
+                    self.completionHandler?(nil, UPnPActionError.custom(errorResponse.errorCode, errorResponse.errorDescription))
+                    return
+                }
+
+                self.completionHandler?(nil, err)
+                return
+            }
+            
             do {
                 guard let soapResponse = try UPnPSoapResponse.read(xmlString: text) else {
                     self.completionHandler?(nil, UPnPError.custom(string: "not soap response -- \(text)"))

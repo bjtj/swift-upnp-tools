@@ -187,12 +187,23 @@ final class ServerTests: XCTestCase {
 
         // -------------------------------------------
 
-        server.onActionRequest {
-            (service, soapRequest) in
-            let properties = OrderedProperties()
-            properties["GetLoadlevelTarget"] = "10"
-            return properties
-        }
+        server.on(
+          actionRequest: {
+              (service, soapRequest) in
+
+              if soapRequest.actionName == "GetLoadLevelTarget" {
+                  let properties = OrderedProperties()
+                  properties["GetLoadlevelTarget"] = "10"
+                  return properties
+              }
+
+              if soapRequest.actionName == "ExepctError" {
+                  throw UPnPActionError.custom(401, "custom invalid action")
+              }
+
+              throw UPnPActionError.invalidAction
+              
+          })
 
         var called = false
 
@@ -212,6 +223,41 @@ final class ServerTests: XCTestCase {
             }
             XCTAssertEqual(soapResponse?["GetLoadlevelTarget"], "10")
         }
+
+        helperControlPointInvokeAction(st: "ssdp:all",
+                                       serviceType: "urn:schemas-upnp-org:service:SwitchPower:1",
+                                       expectedUdn: udn,
+                                       actionRequest: UPnPActionRequest(actionName: "mustfail"))
+        {
+            (soapResponse, error) in
+
+            if let error = error {
+                print("action name: mustfail - invoke action error \(error)")
+                return
+            }
+
+            if let response = soapResponse {
+                print("action name: mustfail - response \(response.description)")
+            }
+        }
+
+        helperControlPointInvokeAction(st: "ssdp:all",
+                                       serviceType: "urn:schemas-upnp-org:service:SwitchPower:1",
+                                       expectedUdn: udn,
+                                       actionRequest: UPnPActionRequest(actionName: "ExepctError"))
+        {
+            (soapResponse, error) in
+
+            if let error = error {
+                print("action name: ExpectError - invoke action error \(error)")
+                return
+            }
+
+            if let response = soapResponse {
+                print("action name: ExpectError - response \(response.description)")
+            }
+        }
+        
 
         // -------------------------------------------
 
@@ -246,34 +292,35 @@ final class ServerTests: XCTestCase {
 
         var handledService = [UPnPService]()
 
-        cp.on(scpd: {
-                  (device, service, scpd, error) in
-                  
-                  guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
-                      //                not expected udn
-                      return
-                  }
+        cp.on(
+          scpd: {
+              (device, service, scpd, error) in
+              
+              guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+                  //                not expected udn
+                  return
+              }
 
-                  guard error == nil else {
-                      // error
-                      XCTFail("error - \(error!)")
-                      return
-                  }
+              guard error == nil else {
+                  // error
+                  XCTFail("error - \(error!)")
+                  return
+              }
 
-                  guard let service = service else {
-                      // error
-                      return
-                  }
+              guard let service = service else {
+                  // error
+                  return
+              }
 
-                  guard service.serviceType == serviceType else {
-                      // not expected service
-                      return
-                  }
+              guard service.serviceType == serviceType else {
+                  // not expected service
+                  return
+              }
 
-                  cp.invoke(service: service, actionRequest: actionRequest, completionHandler: handler)
+              cp.invoke(service: service, actionRequest: actionRequest, completionHandler: handler)
 
-                  handledService.append(service)
-              })
+              handledService.append(service)
+          })
 
         do {
             try cp.run()
@@ -295,13 +342,14 @@ final class ServerTests: XCTestCase {
         }
         XCTAssertTrue(ssdpReceiver.running)
 
-        cp.sendMsearch(st: st, mx: 3, ssdpHandler: {
-                                          (address, header, error) in
-                                          guard let _ = header else {
-                                              return nil
-                                          }
-                                          return nil
-                                      })
+        cp.sendMsearch(st: st, mx: 3,
+                       ssdpHandler: {
+                           (address, header, error) in
+                           guard let _ = header else {
+                               return nil
+                           }
+                           return nil
+                       })
 
         sleep(3)
 
@@ -616,12 +664,13 @@ final class ServerTests: XCTestCase {
 
         let service = device.services[0]
         
-        server.onActionRequest {
-            (service, soapRequest) in
-            let properties = OrderedProperties()
-            properties["GetLoadlevelTarget"] = "10"
-            return properties
-        }
+        server.on(
+          actionRequest: {
+              (service, soapRequest) in
+              let properties = OrderedProperties()
+              properties["GetLoadlevelTarget"] = "10"
+              return properties
+          })
 
         helperControlPointDiscovery(st: "ssdp:all", expectedUdn: udn, serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")
         helperControlPointDiscovery(st: "upnp:rootdevice", expectedUdn: udn, serviceType: "urn:schemas-upnp-org:service:SwitchPower:1")

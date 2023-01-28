@@ -69,7 +69,7 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Action Request Handler
      */
-    public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties?)
+    public typealias actionHandler = ((UPnPService, UPnPSoapRequest) throws -> OrderedProperties)
     
     /**
      Send Event Property Handler
@@ -264,7 +264,7 @@ public class UPnPServer : HttpRequestHandler {
         properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
         properties["USN"] = usn.description
         properties["LOCATION"] = location
-        properties["SERVER"] = "\(self.META_OS_NAME) \(self.META_UPNP_VER) \(self.META_APP_NAME)"
+        properties["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
         SSDP.notify(properties: properties)
     }
     
@@ -377,8 +377,16 @@ public class UPnPServer : HttpRequestHandler {
     /**
      On Action Request
      */
+    public func on(actionRequest handler: actionHandler?) {
+        self.actionRequestHandler = handler
+    }
+
+    /**
+     On Action Request
+     */
+    @available(*, deprecated, renamed: "on(actionRequest:)")
     public func onActionRequest(handler: actionHandler?) {
-        actionRequestHandler = handler
+        self.actionRequestHandler = handler
     }
 
     /**
@@ -429,6 +437,7 @@ public class UPnPServer : HttpRequestHandler {
 
     
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
+        response["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
         if isDeviceQuery(request: request) {
             try handleDeviceQuery(request: request, response: response)
             return
@@ -541,31 +550,50 @@ public class UPnPServer : HttpRequestHandler {
             throw HttpServerError.custom(string: "parse failed soap request")
         }
 
-        guard let handler = actionRequestHandler else {
+        guard let handler = self.actionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
-            response.status = .notFound
+            let errorResponse = UPnPSoapErrorResponse(error: .actionFailed)
+            response.status = .internalServerError
+            response.contentType = "text/xml; charset=\"utf-8\""
+            response.data = errorResponse.xmlDocument.data(using: .utf8)
             return
         }
         
-        try lockQueue.sync {
+        lockQueue.sync {
             for (_, device) in self._activeDevices {
                 if let service = device.getService(withControlUrl: request.path) {
-                    guard let properties = try handler(service, soapRequest) else {
-                        continue
+
+                    do {
+                        let properties = try handler(service, soapRequest)
+                        let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
+                                                            actionName: soapRequest.actionName)
+                        
+                        properties.fields.forEach { soapResponse[$0.key] = $0.value }
+                        
+                        response.status = .ok
+                        response.contentType = "text/xml"
+                        response.data = soapResponse.xmlDocument.data(using: .utf8)
+                        return
+                    } catch let error as UPnPActionError {
+                        let errorResponse = UPnPSoapErrorResponse(error: error)
+                        response.status = .internalServerError
+                        response.contentType = "text/xml; charset=\"utf-8\""
+                        response.data = errorResponse.xmlDocument.data(using: .utf8)
+                        return
+                    } catch {
+                        let errorResponse = UPnPSoapErrorResponse(error: .actionFailed)
+                        response.status = .internalServerError
+                        response.contentType = "text/xml; charset=\"utf-8\""
+                        response.data = errorResponse.xmlDocument.data(using: .utf8)
+                        return
                     }
-                    let soapResponse = UPnPSoapResponse(serviceType: soapRequest.serviceType,
-                                                        actionName: soapRequest.actionName)
-                    
-                    properties.fields.forEach { soapResponse[$0.key] = $0.value }
-                    
-                    response.status = .ok
-                    response.contentType = "text/xml"
-                    response.data = soapResponse.xmlDocument.data(using: .utf8)
-                    return
                 }
             }
-            
-            throw HttpServerError.custom(string: "no matching device")
+
+            let errorResponse = UPnPSoapErrorResponse(error: .invalidAction)
+            response.status = .internalServerError
+            response.contentType = "text/xml; charset=\"utf-8\""
+            response.data = errorResponse.xmlDocument.data(using: .utf8)
         }
     }
 
@@ -700,7 +728,7 @@ public class UPnPServer : HttpRequestHandler {
             _activeDevices.removeAll()
             _devices.removeAll()
             subscriptions.removeAll()
-            actionRequestHandler = nil
+            self.actionRequestHandler = nil
         }
     }
 
