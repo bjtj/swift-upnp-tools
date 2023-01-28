@@ -91,6 +91,15 @@ public class SSDPHeader : OrderedCaseInsensitiveProperties {
     }
 
     /**
+     NT
+     */
+    public var nt: String? {
+        get {
+            return self["NT"]
+        }
+    }
+
+    /**
      NTS (Notify Types)
      */
     public var nts: UPnPNts? {
