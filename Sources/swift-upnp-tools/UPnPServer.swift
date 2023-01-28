@@ -86,7 +86,7 @@ public class UPnPServer : HttpRequestHandler {
     /**
      http server hostname
      */
-    public var hostname: String?
+    public var hostname: String
 
     /**
      http server bind port
@@ -142,9 +142,9 @@ public class UPnPServer : HttpRequestHandler {
 
     public init(httpServerBindHostname: String? = nil, httpServerBindPort: Int = 0) {
         if httpServerBindHostname == nil {
-            self.hostname = Network.getInetAddress()?.hostname
+            self.hostname = Network.getInetAddress()!.hostname
         } else {
-            self.hostname = httpServerBindHostname
+            self.hostname = httpServerBindHostname!
         }
         self.port = httpServerBindPort
     }
@@ -795,11 +795,7 @@ public class UPnPServer : HttpRequestHandler {
             return nil
         }
 
-        guard let addr = Network.getInetAddress() else {
-            return nil
-        }
-        let hostname = addr.hostname
-        let location = "http://\(hostname):\(httpServerAddress.port)/\(udn)/device.xml"
+        let location = "http://\(httpServerAddress.hostname):\(httpServerAddress.port)/\(udn)/device.xml"
         return location
     }
 
