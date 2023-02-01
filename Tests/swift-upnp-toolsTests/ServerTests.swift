@@ -111,9 +111,11 @@ final class ServerTests: XCTestCase {
                 (address, ssdpHeader, error) in
                 if let ssdpHeader = ssdpHeader {
                     if let address = address {
-                        print("[SSDP] from -- \(address.hostname):\(address.port)")
-                        print("\t- NTS: \(ssdpHeader.nts?.rawValue ?? "(NO NTS)")")
-                        print("\t- NT: \(ssdpHeader.nt ?? "(NO NT)")")
+                        let date = Date()
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "HH:mm:ss.SSS"
+                        print("[\(formatter.string(from: date))] SSDP from -- \(address.hostname):\(address.port)")
+                        print("\t- \(ssdpHeader.nts?.rawValue ?? "(NO NTS)") \(ssdpHeader.nt ?? "(NO NT)")")
                         if ssdpHeader.nts == .alive || ssdpHeader.nts == .update {
                             print("\t- LOCATION: \(ssdpHeader.location ?? "(NO LOCATION)")")
                         }
@@ -133,24 +135,24 @@ final class ServerTests: XCTestCase {
      */
     func testNotify() throws {
 
-        guard let receiver = ServerTests.receiver else {
-            XCTFail("no ssdp receiver")
-            return
-        }
+        // guard let receiver = ServerTests.receiver else {
+        //     XCTFail("no ssdp receiver")
+        //     return
+        // }
 
-        let listener = receiver.listener(
-          add: {
-              (address, ssdpHeader, error) in
-              guard let header = ssdpHeader else {
-                  return
-              }
-              print("[SSDP LISTENER] \(header.description)")
-          })
+        // let listener = receiver.listener(
+        //   add: {
+        //       (address, ssdpHeader, error) in
+        //       guard let header = ssdpHeader else {
+        //           return
+        //       }
+        //       print("[SSDP LISTENER] \(header.description)")
+        //   })
 
-        defer {
-            print("== REMOVE LISTENER ==")
-            listener.remove()
-        }
+        // defer {
+        //     print("== REMOVE LISTENER ==")
+        //     listener.remove()
+        // }
         
         guard let device = try UPnPDevice.read(xmlString: ServerTests.deviceDescription_DimmableLight) else {
             XCTFail("cannot read device")

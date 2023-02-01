@@ -231,8 +231,10 @@ public class UPnPServer : HttpRequestHandler {
         lockQueue.sync {
             self._activeDevices[udn] = device
         }
-        
-        announceDeviceAlive(device: device, repeatCount: 2)
+
+        self.announceDeviceAlive(device: device)
+        Thread.sleep(forTimeInterval: 0.1)
+        self.announceDeviceAlive(device: device)
     }
     
     
@@ -241,18 +243,18 @@ public class UPnPServer : HttpRequestHandler {
     /**
      Announce device alive
      */
-    public func announceDeviceAlive(device: UPnPDevice, repeatCount: Int = 1) {
+    public func announceDeviceAlive(device: UPnPDevice) {
         guard let location = getLocation(of: device) else {
             return
         }
         
-        UPnPServer.announceDeviceAlive(device: device, location: location, repeatCount: repeatCount)
+        UPnPServer.announceDeviceAlive(device: device, location: location)
     }
 
     /**
      Announce deivce alive
      */
-    public class func announceDeviceAlive(device: UPnPDevice, location: String, repeatCount: Int = 1) {
+    public class func announceDeviceAlive(device: UPnPDevice, location: String) {
 
         guard let udn = device.udn else {
             return
@@ -262,17 +264,10 @@ public class UPnPServer : HttpRequestHandler {
             return
         }
 
-        for _ in 0..<repeatCount {
-            notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
-        }
-
-        for _ in 0..<repeatCount {
-            notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
-        }
+        notifyAlive(usn: UPnPUsn(uuid: udn, type: "upnp:rootDevice"), location: location)
+        notifyAlive(usn: UPnPUsn(uuid: udn), location: location)
         for usn in usn_list {
-            for _ in 0..<repeatCount {
-                notifyAlive(usn: usn, location: location)
-            }
+            notifyAlive(usn: usn, location: location)
         }
     }
 
