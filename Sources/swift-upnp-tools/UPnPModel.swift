@@ -9,6 +9,10 @@ import SwiftXml
  UPnP Model (Base class)
  */
 public class UPnPModel : OrderedProperties {
+
+    /**
+     to xml
+     */
     public var propertyXml: String {
         var str = ""
         for field in fields {
@@ -17,6 +21,9 @@ public class UPnPModel : OrderedProperties {
         return str
     }
 
+    /**
+     utility: read name-value formatted tag
+     */
     static func readNameValue(element: XmlNode) -> (String?, String?) {
         if let elements = element.elements {
             guard elements.isEmpty else {

@@ -560,6 +560,109 @@ final class ModelTests: XCTestCase {
     }
 
     /**
+     test state variable
+     */
+    func testStateVariable() throws {
+
+        if let elem = try XmlParser.parse(xmlString: "<stateVariable sendEvents=\"no\">" +
+                                             "<name>LoadLevelTarget</name>" +
+                                             "<dataType>ui1</dataType>" +
+                                             "</stateVariable>").rootElement {
+            let stateVariable = UPnPStateVariable.read(xmlElement: elem)
+
+            XCTAssertEqual("LoadLevelTarget", stateVariable.name)
+            XCTAssertEqual("ui1", stateVariable.dataType)
+            XCTAssertEqual(false, stateVariable.sendEvents)
+            XCTAssertNil(stateVariable.multicast)
+
+            XCTAssertEqual("<stateVariable sendEvents=\"no\">" +
+                             "<name>LoadLevelTarget</name>" +
+                             "<dataType>ui1</dataType>" +
+                             "</stateVariable>", stateVariable.description)
+        }
+
+        if let elem = try XmlParser.parse(xmlString: "<stateVariable sendEvents=\"yes\" multicast=\"no\">" +
+                                             "<name>LoadLevelTarget</name>" +
+                                             "<dataType>ui1</dataType>" +
+                                             "</stateVariable>").rootElement {
+            let stateVariable = UPnPStateVariable.read(xmlElement: elem)
+
+            XCTAssertEqual("LoadLevelTarget", stateVariable.name)
+            XCTAssertEqual("ui1", stateVariable.dataType)
+            XCTAssertEqual(true, stateVariable.sendEvents)
+            XCTAssertEqual(false, stateVariable.multicast)
+            XCTAssertEqual("<stateVariable sendEvents=\"yes\" multicast=\"no\">" +
+                             "<name>LoadLevelTarget</name>" +
+                             "<dataType>ui1</dataType>" +
+                             "</stateVariable>", stateVariable.description)
+        }
+
+        if let elem = try XmlParser.parse(xmlString: "<stateVariable multicast=\"yes\">" +
+                                             "<name>LoadLevelTarget</name>" +
+                                             "<dataType>ui1</dataType>" +
+                                             "<defaultValue>12</defaultValue>" +
+                                             "</stateVariable>").rootElement {
+            let stateVariable = UPnPStateVariable.read(xmlElement: elem)
+
+            XCTAssertEqual("LoadLevelTarget", stateVariable.name)
+            XCTAssertEqual("ui1", stateVariable.dataType)
+            XCTAssertNil(stateVariable.sendEvents)
+            XCTAssertEqual(true, stateVariable.multicast)
+            XCTAssertEqual("12", stateVariable.defaultValue)
+            XCTAssertEqual("<stateVariable multicast=\"yes\">" +
+                             "<name>LoadLevelTarget</name>" +
+                             "<dataType>ui1</dataType>" +
+                             "<defaultValue>12</defaultValue>" +
+                             "</stateVariable>", stateVariable.description)
+        }
+
+        if let elem = try XmlParser.parse(xmlString: "<stateVariable multicast=\"yes\">" +
+                                             "<name>LoadLevelTarget</name>" +
+                                             "<dataType>ui1</dataType>" +
+                                             "<defaultValue>12</defaultValue>" +
+                                             "<allowedValueRange><minimum>10</minimum><maximum>15</maximum></allowedValueRange>" +
+                                             "</stateVariable>").rootElement {
+            let stateVariable = UPnPStateVariable.read(xmlElement: elem)
+
+            XCTAssertEqual("LoadLevelTarget", stateVariable.name)
+            XCTAssertEqual("ui1", stateVariable.dataType)
+            XCTAssertNil(stateVariable.sendEvents)
+            XCTAssertEqual(true, stateVariable.multicast)
+            XCTAssertEqual("12", stateVariable.defaultValue)
+            XCTAssertEqual("10", stateVariable.allowedValueRange?.minimum)
+            XCTAssertEqual("15", stateVariable.allowedValueRange?.maximum)
+            XCTAssertEqual("<stateVariable multicast=\"yes\">" +
+                             "<name>LoadLevelTarget</name>" +
+                             "<dataType>ui1</dataType>" +
+                             "<defaultValue>12</defaultValue>" +
+                             "<allowedValueRange><minimum>10</minimum><maximum>15</maximum></allowedValueRange>" +
+                             "</stateVariable>", stateVariable.description)
+        }
+
+        if let elem = try XmlParser.parse(xmlString: "<stateVariable multicast=\"yes\">" +
+                                             "<name>LoadLevelTarget</name>" +
+                                             "<dataType>ui1</dataType>" +
+                                             "<defaultValue>12</defaultValue>" +
+                                             "<allowedValueList><allowedValue>12</allowedValue><allowedValue>14</allowedValue><allowedValue>16</allowedValue></allowedValueList>" +
+                                             "</stateVariable>").rootElement {
+            let stateVariable = UPnPStateVariable.read(xmlElement: elem)
+
+            XCTAssertEqual("LoadLevelTarget", stateVariable.name)
+            XCTAssertEqual("ui1", stateVariable.dataType)
+            XCTAssertNil(stateVariable.sendEvents)
+            XCTAssertEqual(true, stateVariable.multicast)
+            XCTAssertEqual("12", stateVariable.defaultValue)
+            XCTAssertEqual(["12", "14", "16"], stateVariable.allowedValueList?.items)
+            XCTAssertEqual("<stateVariable multicast=\"yes\">" +
+                             "<name>LoadLevelTarget</name>" +
+                             "<dataType>ui1</dataType>" +
+                             "<defaultValue>12</defaultValue>" +
+                             "<allowedValueList><allowedValue>12</allowedValue><allowedValue>14</allowedValue><allowedValue>16</allowedValue></allowedValueList>" +
+                             "</stateVariable>", stateVariable.description)
+        }
+    }
+
+    /**
      test soap
      */
     func testSoap() throws {
@@ -790,6 +893,7 @@ final class ModelTests: XCTestCase {
       ("testXml", testXml),
       ("testDeviceDescription", testDeviceDescription),
       ("testService", testService),
+      ("testStateVariable", testStateVariable),
       ("testSoap", testSoap),
       ("testSoapError", testSoapError),
       ("testActionArgument", testActionArgument),
