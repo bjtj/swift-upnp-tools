@@ -20,18 +20,26 @@ public class UPnPActionInvoke {
      url to request
      */
     public var url: URL
+    
     /**
      soap request
      */
     public var soapRequest: UPnPSoapRequest
+
+    /**
+     user agent
+     */
+    public var userAgent: String? = nil
+    
     /**
      complete handler
      */
     public var completionHandler: (invokeCompletionHandler)?
     
-    public init(url: URL, soapRequest: UPnPSoapRequest, completionHandler: (invokeCompletionHandler)?) {
+    public init(url: URL, soapRequest: UPnPSoapRequest, userAgent: String? = nil, completionHandler: (invokeCompletionHandler)?) {
         self.url = url
         self.soapRequest = soapRequest
+        self.userAgent = userAgent
         self.completionHandler = completionHandler
     }
 
@@ -41,6 +49,9 @@ public class UPnPActionInvoke {
     public func invoke() {
         let data = soapRequest.xmlDocument.data(using: .utf8)
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "SERVER", value: "\"\(userAgent)\""))
+        }
         fields.append(KeyValuePair(key: "SOAPACTION", value: "\"\(soapRequest.soapaction)\""))
 
         HttpClient(url: url, method: "POST", data: data, contentType: "text/xml", fields: fields) {

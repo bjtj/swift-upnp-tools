@@ -47,6 +47,34 @@ public protocol UPnPControlPointDelegate {
 public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
 
     /**
+     meta os name
+     - e.g.) unix/5.2
+     */
+    public static var META_OS_NAME: String = "\(osname())"
+
+    /**
+     meta upnp version
+     - e.g.) UPnP/1.1
+     */
+    public static var META_UPNP_VER: String = "UPnP/1.1"
+
+    /**
+     meta app name
+     - e.g.) SwiftUPnPControlpoint/1.0
+     */
+    public static var META_APP_NAME: String = "SwiftUPnPControlpoint/1.0"
+
+    /**
+     user agent
+     e.g.) unix/5.2 UPnP/1.1 SwiftUPnPControlpoint/1.0
+     */
+    public static var USER_AGENT: String {
+        get {
+            return "\(META_OS_NAME) \(META_UPNP_VER) \(META_APP_NAME)"
+        }
+    }
+
+    /**
      
      */
     public enum SuspendBehavior {
@@ -667,8 +695,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     public func sendMsearch(st: String, mx: Int = 3, ssdpHandler: SSDPReceiver.ssdpHandler? = nil, completionHandler: (() -> Void)? = nil) {
 
         DispatchQueue.global(qos: .default).async {
-
-            SSDP.sendMsearch(st: st, mx: mx) {
+            SSDP.sendMsearch(st: st, mx: mx, userAgent: UPnPControlPoint.USER_AGENT) {
                 (address, ssdpHeader, error) in
                 self.ssdpHeader(address, ssdpHeader, error)
                 let _ = ssdpHandler?(address, ssdpHeader, error)
@@ -907,7 +934,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
             print("UPnPControlPoint::invoke() error - url failed")
             return
         }
-        UPnPActionInvoke(url: url, soapRequest: soapRequest, completionHandler: completionHandler).invoke()
+        UPnPActionInvoke(url: url, soapRequest: soapRequest, userAgent: UPnPControlPoint.USER_AGENT, completionHandler: completionHandler).invoke()
     }
 
     /**

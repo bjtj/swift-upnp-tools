@@ -37,13 +37,14 @@ public class SSDP {
      - Parameter mx: max timeout
      - Parameter handler: ssdp handler
      */
-    public static func sendMsearch(st: String, mx: Int, bufferSize: Int = 4096, handler: (SSDPReceiver.ssdpHandler)? = nil) {
+    public static func sendMsearch(st: String, mx: Int, userAgent: String? = nil, bufferSize: Int = 4096, handler: (SSDPReceiver.ssdpHandler)? = nil) {
 
         let text = "M-SEARCH * HTTP/1.1\r\n" +
           "HOST: \(SSDP.MCAST_HOST):\(SSDP.MCAST_PORT)\r\n" +
           "MAN: \"ssdp:discover\"\r\n" +
           "MX: \(mx)\r\n" +
           "ST: \(st)\r\n" +
+          (userAgent != nil ? "USER-AGENT: \(userAgent!)\r\n" : "") +
           "\r\n"
 
         do {
