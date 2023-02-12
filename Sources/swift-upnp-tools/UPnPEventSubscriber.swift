@@ -114,7 +114,7 @@ public class UPnPEventSubscriber : TimeBase {
         
         var fields = [KeyValuePair]()
         if let userAgent = self.userAgent {
-            fields.append(KeyValuePair(key: "SERVER", value: userAgent))
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
         }
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
         fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
@@ -197,6 +197,9 @@ public class UPnPEventSubscriber : TimeBase {
         }
         
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         fields.append(KeyValuePair(key: "SID", value: sid))
         fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
@@ -237,6 +240,9 @@ public class UPnPEventSubscriber : TimeBase {
             return
         }
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         fields.append(KeyValuePair(key: "SID", value: sid))
         HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
             (data, response, error) in

@@ -36,10 +36,16 @@ public class UPnPScpdBuilder {
      Scpd Handler
      */
     public var completionHandler: completionHandler?
+
+    /**
+     user agent
+     */
+    public var userAgent: String? = nil
     
-    public init(device: UPnPDevice, service: UPnPService, completionHandler: (completionHandler)?) {
+    public init(device: UPnPDevice, service: UPnPService, userAgent: String? = nil, completionHandler: (completionHandler)?) {
         self.device = device
         self.service = service
+        self.userAgent = userAgent
         self.completionHandler = completionHandler
     }
 
@@ -66,8 +72,13 @@ public class UPnPScpdBuilder {
         }
         
         service.status = .progress
+
+        var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         
-        HttpClient(url: url) {
+        HttpClient(url: url, fields: fields) {
             (data, response, error) in
 
             guard error == nil else {

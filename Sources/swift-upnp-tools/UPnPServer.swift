@@ -24,9 +24,9 @@ public class UPnPServer : HttpRequestHandler {
 
     /**
      meta app name
-     - e.g.) SwiftUPnPControlpoint/1.0
+     - e.g.) SwiftUPnPServer/1.0
      */
-    public static var META_APP_NAME: String = "SwiftUPnPControlpoint/1.0"
+    public static var META_APP_NAME: String = "SwiftUPnPServer/1.0"
 
     /**
      server name
@@ -885,8 +885,11 @@ public class UPnPServer : HttpRequestHandler {
      */
     public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties, completionHandler: sendPropertyHandler? = nil) {
         for url in subscription.callbackUrls {
-            let data = properties.xmlDocument.data(using: .utf8)
+            guard let data = properties.xmlDocument.data(using: .utf8) else {
+                continue
+            }
             var fields = [KeyValuePair]()
+            fields.append(KeyValuePair(key: "USER-AGENT", value: UPnPServer.SERVER_NAME))
             fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
             fields.append(KeyValuePair(key: "NTS", value: "upnp:propchange"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))

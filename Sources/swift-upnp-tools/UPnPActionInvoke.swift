@@ -47,10 +47,13 @@ public class UPnPActionInvoke {
      Invoke Action
      */
     public func invoke() {
-        let data = soapRequest.xmlDocument.data(using: .utf8)
+        guard let data = soapRequest.xmlDocument.data(using: .utf8) else {
+            print("UPnPActionInvoke::invoke() failed - xml data to utf8")
+            return
+        }
         var fields = [KeyValuePair]()
         if let userAgent = self.userAgent {
-            fields.append(KeyValuePair(key: "SERVER", value: "\"\(userAgent)\""))
+            fields.append(KeyValuePair(key: "USER-AGENT", value: "\"\(userAgent)\""))
         }
         fields.append(KeyValuePair(key: "SOAPACTION", value: "\"\(soapRequest.soapaction)\""))
 

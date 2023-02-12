@@ -776,7 +776,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     }
 
     func buildDevice(url: URL) {
-        UPnPDeviceBuilder(delegate: self) {
+        UPnPDeviceBuilder(delegate: self, userAgent: UPnPControlPoint.USER_AGENT) {
             (device, service, scpd, error) in 
             for handler in self.onScpdHandlers {
                 handler(device, service, scpd, error)
@@ -944,7 +944,7 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         guard let callbackUrls = makeCallbackUrl(udn: udn, service: service) else {
             throw UPnPError.custom(string: "UPnPControlPoint::subscribe() error - makeCallbackUrl failed")
         }
-        guard let subscriber = UPnPEventSubscriber(udn: udn, service: service, callbackUrls: [callbackUrls], notificationHandler: notificationHandler) else {
+        guard let subscriber = UPnPEventSubscriber(udn: udn, service: service, callbackUrls: [callbackUrls], userAgent: UPnPControlPoint.USER_AGENT, notificationHandler: notificationHandler) else {
             throw UPnPError.custom(string: "UPnPControlPoint::subscribe() error - UPnPEventSubscriber initializer failed")
         }
         subscriber.subscribe {
