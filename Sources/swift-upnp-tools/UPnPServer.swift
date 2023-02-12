@@ -616,16 +616,16 @@ public class UPnPServer : HttpRequestHandler {
     }
 
     func handleEventSubQuery(request: HttpRequest, response: HttpResponse) throws {
-        guard let callbackUrls = request.header["CALLBACK"] else {
-            throw HttpServerError.illegalArgument(string: "No Callback Header Field")
-        }
-        
         if let sid = request.header["SID"], let subscription = _subscription_safe(sid) {
             subscription.renewTimeout()
             response.status = .ok
             response.header["SID"] = sid
             response.header["TIMEOUT"] = "Second-1800"
             return
+        }
+
+        guard let callbackUrls = request.header["CALLBACK"] else {
+            throw HttpServerError.illegalArgument(string: "No Callback Header Field")
         }
         
         let urls = UPnPCallbackUrl.read(text: callbackUrls)
