@@ -48,7 +48,7 @@ public class UPnPEventSubscription : TimeBase {
     }
 
     public static func make(udn: String, service: UPnPService, callbackUrls: [URL]) -> UPnPEventSubscription {
-        let sid = "sid-\(NSUUID().uuidString.lowercased())"
+        let sid = "uuid:\(NSUUID().uuidString.lowercased())"
         return UPnPEventSubscription(udn: udn, service: service, sid: sid, callbackUrls: callbackUrls)
     }
 }
