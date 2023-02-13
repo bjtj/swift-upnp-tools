@@ -295,6 +295,7 @@ final class ServerTests: XCTestCase {
         XCTAssertNotNil(device!.udn)
         helperEventSubscribe(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: device!.udn!, service: service!, properties: ["GetLoadlevelTarget" : "12"])
 
+        helperEventSubscribeAndRenewal(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: device!.udn!)
         
         helperEventSubscribeAndUnsubscribe(st: "ssdp:all", serviceType: "urn:schemas-upnp-org:service:SwitchPower:1", server: server, udn: device!.udn!, service: service!, properties: ["GetLoadlevelTarget" : "321"])
         
@@ -541,6 +542,120 @@ final class ServerTests: XCTestCase {
         XCTAssertFalse(handledService.isEmpty)
         XCTAssertFalse(handledEvents.isEmpty)
         XCTAssertEqual(handledEvents.count, 3)
+
+        cp.finish()
+
+        usleep(500 * 1000)
+        XCTAssertFalse(cp.running)
+    }
+
+
+    /**
+     event subscribe and renewal
+     */
+    func helperEventSubscribeAndRenewal(st: String, serviceType: String, server: UPnPServer, udn: String) -> Void {
+        let cp = UPnPControlPoint()
+        cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
+
+        var handledService = [UPnPService]()
+        var handledEvents = [UPnPEventSubscriber]()
+
+        var serviceId: String? = nil
+
+        cp.on(scpd: {
+                  (device, service, scpd, error) in
+                  
+                  guard let x = device?.udn, x == udn, let y = service?.serviceType, y == serviceType else {
+                      //                not expected device
+                      return
+                  }
+
+                  guard error == nil else {
+                      // error
+                      XCTFail("error - \(error!)")
+                      return
+                  }
+
+                  guard let service = service else {
+                      // error
+                      return
+                  }
+
+                  guard service.serviceType == serviceType else {
+                      // not expected service
+                      return
+                  }
+
+                  serviceId = service.serviceId
+
+                  guard let device = device, let udn = device.udn else {
+                      // error
+                      return
+                  }
+
+                  do {
+                      try cp.subscribe(
+                        udn: udn,
+                        service: service,
+                        completionHandler: {
+                            (subscriber, error) in
+                            XCTAssertNil(error)
+                            guard let subscriber = subscriber else {
+                                XCTFail("No Subscriber")
+                                return
+                            }
+                            XCTAssertNotNil(subscriber.sid)
+                            print("[SUBSCRIBE] ok (SID: '\(subscriber.sid!)', tick: \(subscriber.tick))")
+
+                            DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + 1) {
+                                subscriber.renewSubscribe {
+                                    (subscriber, error) in
+
+                                    if let err = error {
+                                        XCTFail("renew error - \(err)")
+                                        return
+                                    }
+
+                                    guard let subscriber = subscriber else {
+                                        XCTFail("no subscriber")
+                                        return
+                                    }
+
+                                    print("[SUBSCRIBE] renew ok (SID: '\(subscriber.sid!)', tick: \(subscriber.tick))")
+
+                                    handledEvents.append(subscriber)
+                                }
+                            }
+                            
+                        })
+
+                  } catch {
+                      XCTFail("failed - \(error)")
+                      return
+                  }
+
+                  handledService.append(service)
+              })
+
+        do {
+            try cp.run()
+            sleep(2)
+        } catch let e {
+            XCTFail("cp.run() failed \(e)")
+            return
+        }
+
+        cp.sendMsearch(st: st, mx: 3)
+
+        sleep(5)
+
+        XCTAssertNotNil(serviceId)
+        if let serviceId = serviceId {
+            XCTAssertFalse(cp.getEventSubscribers(forServiceId: serviceId).isEmpty)
+        }
+        XCTAssertFalse(handledService.isEmpty)
+        XCTAssertFalse(handledEvents.isEmpty)
+        XCTAssertEqual(handledEvents.count, 1)
 
         cp.finish()
 
