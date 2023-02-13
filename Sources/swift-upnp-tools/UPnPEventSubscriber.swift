@@ -90,7 +90,9 @@ public class UPnPEventSubscriber : TimeBase {
      */
     public var sid: String?
 
-    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800, notificationHandler: eventNotificationHandler? = nil) {
+    public var userAgent: String? = nil
+
+    public init?(udn: String, service: UPnPService, callbackUrls: [URL], timeout: UInt64 = 1800, userAgent: String? = nil, notificationHandler: eventNotificationHandler? = nil) {
         self.udn = udn
         self.service = service
         self.callbackUrls = callbackUrls
@@ -98,6 +100,7 @@ public class UPnPEventSubscriber : TimeBase {
             return nil
         }
         url = eventSubUrlFull
+        self.userAgent = userAgent
         self.notificationHandler = notificationHandler
         super.init(timeout: timeout)
     }
@@ -110,6 +113,9 @@ public class UPnPEventSubscriber : TimeBase {
         status = .subscribing
         
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
         fields.append(KeyValuePair(key: "CALLBACK", value: callbackUrls.map{"<\($0)>"}.joined(separator: " ")))
         fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
@@ -191,6 +197,9 @@ public class UPnPEventSubscriber : TimeBase {
         }
         
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         fields.append(KeyValuePair(key: "SID", value: sid))
         fields.append(KeyValuePair(key: "TIMEOUT", value: "Second-\(timeout)"))
         HttpClient(url: url, method: "SUBSCRIBE", fields: fields) {
@@ -231,6 +240,9 @@ public class UPnPEventSubscriber : TimeBase {
             return
         }
         var fields = [KeyValuePair]()
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
         fields.append(KeyValuePair(key: "SID", value: sid))
         HttpClient(url: url, method: "UNSUBSCRIBE", fields: fields) {
             (data, response, error) in

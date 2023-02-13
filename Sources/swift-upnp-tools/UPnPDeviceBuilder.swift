@@ -27,9 +27,15 @@ public class UPnPDeviceBuilder {
      */
     public var scpdCompletionHandler: (UPnPScpdBuilder.completionHandler)?
 
+    /**
+     user agent
+     */
+    public var userAgent: String?
+
     
-    public init(delegate: UPnPDeviceBuilderDelegate?, scpdCompletionHandler: (UPnPScpdBuilder.completionHandler)?) {
+    public init(delegate: UPnPDeviceBuilderDelegate?, userAgent: String? = nil, scpdCompletionHandler: (UPnPScpdBuilder.completionHandler)?) {
         self.delegate = delegate
+        self.userAgent = userAgent
         self.scpdCompletionHandler = scpdCompletionHandler
     }
 
@@ -37,7 +43,11 @@ public class UPnPDeviceBuilder {
      build from url
      */
     public func build(url: URL) {
-        HttpClient(url: url) {
+        var fields: [KeyValuePair] = []
+        if let userAgent = self.userAgent {
+            fields.append(KeyValuePair(key: "USER-AGENT", value: userAgent))
+        }
+        HttpClient(url: url, fields: fields) {
             (data, response, error) in
             guard error == nil else {
                 self.delegate?.onDeviceBuildError(error: "error - \(error!)")
@@ -70,7 +80,7 @@ public class UPnPDeviceBuilder {
                 } else {
                     device.buildingServiceCount = services.count
                     for service in services {
-                        UPnPScpdBuilder(device: device, service: service, completionHandler: self.scpdCompletionHandler)
+                        UPnPScpdBuilder(device: device, service: service, userAgent: self.userAgent, completionHandler: self.scpdCompletionHandler)
                           .build()
                     }
                 }

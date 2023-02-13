@@ -10,40 +10,31 @@ import SwiftHttpServer
  */
 public class UPnPServer : HttpRequestHandler {
 
-    public static var META_OS_NAME: String = "\(OS_NAME)"
+    /**
+     meta os name
+     - e.g.) unix/5.2
+     */
+    public static var META_OS_NAME: String = "\(osname())"
+
+    /**
+     meta upnp version
+     - e.g.) UPnP/1.1
+     */
     public static var META_UPNP_VER: String = "UPnP/1.1"
+
+    /**
+     meta app name
+     - e.g.) SwiftUPnPServer/1.0
+     */
     public static var META_APP_NAME: String = "SwiftUPnPServer/1.0"
 
-    public static var OS_NAME: String {
+    /**
+     server name
+     e.g.) unix/5.2 UPnP/1.1 SwiftUPnPControlpoint/1.0
+     */
+    public static var SERVER_NAME: String {
         get {
-            let versionString: String
-            
-            if #available(OSX 10.10, *) {
-                let version = ProcessInfo.processInfo.operatingSystemVersion
-                versionString = "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
-            } else {
-                versionString = "10.9"
-            }
-            
-            let osName: String = {
-                #if os(iOS)
-                return "iOS"
-                #elseif os(watchOS)
-                return "watchOS"
-                #elseif os(tvOS)
-                return "tvOS"
-                #elseif os(OSX)
-                return "OS X"
-                #elseif os(macOS)
-                return "MacOS"
-                #elseif os(Linux)
-                return "Linux"
-                #else
-                return "Unknown"
-                #endif
-            }()
-            
-            return "\(osName)/\(versionString)"
+            return "\(META_OS_NAME) \(META_UPNP_VER) \(META_APP_NAME)"
         }
     }
     
@@ -282,7 +273,7 @@ public class UPnPServer : HttpRequestHandler {
         properties["NT"] = usn.type.isEmpty ? usn.uuid : usn.type
         properties["USN"] = usn.description
         properties["LOCATION"] = location
-        properties["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
+        properties["SERVER"] = UPnPServer.SERVER_NAME
         SSDP.notify(properties: properties)
     }
     
@@ -455,7 +446,6 @@ public class UPnPServer : HttpRequestHandler {
 
     
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
-        response["SERVER"] = "\(UPnPServer.META_OS_NAME) \(UPnPServer.META_UPNP_VER) \(UPnPServer.META_APP_NAME)"
         if isDeviceQuery(request: request) {
             try handleDeviceQuery(request: request, response: response)
             return
@@ -568,6 +558,8 @@ public class UPnPServer : HttpRequestHandler {
             throw HttpServerError.custom(string: "parse failed soap request")
         }
 
+        response.header["SERVER"] = UPnPServer.SERVER_NAME
+
         guard let handler = self.actionRequestHandler else {
             print("HttpServer::handleControlQuery() No Handler")
             let errorResponse = UPnPSoapErrorResponse(error: .actionFailed)
@@ -625,6 +617,7 @@ public class UPnPServer : HttpRequestHandler {
             response.status = .ok
             response.header["SID"] = sid
             response.header["TIMEOUT"] = "Second-1800"
+            response.header["SERVER"] = UPnPServer.SERVER_NAME
             return
         }
         
@@ -654,6 +647,7 @@ public class UPnPServer : HttpRequestHandler {
                 response.status = .ok
                 response.header["SID"] = subscription.sid
                 response.header["TIMEOUT"] = "Second-1800"
+                response.header["SERVER"] = UPnPServer.SERVER_NAME
                 return
             }
             throw HttpServerError.custom(string: "no matching device")
@@ -836,6 +830,7 @@ public class UPnPServer : HttpRequestHandler {
         header["ST"] = usn.type.isEmpty ? usn.uuid : usn.type
         header["USN"] = usn.description
         header["LOCATION"] = location
+        header["SERVER"] = UPnPServer.SERVER_NAME
         return header
     }
 
@@ -890,8 +885,11 @@ public class UPnPServer : HttpRequestHandler {
      */
     public func sendEventProperties(subscription: UPnPEventSubscription, properties: UPnPEventProperties, completionHandler: sendPropertyHandler? = nil) {
         for url in subscription.callbackUrls {
-            let data = properties.xmlDocument.data(using: .utf8)
+            guard let data = properties.xmlDocument.data(using: .utf8) else {
+                continue
+            }
             var fields = [KeyValuePair]()
+            fields.append(KeyValuePair(key: "USER-AGENT", value: UPnPServer.SERVER_NAME))
             fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
             fields.append(KeyValuePair(key: "NTS", value: "upnp:propchange"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
