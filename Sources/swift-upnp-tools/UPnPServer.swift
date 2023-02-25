@@ -862,6 +862,7 @@ public class UPnPServer : HttpRequestHandler {
         for subscription in subscriptions {
             let properties = UPnPEventProperties(fromDict: properties)
             sendEventProperties(subscription: subscription, properties: properties, completionHandler: completionHandler)
+            subscription.incSeq()
         }
     }
 
@@ -893,6 +894,7 @@ public class UPnPServer : HttpRequestHandler {
             fields.append(KeyValuePair(key: "NT", value: "upnp:event"))
             fields.append(KeyValuePair(key: "NTS", value: "upnp:propchange"))
             fields.append(KeyValuePair(key: "SID", value: subscription.sid))
+            fields.append(KeyValuePair(key: "SEQ", value: subscription.seqString))
             HttpClient(url: url, method: "NOTIFY", data: data, contentType: "text/xml", fields: fields) {
                 (data, response, error) in
                 guard error == nil else {

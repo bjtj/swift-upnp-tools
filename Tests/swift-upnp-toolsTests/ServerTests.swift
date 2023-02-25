@@ -399,9 +399,8 @@ final class ServerTests: XCTestCase {
         let cp = UPnPControlPoint()
         cp.monitor(name: "cp-monitor", handler: controlpointMonitoringHandler)
 
-        var handledService = [UPnPService]()
-        var handledEvents = [UPnPEventSubscriber]()
-
+        var handledService: [UPnPService] = []
+        var handledEvents: [UPnPEventSubscriber] = []
         var serviceId: String? = nil
 
         cp.on(scpd: {
@@ -463,7 +462,7 @@ final class ServerTests: XCTestCase {
                               return
                           }
                           XCTAssertNotNil(properties)
-                          print(" >>> \(sid) <<<\n- \(properties?.description ?? "nil")")
+                          print("ON EVENT -- SID: \(sid), SEQ: \(subscriber.seq)\n- \(properties?.description ?? "nil")")
 
                           handledEvents.append(subscriber)
                       }
@@ -484,6 +483,9 @@ final class ServerTests: XCTestCase {
                       XCTFail("no subscriber")
                       return
                   }
+
+                  print("ON EVENT - SID: \(subscriber.sid ?? "(no sid)") , SEQ: \(subscriber.seq)")
+                  
                   handledEvents.append(subscriber)
               })
 
@@ -499,6 +501,8 @@ final class ServerTests: XCTestCase {
                       XCTFail("no subscriber")
                       return
                   }
+
+                  print("ON EVENT - SID: \(subscriber.sid ?? "(no sid)") , SEQ: \(subscriber.seq)")
 
                   guard let props = props else {
                       XCTFail("no properties")
@@ -531,7 +535,18 @@ final class ServerTests: XCTestCase {
         sleep(3)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+
+        let repeatCount = 3
+
+        for _ in (0..<repeatCount) {
+            server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+                subscription, error in
+                if let error = error {
+                    XCTFail("set property error - \(error)")
+                    return
+                }
+            }
+        }
 
         sleep(1)
 
@@ -541,7 +556,7 @@ final class ServerTests: XCTestCase {
         }
         XCTAssertFalse(handledService.isEmpty)
         XCTAssertFalse(handledEvents.isEmpty)
-        XCTAssertEqual(handledEvents.count, 3)
+        XCTAssertEqual(handledEvents.count, 3 * repeatCount)
 
         cp.finish()
 
@@ -755,6 +770,11 @@ final class ServerTests: XCTestCase {
 
         cp.on(eventProperties: {
                   (subscriber, props, error) in
+
+                  if let subscriber = subscriber {
+                      print("ON EVENT - SID: \(subscriber.sid ?? "(no sid)") , SEQ: \(subscriber.seq)")
+                  }
+                  
                   handledEvents.append(subscriber)
               })
 
@@ -771,7 +791,13 @@ final class ServerTests: XCTestCase {
         sleep(3)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+            subscription, error in
+            if let error = error {
+                XCTFail("set property error - \(error)")
+                return
+            }
+        }
 
         sleep(3)
 
@@ -1002,6 +1028,8 @@ final class ServerTests: XCTestCase {
                       return
                   }
 
+                  print("ON EVENT - SID: \(subscriber.sid ?? "(no sid)") , SEQ: \(subscriber.seq)")
+
                   XCTAssertNotNil(properties)
                   guard let props = props else {
                       return
@@ -1033,7 +1061,13 @@ final class ServerTests: XCTestCase {
         sleep(3)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+            subscription, error in
+            if let error = error {
+                XCTFail("set property error - \(error)")
+                return
+            }
+        }
 
         sleep(1)
 
@@ -1058,7 +1092,13 @@ final class ServerTests: XCTestCase {
         sleep(1)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+            subscription, error in
+            if let error = error {
+                XCTFail("set property error - \(error)")
+                return
+            }
+        }
 
         sleep(1)
 
@@ -1164,6 +1204,8 @@ final class ServerTests: XCTestCase {
                       return
                   }
 
+                  print("ON EVENT - SID: \(subscriber.sid ?? "(no sid)") , SEQ: \(subscriber.seq)")
+
                   XCTAssertNotNil(properties)
                   guard let props = props else {
                       return
@@ -1195,7 +1237,13 @@ final class ServerTests: XCTestCase {
         sleep(3)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+            subscription, error in
+            if let error = error {
+                XCTFail("set property error - \(error)")
+                return
+            }
+        }
 
         sleep(1)
 
@@ -1228,7 +1276,13 @@ final class ServerTests: XCTestCase {
         sleep(1)
 
         XCTAssertNotNil(service.serviceId)
-        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties)
+        server.setProperty(udn: udn, serviceId: service.serviceId!, properties: properties) {
+            subscription, error in
+            if let error = error {
+                XCTFail("set property error - \(error)")
+                return
+            }
+        }
 
         sleep(1)
 
