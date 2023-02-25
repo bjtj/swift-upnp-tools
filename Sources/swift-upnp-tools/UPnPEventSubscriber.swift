@@ -105,6 +105,12 @@ public class UPnPEventSubscriber : TimeBase {
         super.init(timeout: timeout)
     }
 
+
+    /**
+     last seq
+     */
+    public var seq: UInt32 = 0
+
     /**
      Subscribe
      */

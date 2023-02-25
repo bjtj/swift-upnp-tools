@@ -532,13 +532,43 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
     }
 
     /**
-     when http request header completed
+     (HTTP Server) HTTP request header completed
      */
     public func onHeaderCompleted(header: HttpHeader, request: HttpRequest, response: HttpResponse) throws {
+        guard let nt = header["NT"] else {
+            print("[UPnPControlpoint] no nt")
+            throw HttpStatusCode.badRequest
+        }
+
+        guard let nts = header["NTS"] else {
+            print("[UPnPControlpoint] no nts")
+            throw HttpStatusCode.badRequest
+        }
+
+        guard let seqString = request.header["SEQ"], let _ = UInt32(seqString) else {
+            print("[UPnPControlpoint] no seq")
+            throw HttpStatusCode.badRequest
+        }
+
+        guard let sid = header["SID"], sid.isEmpty == false else {
+            print("[UPnPControlpoint] no sid")
+            throw HttpStatusCode.preconditionFailed
+        }
+
+        guard nt == "upnp:event" else {
+            print("[UPnPControlpoint] nt is not upnp:event")
+            throw HttpStatusCode.preconditionFailed
+        }
+
+        guard nts == "upnp:propchange" else {
+            print("[UPnPControlpoint] nts is not upnp:propchange")
+            throw HttpStatusCode.preconditionFailed
+        }
     }
 
     /**
-     when http request body completed
+     (HTTP Server) HTTP request body completed
+     - Event Properties
      */
     public func onBodyCompleted(body: Data?, request: HttpRequest, response: HttpResponse) throws {
 
@@ -567,13 +597,19 @@ public class UPnPControlPoint : UPnPDeviceBuilderDelegate, HttpRequestHandler {
         }
 
         do {
-            guard let sid = request.header["sid"] else {
-                throw HttpServerError.illegalArgument(string: "No SID")
+            guard let sid = request.header["SID"] else {
+                throw HttpStatusCode.preconditionFailed
+            }
+
+            guard let seqString = request.header["SEQ"], let seq = UInt32(seqString) else {
+                throw HttpStatusCode.badRequest
             }
             
             guard let subscriber = self.getEventSubscriber(sid: sid) else {
-                throw HttpServerError.illegalArgument(string: "No subscbier found with SID: '\(sid)'")
+                throw HttpStatusCode.preconditionFailed
             }
+
+            subscriber.seq = seq;
             
             try self.eventProperties(subscriber: subscriber, properties: properties, error: nil)
             response.status = .ok
